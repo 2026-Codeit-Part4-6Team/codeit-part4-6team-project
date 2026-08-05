@@ -35,6 +35,14 @@ uv run --locked --group dev ruff check .
 
 의존성은 `uv add --group backend 패키지명`처럼 해당 그룹을 지정해 추가합니다. `pyproject.toml`과 `uv.lock`을 원본으로 관리하며 `uv.lock`과 `requirements.txt`는 직접 수정하지 않습니다.
 
+의존성을 변경한 경우 `pyproject.toml`, `uv.lock`, `requirements.txt`를 함께 반영합니다.
+
+```bash
+uv export --locked --no-default-groups \
+  --group backend --group frontend \
+  --format requirements.txt --output-file requirements.txt
+```
+
 서비스별 실행환경과 포트는 다음 문서를 확인해주세요.
 
 - [백엔드 안내](backend/README.md)
