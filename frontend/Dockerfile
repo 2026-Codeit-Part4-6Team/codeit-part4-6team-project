@@ -13,7 +13,7 @@ COPY --from=uv /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --only-group frontend
 
-COPY frontend/app.py ./frontend/app.py
+COPY frontend ./frontend
 
 EXPOSE 8501
 

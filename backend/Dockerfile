@@ -13,7 +13,7 @@ COPY --from=uv /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --only-group backend
 
-COPY backend/app ./backend/app
+COPY backend ./backend
 
 EXPOSE 8000
 

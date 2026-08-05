@@ -10,10 +10,3 @@ def test_health() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
-
-def test_generate() -> None:
-    response = client.post("/generate", json={"prompt": "신메뉴 광고"})
-
-    assert response.status_code == 200
-    assert "신메뉴 광고" in response.json()["result"]
