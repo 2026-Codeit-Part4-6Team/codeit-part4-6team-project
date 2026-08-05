@@ -10,29 +10,19 @@ Streamlit 기반 사용자 화면 컨테이너입니다. 입력한 광고 요청
 | --- | --- |
 | Compose 서비스 이름 | `frontend` |
 | 컨테이너 내부 포트 | `8501` |
-| 호스트 포트 | `8501` |
+| 호스트 포트 | 기본 `8501`, GCP 확인 시 `80` |
 | 사용자 접근 주소 | `http://localhost:8501` |
 | 컨테이너 내부 백엔드 주소 | `http://backend:8000` |
 
 브라우저는 호스트 `8501`번으로 접근하고, 프론트엔드 컨테이너는 Compose 내부 네트워크에서 `backend:8000`으로 API를 호출합니다. 호스트의 JupyterHub `8000`번 포트와는 관계가 없습니다.
 
-호스트 `8501`번 공개는 초기 스켈레톤 확인용입니다. 운영 단계의 `80/443` 진입점과는 별도로 취급합니다.
+호스트 포트는 `.env`의 `FRONTEND_PORT`로 변경합니다. 현재 공개 포트는 초기 스켈레톤 확인용입니다.
 
 ## 환경변수
 
 | 변수 | 기본값 | 용도 |
 | --- | --- | --- |
 | `BACKEND_URL` | `http://backend:8000` | 백엔드 API 주소 |
-
-## 의존성
-
-프론트엔드 의존성은 루트 `pyproject.toml`의 `frontend` 그룹과 `uv.lock`으로 관리합니다.
-
-공통 규칙은 [Python 의존성 관리](../docs/dependency-management.md)를 확인해주세요.
-
-```bash
-uv sync --locked --group frontend --group dev
-```
 
 ## 실행 및 확인
 
