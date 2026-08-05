@@ -22,6 +22,12 @@ services:
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
     ports:
       - "${FRONTEND_PORT:-8501}:8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     depends_on:
       backend:
         condition: service_healthy

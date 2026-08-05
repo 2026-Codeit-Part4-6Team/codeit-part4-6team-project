@@ -4,6 +4,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
@@ -14,6 +15,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --only-group frontend
 
 COPY frontend ./frontend
+RUN /app/.venv/bin/python -c "from frontend.api_client import ApiClient"
 
 EXPOSE 8501
 
