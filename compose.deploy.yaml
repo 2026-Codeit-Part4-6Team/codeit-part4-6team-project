@@ -1,0 +1,29 @@
+services:
+  backend:
+    image: "${IMAGE_BASE:?IMAGE_BASE를 지정해주세요}/backend:${IMAGE_TAG:?IMAGE_TAG를 지정해주세요}"
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-18000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: "${IMAGE_BASE:?IMAGE_BASE를 지정해주세요}/frontend:${IMAGE_TAG:?IMAGE_TAG를 지정해주세요}"
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy

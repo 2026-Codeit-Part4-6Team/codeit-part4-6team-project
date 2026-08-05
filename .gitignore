@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .streamlit/secrets.toml
+
+# google-github-actions/auth가 실행 중 생성하는 임시 인증 파일
+gha-creds-*.json

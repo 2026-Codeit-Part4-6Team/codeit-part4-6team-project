@@ -1,0 +1,157 @@
+name: GCP 수동 배포
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: 이미지 빌드 및 업로드
+    runs-on: ubuntu-latest
+    outputs:
+      image_base: ${{ steps.metadata.outputs.image_base }}
+      image_tag: ${{ steps.metadata.outputs.image_tag }}
+      registry_host: ${{ steps.metadata.outputs.registry_host }}
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v6
+
+      - name: 설정값 확인
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+        run: |
+          for name in \
+            GCP_PROJECT_ID \
+            GCP_REGION \
+            ARTIFACT_REGISTRY_REPOSITORY \
+            GCP_WORKLOAD_IDENTITY_PROVIDER \
+            GCP_SERVICE_ACCOUNT
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "필수 GitHub Actions Variable이 없습니다: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: 이미지 메타데이터 생성
+        id: metadata
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+        run: |
+          registry_host="${GCP_REGION}-docker.pkg.dev"
+          image_base="${registry_host}/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}"
+          echo "registry_host=${registry_host}" >> "${GITHUB_OUTPUT}"
+          echo "image_base=${image_base}" >> "${GITHUB_OUTPUT}"
+          echo "image_tag=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Google Cloud 인증
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Google Cloud CLI 설치
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Artifact Registry 로그인
+        env:
+          REGISTRY_HOST: ${{ steps.metadata.outputs.registry_host }}
+        run: gcloud auth configure-docker "${REGISTRY_HOST}" --quiet
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v4
+
+      - name: 백엔드 이미지 빌드 및 업로드
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.metadata.outputs.image_base }}/backend:${{ steps.metadata.outputs.image_tag }}
+
+      - name: 프론트엔드 이미지 빌드 및 업로드
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.metadata.outputs.image_base }}/frontend:${{ steps.metadata.outputs.image_tag }}
+
+  deploy:
+    name: VM 컨테이너 교체
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v6
+
+      - name: 배포 설정값 확인
+        env:
+          VM_HOST: ${{ vars.VM_HOST }}
+          VM_SSH_USER: ${{ vars.VM_SSH_USER }}
+          VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
+          VM_SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          for name in VM_HOST VM_SSH_USER VM_DEPLOY_PATH VM_SSH_PRIVATE_KEY VM_SSH_KNOWN_HOSTS
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "필수 GitHub Actions Variable 또는 Secret이 없습니다: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: SSH 설정
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "${HOME}/.ssh"
+          printf '%s\n' "${VM_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/deploy_key"
+          printf '%s\n' "${VM_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
+          chmod 600 "${HOME}/.ssh/deploy_key" "${HOME}/.ssh/known_hosts"
+
+      - name: 배포 파일 전송
+        env:
+          VM_HOST: ${{ vars.VM_HOST }}
+          VM_SSH_USER: ${{ vars.VM_SSH_USER }}
+          VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
+        run: |
+          ssh -i "${HOME}/.ssh/deploy_key" "${VM_SSH_USER}@${VM_HOST}" \
+            "mkdir -p '${VM_DEPLOY_PATH}/scripts'"
+          scp -i "${HOME}/.ssh/deploy_key" \
+            compose.deploy.yaml .env.example \
+            "${VM_SSH_USER}@${VM_HOST}:${VM_DEPLOY_PATH}/"
+          scp -i "${HOME}/.ssh/deploy_key" \
+            scripts/deploy.sh \
+            "${VM_SSH_USER}@${VM_HOST}:${VM_DEPLOY_PATH}/scripts/deploy.sh"
+
+      - name: 배포 실행
+        env:
+          VM_HOST: ${{ vars.VM_HOST }}
+          VM_SSH_USER: ${{ vars.VM_SSH_USER }}
+          VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
+          IMAGE_BASE: ${{ needs.publish.outputs.image_base }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          REGISTRY_HOST: ${{ needs.publish.outputs.registry_host }}
+        run: |
+          ssh -i "${HOME}/.ssh/deploy_key" "${VM_SSH_USER}@${VM_HOST}" \
+            "bash '${VM_DEPLOY_PATH}/scripts/deploy.sh' \
+              '${IMAGE_BASE}' '${IMAGE_TAG}' '${REGISTRY_HOST}'"

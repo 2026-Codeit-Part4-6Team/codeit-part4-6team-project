@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.11.32"
+
+jobs:
+  test:
+    name: 코드 품질 및 테스트
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v6
+
+      - name: uv 및 Python 설치
+        uses: astral-sh/setup-uv@v8
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: 의존성 동기화
+        run: uv sync --locked --all-groups
+
+      - name: Ruff 검사
+        run: uv run --locked --all-groups ruff check .
+
+      - name: 테스트 실행
+        run: uv run --locked --all-groups pytest
+
+      - name: requirements.txt 동기화 확인
+        run: |
+          uv export --quiet --locked --no-default-groups \
+            --group backend --group frontend \
+            --format requirements.txt --no-header \
+            --output-file /tmp/requirements.txt
+          tail -n +3 requirements.txt | tr -d '\r' > /tmp/requirements.current.txt
+          diff -u /tmp/requirements.current.txt /tmp/requirements.txt
+
+  docker:
+    name: Docker 이미지 빌드
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v6
+
+      - name: Compose 설정 검사
+        run: docker compose config --quiet
+
+      - name: 서비스 이미지 빌드
+        run: docker compose build --pull

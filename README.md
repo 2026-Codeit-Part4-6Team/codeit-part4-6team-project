@@ -47,3 +47,11 @@ uv export --locked --no-default-groups \
 
 - [백엔드 안내](backend/README.md)
 - [프론트엔드 안내](frontend/README.md)
+
+## CI/CD
+
+Pull Request에서는 코드 검사, 테스트, Docker 이미지 빌드를 자동으로 확인합니다. GCP 배포는 초기 설정이 완료될 때까지 GitHub Actions에서 수동으로만 실행합니다.
+
+- [CI/CD 운영 및 설정 안내](.github/workflows/README.md)
+- 로컬 빌드: `compose.yaml`
+- Artifact Registry 이미지 배포: `compose.deploy.yaml`
