@@ -23,3 +23,4 @@ docker compose up --build
 
 - [백엔드 안내](backend/README.md)
 - [프론트엔드 안내](frontend/README.md)
+- [Python 의존성 관리](docs/dependency-management.md)

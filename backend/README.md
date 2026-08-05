@@ -30,6 +30,8 @@ FastAPI 기반 API 컨테이너입니다. 현재는 컨테이너 연결 검증�
 
 백엔드 의존성은 루트 `pyproject.toml`의 `backend` 그룹과 `uv.lock`으로 관리합니다.
 
+공통 규칙은 [Python 의존성 관리](../docs/dependency-management.md)를 확인해주세요.
+
 ```bash
 uv sync --locked --group backend --group dev
 ```
