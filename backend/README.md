@@ -1,0 +1,54 @@
+# 백엔드
+
+FastAPI 기반 API 컨테이너입니다. 현재는 컨테이너 연결 검증을 위한 상태 확인과 목 생성 API를 제공합니다.
+
+## 컨테이너와 포트
+
+| 항목 | 값 |
+| --- | --- |
+| Compose 서비스 이름 | `backend` |
+| 컨테이너 내부 포트 | `8000` |
+| 호스트 포트 | `18000` |
+| 프론트엔드에서 접근하는 주소 | `http://backend:8000` |
+| 호스트에서 확인하는 주소 | `http://localhost:18000` |
+
+호스트의 `8000`번 포트는 VM에 설치된 JupyterHub가 사용합니다. 백엔드는 호스트 `18000`번을 컨테이너 `8000`번에 연결하므로 포트가 충돌하지 않습니다.
+
+`18000`번은 초기 개발과 외부 헬스체크를 위한 임시 포트입니다. 운영 배포에서는 FastAPI를 직접 공개하지 않고 프록시를 통한 내부 접근으로 변경할 예정입니다.
+
+## 엔드포인트
+
+| 메서드 | 경로 | 용도 |
+| --- | --- | --- |
+| `GET` | `/health` | 컨테이너 상태 확인 |
+| `POST` | `/generate` | 목 광고 콘텐츠 생성 |
+| `GET` | `/docs` | OpenAPI 문서 |
+
+## 의존성
+
+백엔드 의존성은 루트 `pyproject.toml`의 `backend` 그룹과 `uv.lock`으로 관리합니다.
+
+```bash
+uv sync --locked --group backend --group dev
+```
+
+## 실행 및 확인
+
+저장소 루트에서 실행합니다.
+
+```bash
+docker compose up --build backend
+curl http://localhost:18000/health
+```
+
+## 현재 구조
+
+```text
+backend/app/
+├── main.py              애플리케이션 생성과 라우터 등록
+├── api/                 HTTP 엔드포인트
+├── schemas/             요청·응답 스키마
+└── services/            생성 유스케이스
+```
+
+LangGraph, DB, 추론 서버 관련 디렉터리는 담당 기능과 계약이 확정된 뒤 추가합니다.

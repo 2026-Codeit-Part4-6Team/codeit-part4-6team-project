@@ -4,9 +4,6 @@
 
 현재 저장소는 POC에서 검증한 사용자 흐름을 팀 프로젝트 구조로 옮기는 초기 단계입니다.
 
-- [초기 서비스 아키텍처](docs/architecture.md)
-- [개발환경 및 의존성 관리](docs/development.md)
-
 ## 빠른 실행
 
 ```bash
@@ -19,3 +16,8 @@ docker compose up --build
 - 백엔드 API 문서: `http://localhost:18000/docs`
 
 현재 `/generate`는 프론트엔드와 백엔드 연결을 확인하기 위한 목 응답을 반환합니다.
+
+서비스별 실행환경과 포트는 다음 문서를 확인해주세요.
+
+- [백엔드 안내](backend/README.md)
+- [프론트엔드 안내](frontend/README.md)
