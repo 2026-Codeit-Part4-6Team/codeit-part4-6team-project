@@ -25,11 +25,38 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "VM 서비스 계정 토큰을 조회하려면 python3가 필요합니다." >&2
+  echo "배포 설정과 VM 서비스 계정 토큰을 처리하려면 python3가 필요합니다." >&2
   exit 1
 fi
 
-mkdir -p "${APP_DATA_DIR:-/srv/team6/data}"
+export IMAGE_BASE IMAGE_TAG COMPOSE_PROJECT_NAME
+compose=(docker compose -p "$COMPOSE_PROJECT_NAME" --env-file .env -f "$COMPOSE_FILE")
+
+app_data_dir="$("${compose[@]}" config --format json | python3 -c '
+import json
+import sys
+
+config = json.load(sys.stdin)
+volumes = config["services"]["backend"].get("volumes", [])
+matches = [
+    volume["source"]
+    for volume in volumes
+    if volume.get("type") == "bind" and volume.get("target") == "/app/data"
+]
+if len(matches) != 1:
+    raise SystemExit("backend의 /app/data 바인드 마운트를 하나만 설정해야 합니다.")
+print(matches[0])
+')"
+
+if ! mkdir -p "$app_data_dir"; then
+  echo "데이터 디렉터리를 만들 수 없습니다: $app_data_dir" >&2
+  exit 1
+fi
+
+if [[ ! -w "$app_data_dir" ]]; then
+  echo "데이터 디렉터리에 쓰기 권한이 없습니다: $app_data_dir" >&2
+  exit 1
+fi
 
 access_token="$(python3 - <<'PY'
 import json
@@ -48,12 +75,25 @@ printf '%s\n' "$access_token" \
   | docker login -u oauth2accesstoken --password-stdin "https://${REGISTRY_HOST}"
 unset access_token
 
-export IMAGE_BASE IMAGE_TAG COMPOSE_PROJECT_NAME
-compose=(docker compose -p "$COMPOSE_PROJECT_NAME" --env-file .env -f "$COMPOSE_FILE")
-
 "${compose[@]}" pull
 
 if ! "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180; then
+  "${compose[@]}" ps >&2 || true
+  "${compose[@]}" logs --no-color --tail=200 >&2 || true
+  exit 1
+fi
+
+if ! "${compose[@]}" exec -T frontend /app/.venv/bin/python - <<'PY'
+import os
+
+from frontend.api_client import ApiClient
+
+result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
+    "배포 컨테이너 연결 테스트"
+)
+assert result["status"] == "completed"
+PY
+then
   "${compose[@]}" ps >&2 || true
   "${compose[@]}" logs --no-color --tail=200 >&2 || true
   exit 1

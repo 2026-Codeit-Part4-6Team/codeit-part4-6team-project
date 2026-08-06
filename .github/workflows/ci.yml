@@ -35,6 +35,27 @@ jobs:
       - name: Run tests
         run: uv run --locked --all-groups pytest
 
+  deployment-assets:
+    name: Deployment assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare example deployment environment
+        run: cp .env.example .env
+
+      - name: Validate deployment Compose configuration
+        env:
+          IMAGE_BASE: example.invalid/team6
+          IMAGE_TAG: ci
+        run: docker compose -f compose.deploy.yaml config --quiet
+
+      - name: Validate deployment script syntax
+        run: bash -n scripts/deploy.sh
+
   compose-smoke-test:
     name: Compose smoke test
     runs-on: ubuntu-latest
@@ -75,6 +96,19 @@ jobs:
               body = json.load(response)
               assert response.status == 200
               assert body["status"] == "completed"
+          PY
+
+      - name: Verify frontend-to-backend connection
+        run: |
+          docker compose exec -T frontend /app/.venv/bin/python - <<'PY'
+          import os
+
+          from frontend.api_client import ApiClient
+
+          result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
+              "CI 컨테이너 연결 테스트"
+          )
+          assert result["status"] == "completed"
           PY
 
       - name: Print service logs on failure

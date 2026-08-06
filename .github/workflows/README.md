@@ -10,8 +10,8 @@
 
 ## 워크플로 트리거
 
-`ci.yml`은 `main` 대상 PR에서 자동 실행합니다. `main` Branch ruleset에서 `Python tests`와
-`Compose smoke test`를 필수 상태 검사로 등록하여 CI 실패 시 병합을 차단합니다.
+`ci.yml`은 `main` 대상 PR에서 자동 실행합니다. `main` Branch ruleset에서 `Python tests`,
+`Deployment assets`, `Compose smoke test`를 필수 상태 검사로 등록하여 CI 실패 시 병합을 차단합니다.
 
 `deploy.yml`은 Push로 실행되지 않습니다. 워크플로가 기본 브랜치에 병합된 뒤 GitHub의
 `Actions` → `Deploy` → `Run workflow`에서 `main`을 선택하고 확인 항목을 체크해 실행합니다.
@@ -35,6 +35,7 @@ CI는 `main` 대상 PR의 코드와 컨테이너 구성이 실행 가능한지 �
 ```text
 Pull Request
 ├── Python tests
+├── Deployment assets
 └── Compose smoke test
 ```
 
@@ -47,6 +48,20 @@ Pull Request
 | 3 | `uv sync --locked --all-groups` | `uv.lock` 변경 없이 의존성 설치 성공 |
 | 4 | `uv run --locked --all-groups pytest` | 전체 테스트 통과 |
 
+테스트에서는 공용 `TestClient` fixture를 사용해 클라이언트를 명시적으로 종료합니다. 이에 따라
+Windows와 Linux 모두 테스트 통과 후 `pytest` 프로세스가 정상 종료되어야 합니다.
+
+### Deployment assets
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | 예시 `.env` 준비 | 배포 설정 검증용 환경 파일 생성 |
+| 2 | `compose.deploy.yaml` 해석 | 예시 이미지 경로로 Compose 설정 검증 성공 |
+| 3 | `scripts/deploy.sh` 구문 검사 | `bash -n` 통과 |
+
+이 Job은 Registry나 VM에 접근하지 않고, 배포 자산이 `main`에 병합된 뒤 처음 실패하는 상황을
+줄이기 위한 정적 사전 검사만 수행합니다.
+
 ### Compose smoke test
 
 | 순서 | 작업 | 완료 조건 |
@@ -56,11 +71,12 @@ Pull Request
 | 3 | 백엔드 `/health` 호출 | HTTP 200 및 `{"status": "ok"}` 반환 |
 | 4 | 프론트엔드 `/_stcore/health` 호출 | HTTP 200 반환 |
 | 5 | 백엔드 `/generate` 목 요청 | HTTP 200 및 `completed` 상태 반환 |
-| 6 | 테스트 스택 정리 | 성공·실패와 관계없이 컨테이너와 임시 볼륨 제거 |
+| 6 | 프론트엔드 컨테이너에서 `BACKEND_URL`로 `/generate` 호출 | Compose 내부 연결 및 `completed` 상태 확인 |
+| 7 | 테스트 스택 정리 | 성공·실패와 관계없이 컨테이너와 임시 볼륨 제거 |
 
-`Python tests`와 `Compose smoke test`가 모두 성공해야 CI 통과로 판단합니다. 실패 시 관련 Job의
-로그를 확인하며, Compose 실패 시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는
-PR 병합만 차단하고 실행 중인 VM 서비스에는 영향을 주지 않습니다.
+세 Job이 모두 성공해야 CI 통과로 판단합니다. 실패 시 관련 Job의 로그를 확인하며, Compose 실패
+시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는 PR 병합만 차단하고 실행 중인 VM
+서비스에는 영향을 주지 않습니다.
 
 ## CD 작업 명세
 
@@ -103,6 +119,8 @@ Run workflow
 ```
 
 한 이미지라도 빌드 또는 Push에 실패하면 VM 배포 Job은 시작하지 않습니다.
+WIF 인증은 작업공간에 자격 증명 파일을 생성하지 않으며, `gha-creds-*.json` 패턴은
+`.dockerignore`에서도 제외해 Docker 빌드 컨텍스트 유입을 방지합니다.
 
 ### Deploy to GCP VM
 
@@ -111,19 +129,24 @@ Run workflow
 | 1 | Production Secret으로 SSH 설정 | 개인키와 검증된 호스트 키 적용 |
 | 2 | 배포 파일 업로드 | Compose 파일, 예시 환경 파일, 배포 스크립트 전송 |
 | 3 | VM 서비스 계정으로 Registry 인증 | Metadata Server의 단기 Token 발급 성공 |
-| 4 | 커밋 SHA 이미지 Pull | backend/frontend 이미지 다운로드 성공 |
-| 5 | 고정 Compose 프로젝트 재기동 | 두 컨테이너가 healthy 상태 |
-| 6 | 외부 프론트엔드 헬스체크 | `PUBLIC_HEALTHCHECK_URL` 성공 응답 |
+| 4 | 데이터 디렉터리 사전 검사 | Compose가 해석한 경로 생성 및 쓰기 가능 |
+| 5 | 커밋 SHA 이미지 Pull | backend/frontend 이미지 다운로드 성공 |
+| 6 | 고정 Compose 프로젝트 재기동 | 두 컨테이너가 healthy 상태 |
+| 7 | 프론트엔드→백엔드 내부 생성 요청 | `BACKEND_URL` 연결 및 `completed` 상태 확인 |
+| 8 | 외부 프론트엔드 헬스체크 | `PUBLIC_HEALTHCHECK_URL` 성공 응답 |
 
 CD는 VM의 실제 `.env`를 덮어쓰지 않으며 호스트에 마운트된 데이터 디렉터리를 유지합니다.
-JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습니다. 외부 헬스체크까지 성공해야
-배포 완료로 판단하며, 현재는 실패 시 자동 롤백하지 않습니다.
+JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습니다. 내부 생성 요청과 외부
+헬스체크까지 성공해야 배포 완료로 판단하며, 현재는 실패 시 자동 롤백하지 않습니다.
+
+내부 생성 요청은 현재 Python 기반 Streamlit 스켈레톤에 맞춘 검사입니다. React 이미지로 교체할
+때는 프론트엔드 런타임과 API 진입점에 맞게 검사 명령도 함께 변경합니다.
 
 ## Main Branch Ruleset
 
 - Require a pull request before merging
 - Require status checks to pass before merging
-- 필수 검사: `Python tests`, `Compose smoke test`
+- 필수 검사: `Python tests`, `Deployment assets`, `Compose smoke test`
 - 팀 운영 정책상 가능하면 직접 Push를 제한
 
 ## GitHub Repository Variables
