@@ -27,6 +27,98 @@ gh run watch
 CD는 애플리케이션 테스트를 다시 수행하지 않습니다. PR CI를 통과한 코드만 `main`에 병합되도록
 Branch ruleset을 구성하고, CD에서는 배포 대상·설정·인증·헬스체크만 검증합니다.
 
+## CI 작업 명세
+
+CI는 `main` 대상 PR의 코드와 컨테이너 구성이 실행 가능한지 검증합니다. GitHub Runner의
+임시 환경에서만 실행하며 Artifact Registry, GCP VM, JupyterHub를 변경하지 않습니다.
+
+```text
+Pull Request
+├── Python tests
+└── Compose smoke test
+```
+
+### Python tests
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | PR 코드 Checkout | 대상 커밋 Checkout 성공 |
+| 2 | Python `3.11`, uv `0.11.32` 설정 | 고정 버전 설치 성공 |
+| 3 | `uv sync --locked --all-groups` | `uv.lock` 변경 없이 의존성 설치 성공 |
+| 4 | `uv run --locked --all-groups pytest` | 전체 테스트 통과 |
+
+### Compose smoke test
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | `docker compose config --quiet` | Compose 설정 해석 성공 |
+| 2 | 백엔드·프론트엔드 이미지 빌드 및 실행 | 두 컨테이너가 healthy 상태 |
+| 3 | 백엔드 `/health` 호출 | HTTP 200 및 `{"status": "ok"}` 반환 |
+| 4 | 프론트엔드 `/_stcore/health` 호출 | HTTP 200 반환 |
+| 5 | 백엔드 `/generate` 목 요청 | HTTP 200 및 `completed` 상태 반환 |
+| 6 | 테스트 스택 정리 | 성공·실패와 관계없이 컨테이너와 임시 볼륨 제거 |
+
+`Python tests`와 `Compose smoke test`가 모두 성공해야 CI 통과로 판단합니다. 실패 시 관련 Job의
+로그를 확인하며, Compose 실패 시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는
+PR 병합만 차단하고 실행 중인 VM 서비스에는 영향을 주지 않습니다.
+
+## CD 작업 명세
+
+CD는 CI를 통과해 `main`에 병합된 커밋을 이미지로 만들고 GCP VM에 배포합니다. 자동 Push
+트리거는 사용하지 않으며 사용자가 수동 확인 항목을 선택한 경우에만 시작합니다.
+
+```text
+Run workflow
+→ Deployment preflight
+→ Build and push backend/frontend
+→ Deploy to GCP VM
+→ Public health check
+```
+
+### Deployment preflight
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | 실행 브랜치 확인 | `refs/heads/main`과 일치 |
+| 2 | 수동 배포 확인 | `confirm_deploy=true` |
+| 3 | Repository Variables 확인 | 필수 GCP·VM 설정값 존재 |
+| 4 | `compose.deploy.yaml` 검증 | 예시 `.env`와 커밋 SHA로 설정 해석 성공 |
+
+이 단계는 외부 자원을 변경하지 않습니다. 조건이 맞지 않으면 이미지 빌드 전에 종료합니다.
+
+### Build and push
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | WIF로 GCP 인증 | 단기 Access Token 발급 성공 |
+| 2 | Artifact Registry 로그인 | Docker 인증 성공 |
+| 3 | backend/frontend 병렬 빌드 | 두 Dockerfile 빌드 성공 |
+| 4 | 커밋 SHA 태그로 Push | Registry에 두 이미지 저장 |
+
+생성되는 이미지 이름은 다음과 같습니다.
+
+```text
+{REGION}-docker.pkg.dev/{PROJECT}/{REPOSITORY}/backend:{GIT_SHA}
+{REGION}-docker.pkg.dev/{PROJECT}/{REPOSITORY}/frontend:{GIT_SHA}
+```
+
+한 이미지라도 빌드 또는 Push에 실패하면 VM 배포 Job은 시작하지 않습니다.
+
+### Deploy to GCP VM
+
+| 순서 | 작업 | 완료 조건 |
+| ---: | --- | --- |
+| 1 | Production Secret으로 SSH 설정 | 개인키와 검증된 호스트 키 적용 |
+| 2 | 배포 파일 업로드 | Compose 파일, 예시 환경 파일, 배포 스크립트 전송 |
+| 3 | VM 서비스 계정으로 Registry 인증 | Metadata Server의 단기 Token 발급 성공 |
+| 4 | 커밋 SHA 이미지 Pull | backend/frontend 이미지 다운로드 성공 |
+| 5 | 고정 Compose 프로젝트 재기동 | 두 컨테이너가 healthy 상태 |
+| 6 | 외부 프론트엔드 헬스체크 | `PUBLIC_HEALTHCHECK_URL` 성공 응답 |
+
+CD는 VM의 실제 `.env`를 덮어쓰지 않으며 호스트에 마운트된 데이터 디렉터리를 유지합니다.
+JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습니다. 외부 헬스체크까지 성공해야
+배포 완료로 판단하며, 현재는 실패 시 자동 롤백하지 않습니다.
+
 ## Main Branch Ruleset
 
 - Require a pull request before merging
