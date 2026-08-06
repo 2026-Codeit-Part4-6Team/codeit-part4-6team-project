@@ -1,13 +1,13 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - chore/ci-cd-pipeline
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: "main 브랜치를 GCP VM에 배포합니다."
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,45 +24,53 @@ env:
   GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
   GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
   IMAGE_BASE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  VM_HOST: ${{ vars.VM_HOST }}
+  VM_SSH_USER: ${{ vars.VM_SSH_USER }}
+  VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
+  COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
+  PUBLIC_HEALTHCHECK_URL: ${{ vars.PUBLIC_HEALTHCHECK_URL }}
 
 jobs:
-  validate:
-    name: Validate deployment candidate
+  preflight:
+    name: Deployment preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    env:
+      CONFIRM_DEPLOY: ${{ inputs.confirm_deploy }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          version: "0.11.32"
-          python-version: "3.11"
-          enable-cache: true
+      - name: Validate manual deployment request
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "CD는 main 브랜치에서만 실행할 수 있습니다: $GITHUB_REF" >&2
+            exit 1
+          fi
+          if [[ "$CONFIRM_DEPLOY" != "true" ]]; then
+            echo "수동 배포 확인이 선택되지 않았습니다." >&2
+            exit 1
+          fi
 
-      - name: Install dependencies
-        run: uv sync --locked --all-groups
-
-      - name: Run tests
-        run: uv run --locked --all-groups pytest
-
-      - name: Validate deployment Compose configuration
-        env:
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Validate deployment configuration
         run: |
           : "${GCP_PROJECT_ID:?Repository variable GCP_PROJECT_ID is required}"
           : "${GCP_REGION:?Repository variable GCP_REGION is required}"
           : "${ARTIFACT_REGISTRY_REPOSITORY:?Repository variable ARTIFACT_REGISTRY_REPOSITORY is required}"
           : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Repository variable GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
           : "${GCP_SERVICE_ACCOUNT:?Repository variable GCP_SERVICE_ACCOUNT is required}"
+          : "${VM_HOST:?Repository variable VM_HOST is required}"
+          : "${VM_SSH_USER:?Repository variable VM_SSH_USER is required}"
+          : "${VM_DEPLOY_PATH:?Repository variable VM_DEPLOY_PATH is required}"
+          : "${PUBLIC_HEALTHCHECK_URL:?Repository variable PUBLIC_HEALTHCHECK_URL is required}"
           cp .env.example .env
           docker compose -f compose.deploy.yaml config --quiet
 
   build-and-push:
     name: Build and push ${{ matrix.service }}
-    needs: validate
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -75,14 +83,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Validate GCP variables
-        run: |
-          : "${GCP_PROJECT_ID:?Repository variable GCP_PROJECT_ID is required}"
-          : "${GCP_REGION:?Repository variable GCP_REGION is required}"
-          : "${ARTIFACT_REGISTRY_REPOSITORY:?Repository variable ARTIFACT_REGISTRY_REPOSITORY is required}"
-          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Repository variable GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
-          : "${GCP_SERVICE_ACCOUNT:?Repository variable GCP_SERVICE_ACCOUNT is required}"
 
       - name: Authenticate to Google Cloud
         id: auth
@@ -115,29 +115,17 @@ jobs:
   deploy:
     name: Deploy to GCP VM
     needs:
-      - validate
+      - preflight
       - build-and-push
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
     env:
       IMAGE_TAG: ${{ github.sha }}
-      VM_HOST: ${{ vars.VM_HOST }}
-      VM_SSH_USER: ${{ vars.VM_SSH_USER }}
-      VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
-      COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
-      PUBLIC_HEALTHCHECK_URL: ${{ vars.PUBLIC_HEALTHCHECK_URL }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Validate deployment variables
-        run: |
-          : "${VM_HOST:?Repository variable VM_HOST is required}"
-          : "${VM_SSH_USER:?Repository variable VM_SSH_USER is required}"
-          : "${VM_DEPLOY_PATH:?Repository variable VM_DEPLOY_PATH is required}"
-          : "${PUBLIC_HEALTHCHECK_URL:?Repository variable PUBLIC_HEALTHCHECK_URL is required}"
 
       - name: Configure SSH
         env:

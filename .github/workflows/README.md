@@ -2,17 +2,37 @@
 
 ## 현재 범위
 
-- CI는 Python 테스트와 Docker Compose 기반 서비스 기동을 검증합니다.
+- CI는 `main` 대상 PR에서 Python 테스트와 Docker Compose 기반 서비스 기동을 검증합니다.
 - CD는 백엔드와 프론트엔드 이미지만 Artifact Registry에 저장하고 GCP VM에 배포합니다.
+- CD는 `main` 병합 후 사용자가 Actions 화면에서 수동으로 실행합니다.
 - JupyterHub, 모델 실험 환경, Triton, 모델 가중치는 현재 배포 대상이 아닙니다.
 - 배포 이미지는 `latest`가 아니라 Git 커밋 SHA로 식별합니다.
 
 ## 워크플로 트리거
 
-`ci.yml`은 Main 대상 PR과 Main Push에서 실행합니다.
+`ci.yml`은 `main` 대상 PR에서 자동 실행합니다. `main` Branch ruleset에서 `Python tests`와
+`Compose smoke test`를 필수 상태 검사로 등록하여 CI 실패 시 병합을 차단합니다.
 
-`deploy.yml`은 최초 배포 검증을 위해 현재 `chore/ci-cd-pipeline` Push에서 실행합니다.
-배포가 정상 동작하면 해당 브랜치 조건을 `main`으로 변경한 뒤 Main에 머지합니다.
+`deploy.yml`은 Push로 실행되지 않습니다. 워크플로가 기본 브랜치에 병합된 뒤 GitHub의
+`Actions` → `Deploy` → `Run workflow`에서 `main`을 선택하고 확인 항목을 체크해 실행합니다.
+GitHub 수동 실행 워크플로는 기본 브랜치에 파일이 있어야 하므로 PR 단계에서는 CI만 검증합니다.
+
+CLI에서는 다음과 같이 실행할 수 있습니다.
+
+```bash
+gh workflow run deploy.yml --ref main -f confirm_deploy=true
+gh run watch
+```
+
+CD는 애플리케이션 테스트를 다시 수행하지 않습니다. PR CI를 통과한 코드만 `main`에 병합되도록
+Branch ruleset을 구성하고, CD에서는 배포 대상·설정·인증·헬스체크만 검증합니다.
+
+## Main Branch Ruleset
+
+- Require a pull request before merging
+- Require status checks to pass before merging
+- 필수 검사: `Python tests`, `Compose smoke test`
+- 팀 운영 정책상 가능하면 직접 Push를 제한
 
 ## GitHub Repository Variables
 
