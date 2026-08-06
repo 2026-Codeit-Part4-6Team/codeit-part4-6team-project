@@ -47,3 +47,11 @@ uv export --locked --no-default-groups \
 
 - [백엔드 안내](backend/README.md)
 - [프론트엔드 안내](frontend/README.md)
+
+## CI/CD
+
+PR에서는 Python 테스트와 Docker Compose 스모크 테스트를 수행합니다. 배포 워크플로는
+Artifact Registry에 커밋 SHA 기반 이미지를 저장한 뒤 GCP VM의 애플리케이션 컨테이너만
+교체합니다. JupyterHub와 모델 실험 환경은 배포 대상에 포함하지 않습니다.
+
+- [CI/CD 설정 및 운영 안내](.github/workflows/README.md)
