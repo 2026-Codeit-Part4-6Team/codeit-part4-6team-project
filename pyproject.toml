@@ -1,0 +1,29 @@
+[project]
+name = "codeit-part4-6team-project"
+version = "0.1.0"
+description = "소상공인을 위한 생성형 AI 광고 콘텐츠 제작 서비스"
+requires-python = ">=3.11,<3.12"
+dependencies = []
+
+[dependency-groups]
+backend = [
+    "fastapi>=0.116.0,<1.0.0",
+    "uvicorn[standard]>=0.35.0,<1.0.0",
+]
+frontend = [
+    "httpx>=0.28.0,<1.0.0",
+    "streamlit>=1.47.0,<2.0.0",
+]
+dev = [
+    "httpx>=0.28.0,<1.0.0",
+    "pytest>=8.4.0,<9.0.0",
+    "ruff>=0.12.0,<1.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
