@@ -206,7 +206,7 @@
 ## 6. 시스템 설계
 
 ### 6.1 파이프라인 (기본 챗봇 모델 개발 관점)
-![파이프라인](images/pipeline_model_sdp.png)
+![파이프라인](images/pipeline_basic_sdp.png)
 
 ```
 [서비스 개발 담당] 사용자 질문 · 사용량/크레딧 확인
@@ -408,7 +408,7 @@ marketing-ai/
 |   │
 |   ├── docs/
 |   │   ├── sdp_model_basic.md        # 본 문서
-|   │   ├── pipeline_model_sdp.png    # 파이프라인 다이어그램
+|   │   ├── pipeline_basic_sdp.png    # 파이프라인 다이어그램
 |   │   └── api_contract.md           # ★ 서비스 담당과의 API 계약서
 |   │
 |   ├── requirements.txt / pyproject.toml (uv)
@@ -563,5 +563,5 @@ marketing-ai/
 - 팀 통합 파이프라인 (`pipeline_v10.png`)
 - 데이터베이스 구조도 (`erd_v10.png`)
 - 서비스 개발 담당 SDP (API 계약 상대 문서)
-- 파이프라인 다이어그램 (`pipeline_model_sdp.png`)
+- 파이프라인 다이어그램 (`pipeline_basic_sdp.png`)
 - API 계약서 (`docs/api_contract.md` — D1 작성 예정)
