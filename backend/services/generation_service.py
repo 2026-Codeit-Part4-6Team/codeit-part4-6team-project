@@ -1,10 +1,24 @@
+import json
 from uuid import uuid4
 
 from backend.schemas import (
+    BasicModelResult,
+    ConsultantModelResult,
     PreviewGenerateRequest,
     PreviewGenerateResponse,
     PreviewGenerationResult,
 )
+
+
+def serialize_model_result_for_storage(
+    result: BasicModelResult | ConsultantModelResult,
+) -> str:
+    """모델 성공 결과를 이미지 없이 DB 저장용 JSON으로 직렬화합니다."""
+    payload = result.model_dump(mode="json", by_alias=True)
+    if isinstance(result, BasicModelResult):
+        for proposal in payload["proposals"]:
+            proposal.pop("image_b64", None)
+    return json.dumps(payload, ensure_ascii=False)
 
 
 class GenerationService:
