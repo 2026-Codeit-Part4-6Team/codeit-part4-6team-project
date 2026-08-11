@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,9 +15,9 @@ from backend.clients.geocoding_client import (
 )
 from backend.models import User
 from backend.schemas import RegisterRequest
+from backend.time_utils import next_seoul_midnight_utc
 
 logger = logging.getLogger(__name__)
-SEOUL_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 @dataclass(frozen=True)
@@ -36,14 +35,6 @@ class DuplicateUsernameError(Exception):
 
 class DuplicateEmailError(Exception):
     """이미 사용 중인 이메일 오류."""
-
-
-def next_daily_free_reset_at(now: datetime | None = None) -> datetime:
-    """다음 한국 시각 자정을 UTC 시각으로 반환합니다."""
-    current = now or datetime.now(UTC)
-    local_date = current.astimezone(SEOUL_TIMEZONE).date() + timedelta(days=1)
-    local_midnight = datetime.combine(local_date, time.min, tzinfo=SEOUL_TIMEZONE)
-    return local_midnight.astimezone(UTC)
 
 
 async def register_user(
@@ -91,7 +82,7 @@ async def register_user(
         road_address=geocoded.road_address,
         lat=geocoded.lat,
         lng=geocoded.lng,
-        daily_free_reset_at=next_daily_free_reset_at(),
+        daily_free_reset_at=next_seoul_midnight_utc(datetime.now(UTC)),
     )
     db.add(user)
     try:

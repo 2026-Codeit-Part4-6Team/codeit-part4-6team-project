@@ -18,7 +18,7 @@ from backend.init_db import create_tables
 from backend.main import create_app
 from backend.models import User
 from backend.routers.auth_router import GeocodingPolicy, get_geocoding_policy
-from backend.services.auth_service import next_daily_free_reset_at
+from backend.time_utils import next_seoul_midnight_utc
 
 
 class FakeGeocodingClient:
@@ -72,7 +72,7 @@ def test_next_daily_reset_uses_korean_midnight():
     """무료 사용량 리셋 시각은 다음 한국 자정의 UTC 시각입니다."""
     now = datetime(2026, 8, 11, 16, 0, tzinfo=UTC)
 
-    result = next_daily_free_reset_at(now)
+    result = next_seoul_midnight_utc(now)
 
     assert result == datetime(2026, 8, 12, 15, 0, tzinfo=UTC)
 
