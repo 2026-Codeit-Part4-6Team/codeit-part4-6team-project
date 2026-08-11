@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
+from backend.routers.auth_router import router as auth_router
 from backend.routers.generate_router import router as generate_router
 from backend.routers.health_router import router as health_router
 
@@ -7,8 +10,23 @@ from backend.routers.health_router import router as health_router
 def create_app() -> FastAPI:
     """FastAPI 애플리케이션을 생성합니다."""
     application = FastAPI(title="Codeit Part 4 Team 6 API")
+    application.include_router(auth_router)
     application.include_router(health_router)
     application.include_router(generate_router)
+
+    @application.exception_handler(RequestValidationError)
+    async def validation_error_handler(
+        _request: Request, error: RequestValidationError
+    ) -> JSONResponse:
+        """검증 오류에서 원문 비밀번호를 제거합니다."""
+        sanitized_errors = []
+        for item in error.errors():
+            sanitized = dict(item)
+            if "password" in sanitized.get("loc", ()):
+                sanitized.pop("input", None)
+            sanitized_errors.append(sanitized)
+        return JSONResponse(status_code=422, content={"detail": sanitized_errors})
+
     return application
 
 
