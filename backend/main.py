@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from backend.routers.auth_router import router as auth_router
 from backend.routers.generate_router import router as generate_router
 from backend.routers.health_router import router as health_router
 
@@ -9,6 +10,7 @@ from backend.routers.health_router import router as health_router
 def create_app() -> FastAPI:
     """FastAPI 애플리케이션을 생성합니다."""
     application = FastAPI(title="Codeit Part 4 Team 6 API")
+    application.include_router(auth_router)
     application.include_router(health_router)
     application.include_router(generate_router)
 
