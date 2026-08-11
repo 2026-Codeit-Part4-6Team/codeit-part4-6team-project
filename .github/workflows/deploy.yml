@@ -151,7 +151,8 @@ jobs:
           # shellcheck disable=SC2029 # 검증된 Repository Variable을 원격 명령에 전달합니다.
           ssh "$VM_SSH_USER@$VM_HOST" "mkdir -p '$VM_DEPLOY_PATH/scripts'"
           scp compose.deploy.yaml .env.example "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/"
-          scp scripts/deploy.sh "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/scripts/"
+          scp scripts/deploy.sh scripts/prune_deploy_images.py \
+            "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/scripts/"
 
       - name: Deploy application containers
         run: |
@@ -168,3 +169,12 @@ jobs:
           curl --fail --show-error --silent \
             --retry 10 --retry-delay 3 --retry-all-errors \
             "$PUBLIC_HEALTHCHECK_URL"
+
+      - name: Prune old deployment images
+        run: |
+          # shellcheck disable=SC2029 # 사전 검증된 이미지 경로와 SHA를 전달합니다.
+          ssh "$VM_SSH_USER@$VM_HOST" \
+            "cd '$VM_DEPLOY_PATH' && \
+            IMAGE_BASE='$IMAGE_BASE' \
+            IMAGE_TAG='$IMAGE_TAG' \
+            python3 scripts/prune_deploy_images.py"
