@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.auth import hash_password
+from backend.auth import hash_password, verify_password
 from backend.models import User
 from backend.schemas import RegisterRequest
 
@@ -38,4 +38,13 @@ def register_user(db: Session, request: RegisterRequest) -> User:
     db.add(user)
     db.commit()
     db.refresh(user)
+    return user
+
+
+def authenticate_user(db: Session, username: str, password: str) -> User | None:
+    """사용자명과 비밀번호가 일치하는 사용자를 반환합니다."""
+    normalized = username.strip().lower()
+    user = db.scalar(select(User).where(User.username == normalized))
+    if user is None or not verify_password(password, user.password_hash):
+        return None
     return user
