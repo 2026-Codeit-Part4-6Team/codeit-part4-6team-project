@@ -4,8 +4,12 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/app.db}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
+    volumes:
+      - "./data:/app/data"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
