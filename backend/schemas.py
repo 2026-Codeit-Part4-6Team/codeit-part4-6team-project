@@ -1,23 +1,220 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+
+ChatbotType = Literal["basic", "consultant"]
+Platform = Literal["instagram", "banner"]
+GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
 
 
-class GenerateRequest(BaseModel):
-    """광고 콘텐츠 생성 요청."""
+class StrictModel(BaseModel):
+    """정의되지 않은 필드를 거부하는 계약 모델."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class PreviewGenerateRequest(StrictModel):
+    """초기 컨테이너 연결 검증용 생성 요청."""
 
     prompt: str = Field(min_length=1, max_length=2_000)
 
 
-class GenerationResult(BaseModel):
-    """광고 콘텐츠 생성 결과."""
+class PreviewGenerationResult(StrictModel):
+    """초기 컨테이너 연결 검증용 결과."""
 
     text: str
 
 
-class GenerateResponse(BaseModel):
-    """광고 콘텐츠 생성 응답."""
+class PreviewGenerateResponse(StrictModel):
+    """초기 컨테이너 연결 검증용 응답."""
 
     request_id: str
     status: Literal["completed"]
-    result: GenerationResult
+    result: PreviewGenerationResult
+
+
+class GenerateExtra(StrictModel):
+    """두 챗봇이 공유하는 선택형 추가 입력."""
+
+    purpose: str | None = Field(default=None, max_length=200)
+    price_range: str | None = Field(default=None, max_length=100)
+    target_age: str | None = Field(default=None, max_length=50)
+    strength: str | None = Field(default=None, max_length=200)
+    clarification: str | None = Field(default=None, max_length=500)
+
+
+class GenerateRequest(StrictModel):
+    """Frontend가 Service에 보내는 생성 요청."""
+
+    chatbot_type: ChatbotType
+    question: str = Field(min_length=1, max_length=2_000)
+    platform: Platform | None = None
+    extra: GenerateExtra | None = None
+    source_gen_id: int | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def validate_platform(self) -> "GenerateRequest":
+        """챗봇 종류에 따라 플랫폼 사용 여부를 검증합니다."""
+        if self.chatbot_type == "basic" and self.platform is None:
+            raise ValueError("Basic 요청에는 platform이 필요합니다.")
+        if self.chatbot_type == "consultant" and self.platform is not None:
+            raise ValueError("Consultant 요청은 platform을 사용하지 않습니다.")
+        return self
+
+
+class GenerateEstimateResponse(StrictModel):
+    """생성 전 예상 과금 정보."""
+
+    is_free: bool
+    free_remaining: int = Field(ge=0)
+    estimated_credits: int = Field(ge=0)
+    current_credits: int = Field(ge=0)
+    credits_after: int = Field(ge=0)
+    requires_confirmation: bool
+
+
+class GenerationUsage(StrictModel):
+    """생성 요청에 실제 적용한 사용량 정보."""
+
+    plan: Literal["free", "paid"]
+    credits_used: int = Field(ge=0)
+
+
+class StoreContext(StrictModel):
+    """Service가 사용자 DB에서 구성하는 가게 Context."""
+
+    name: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    address: str = Field(min_length=1)
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+
+
+class ModelRequest(StrictModel):
+    """Service가 모델 Client에 전달하는 요청."""
+
+    chatbot_type: ChatbotType
+    user_id: int = Field(gt=0)
+    question: str = Field(min_length=1, max_length=2_000)
+    platform: Platform | None = None
+    store: StoreContext
+    extra: GenerateExtra | None = None
+
+    @model_validator(mode="after")
+    def validate_platform(self) -> "ModelRequest":
+        """챗봇 종류에 따라 플랫폼 사용 여부를 검증합니다."""
+        if self.chatbot_type == "basic" and self.platform is None:
+            raise ValueError("Basic 모델 요청에는 platform이 필요합니다.")
+        if self.chatbot_type == "consultant" and self.platform is not None:
+            raise ValueError("Consultant 모델 요청은 platform을 사용하지 않습니다.")
+        return self
+
+
+class ProposalError(StrictModel):
+    """Basic Proposal 한 슬롯의 실패 정보."""
+
+    field: Literal["copy", "image"]
+    reason: Literal[
+        "rate_limit", "content_policy", "timeout", "unknown", "parse_failed"
+    ]
+    message: str = Field(min_length=1)
+
+
+class BasicProposal(StrictModel):
+    """Basic 결과의 고정 Proposal 슬롯."""
+
+    copy_text: str | None = Field(alias="copy", serialization_alias="copy")
+    image_b64: str | None = None
+    error: ProposalError | None = None
+
+    @property
+    def copy(self) -> str | None:
+        """외부 계약명 copy에 대응하는 값을 반환합니다."""
+        return self.copy_text
+
+    @model_validator(mode="after")
+    def validate_slot_state(self) -> "BasicProposal":
+        """카피·이미지·오류 조합의 불변 조건을 검증합니다."""
+        if self.error is None:
+            if self.copy_text is None or not self.copy_text.strip():
+                raise ValueError("성공 슬롯에는 비어 있지 않은 copy가 필요합니다.")
+            return self
+
+        if self.error.field == "copy":
+            if self.copy_text is not None or self.image_b64 is not None:
+                raise ValueError("카피 실패 슬롯은 copy와 image_b64가 null이어야 합니다.")
+            return self
+
+        if self.copy_text is None or not self.copy_text.strip() or self.image_b64 is not None:
+            raise ValueError("이미지 실패 슬롯은 copy만 유지해야 합니다.")
+        return self
+
+
+class BasicModelResult(StrictModel):
+    """기본 챗봇의 성공 또는 부분 성공 결과."""
+
+    status: Literal["ok"]
+    title: str = Field(min_length=1)
+    proposals: list[BasicProposal] = Field(min_length=3, max_length=3)
+    sources: list[str] = Field(default_factory=list)
+    tokens_used: int = Field(ge=0)
+    suggested_chips: list[str] = Field(default_factory=list, max_length=0)
+
+
+class ConsultantAction(StrictModel):
+    """컨설턴트가 제안하는 실행 항목."""
+
+    type: Literal["menu", "promotion", "target", "other"]
+    content: str = Field(min_length=1)
+
+
+class ConsultantStrategy(StrictModel):
+    """컨설턴트 전략 요약과 실행 항목."""
+
+    summary: str = Field(min_length=1)
+    actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
+
+
+class ConsultantModelResult(StrictModel):
+    """컨설턴트 챗봇의 성공 결과."""
+
+    status: Literal["ok"]
+    title: str = Field(min_length=1)
+    strategy: ConsultantStrategy
+    reasons: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+    sources: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+    tokens_used: int = Field(ge=0)
+    suggested_chips: list[Annotated[str, Field(min_length=1)]] = Field(
+        min_length=3, max_length=3
+    )
+
+
+class BlockedResult(StrictModel):
+    """정책 검증으로 생성이 중단된 결과."""
+
+    status: Literal["blocked"]
+    action: Literal["block", "reask", "warn"]
+    reason: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+
+
+class ErrorResult(StrictModel):
+    """모델 또는 외부 제공자 실행 실패 결과."""
+
+    status: Literal["error"]
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
+    message: str = Field(min_length=1)
+
+
+ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
+MODEL_RESULT_ADAPTER: TypeAdapter[ModelResult] = TypeAdapter(ModelResult)
+
+
+class GenerationResponse(StrictModel):
+    """Service가 Frontend에 반환하는 생성 작업 응답."""
+
+    generation_id: int = Field(gt=0)
+    status: GenerationStatus
+    chatbot_type: ChatbotType
+    result: ModelResult | None = None
+    usage: GenerationUsage
