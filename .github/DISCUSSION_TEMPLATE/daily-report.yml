@@ -53,6 +53,16 @@ body:
       required: false
 
   - type: textarea
+    id: scrum-meeting
+    attributes:
+      label: 🔆 스크럼 미팅
+      description: "일을 진행하는데 장애 요소(문제점) 또는 기타 건의사항이 있다면 기재해 주세요."
+      placeholder: |
+        - 없음
+    validations:
+      required: false
+
+  - type: textarea
     id: tomorrow
     attributes:
       label: 📌 내일 할 일
