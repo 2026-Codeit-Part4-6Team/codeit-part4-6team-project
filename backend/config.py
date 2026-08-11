@@ -30,6 +30,8 @@ class Settings:
     session_secret_key: str
     session_max_age_seconds: int
     session_cookie_secure: bool
+    naver_maps_api_key_id: str
+    naver_maps_api_key: str
 
 
 def load_settings() -> Settings:
@@ -45,6 +47,8 @@ def load_settings() -> Settings:
         session_secret_key=os.getenv("SESSION_SECRET_KEY", "local-development-secret"),
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
         session_cookie_secure=_read_bool("SESSION_COOKIE_SECURE", False),
+        naver_maps_api_key_id=os.getenv("NAVER_MAPS_API_KEY_ID", ""),
+        naver_maps_api_key=os.getenv("NAVER_MAPS_API_KEY", ""),
     )
 
 
