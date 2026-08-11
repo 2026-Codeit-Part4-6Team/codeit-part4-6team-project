@@ -1,13 +1,13 @@
 from uuid import UUID
 
-from backend.schemas import GenerateRequest
+from backend.schemas import PreviewGenerateRequest
 from backend.services.generation_service import GenerationService
 
 
 def test_generation_service_returns_mock_result() -> None:
     service = GenerationService()
 
-    response = service.generate(GenerateRequest(prompt="여름 메뉴"))
+    response = service.generate(PreviewGenerateRequest(prompt="여름 메뉴"))
 
     assert UUID(response.request_id)
     assert response.status == "completed"
