@@ -3,6 +3,8 @@ from typing import Protocol, runtime_checkable
 
 import httpx
 
+from backend.config import settings
+
 NAVER_GEOCODING_BASE_URL = "https://maps.apigw.ntruss.com"
 NAVER_GEOCODING_PATH = "/map-geocode/v2/geocode"
 
@@ -86,3 +88,11 @@ class NaverGeocodingClient:
             raise
         except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise GeocodingProviderError("지오코딩 응답 형식이 올바르지 않습니다.") from error
+
+
+def get_geocoding_client() -> GeocodingClient:
+    """환경변수 인증 정보로 NAVER 지오코딩 클라이언트를 제공합니다."""
+    return NaverGeocodingClient(
+        api_key_id=settings.naver_maps_api_key_id,
+        api_key=settings.naver_maps_api_key,
+    )
