@@ -1,5 +1,6 @@
 # cache/market_repo.py — Cache-Aside 동작 테스트
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -195,3 +196,56 @@ def test_cache_with_wrong_shape_falls_back_to_live_fetch(
 
     mock_fetch_raw.assert_called_once()
     assert result["total_count"] == 2
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_cache_hit_is_logged(mock_fetch_raw, session_factory, caplog) -> None:
+    with session_factory() as session:
+        session.add(
+            MarketCache(
+                lat=37.498,
+                lng=127.028,
+                radius=500,
+                result_json=json.dumps({"stores": _STORES, "total_count": 2}),
+            )
+        )
+        session.commit()
+
+    with caplog.at_level(logging.INFO, logger="cache.market_repo"):
+        get_market(37.4980, 127.0276, industry="카페")
+
+    assert any(
+        record.levelno == logging.INFO and "cache hit" in record.message
+        for record in caplog.records
+    )
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_cache_miss_is_logged(mock_fetch_raw, session_factory, caplog) -> None:
+    mock_fetch_raw.return_value = (_STORES, 2)
+
+    with caplog.at_level(logging.INFO, logger="cache.market_repo"):
+        get_market(37.4980, 127.0276, industry="카페")
+
+    assert any(
+        record.levelno == logging.INFO and "cache miss" in record.message
+        for record in caplog.records
+    )
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_db_read_failure_logs_warning(mock_fetch_raw, monkeypatch, caplog) -> None:
+    broken_factory = sessionmaker(bind=create_engine("sqlite:////nonexistent_dir_xyz/cache.db"))
+    monkeypatch.setattr("cache.market_repo.SessionLocal", broken_factory)
+    mock_fetch_raw.return_value = (_STORES, 2)
+
+    with caplog.at_level(logging.WARNING, logger="cache.market_repo"):
+        get_market(37.4980, 127.0276, industry="카페")
+
+    assert any(
+        record.levelno == logging.WARNING and "cache read failed" in record.message
+        for record in caplog.records
+    )
+    # API 키·응답 원문이 로그에 남지 않아야 한다
+    logged_text = " ".join(record.message for record in caplog.records)
+    assert "MARKET_API_KEY" not in logged_text

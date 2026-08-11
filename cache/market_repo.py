@@ -1,5 +1,6 @@
 # cache/market_repo.py — 상권 조회 Cache-Aside 구현(§2.7) · 두 챗봇 공용
 import json
+import logging
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -7,6 +8,8 @@ from cache.db import SessionLocal
 from cache.models import MarketCache
 from cache.ttl import expired
 from model_consult.clients.market_api import aggregate, fetch_raw
+
+logger = logging.getLogger(__name__)
 
 _TTL_DAYS = 7
 
@@ -44,7 +47,10 @@ def _read_cache(round_lat: float, round_lng: float, radius: int) -> dict | None:
 
     캐시가 없거나, DB 조회 자체가 실패하거나, 저장된 JSON이 기대한 형태가 아니면
     모두 캐시 미스로 간주해 None을 반환한다(호출하는 쪽이 API 실시간 호출로 폴백).
+    캐시 히트/미스/DB 장애를 로그로 남긴다(적중률 측정·장애 추적용). API 키나
+    응답 원문은 남기지 않는다.
     """
+    key = f"lat={round_lat}, lng={round_lng}, radius={radius}"
     try:
         with SessionLocal() as session:
             row = (
@@ -54,9 +60,15 @@ def _read_cache(round_lat: float, round_lng: float, radius: int) -> dict | None:
                 .first()
             )
             if row and not expired(row.created_at, days=_TTL_DAYS):
-                return _parse_cached_payload(row.result_json)
+                parsed = _parse_cached_payload(row.result_json)
+                if parsed is not None:
+                    logger.info("market cache hit (%s)", key)
+                    return parsed
     except SQLAlchemyError:
-        pass
+        logger.warning("market cache read failed, falling back to live fetch (%s)", key)
+        return None
+
+    logger.info("market cache miss (%s)", key)
     return None
 
 
@@ -101,4 +113,9 @@ def _write_cache(
             )
             session.commit()
     except SQLAlchemyError:
-        pass
+        logger.warning(
+            "market cache write failed, live fetch result still returned (lat=%s, lng=%s, radius=%s)",
+            round_lat,
+            round_lng,
+            radius,
+        )
