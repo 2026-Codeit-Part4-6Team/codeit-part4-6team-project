@@ -135,6 +135,7 @@ frontend = [
     { name = "streamlit" },
 ]
 model-consult = [
+    { name = "httpx" },
     { name = "langgraph" },
     { name = "sqlalchemy" },
 ]
@@ -156,6 +157,7 @@ frontend = [
     { name = "streamlit", specifier = ">=1.47.0,<2.0.0" },
 ]
 model-consult = [
+    { name = "httpx", specifier = ">=0.28.0,<1.0.0" },
     { name = "langgraph", specifier = ">=1.2.10,<2.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0,<3.0.0" },
 ]
