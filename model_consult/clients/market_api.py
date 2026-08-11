@@ -24,7 +24,23 @@ def _matches_industry(store: dict, industry: str) -> bool:
     (업종 대/중/소분류 조회 오퍼레이션 largeUpjongList 등 필요, 지금은 텍스트 매칭만 사용).
     """
     names = (store.get("indsLclsNm"), store.get("indsMclsNm"), store.get("indsSclsNm"))
-    return any(name and industry in name for name in names)
+    return any(isinstance(name, str) and industry in name for name in names)
+
+
+def _valid_coord(value: object) -> bool:
+    """거리 계산에 쓸 수 있는 좌표 값인지 확인한다(bool 제외 유한한 숫자만 허용).
+
+    stores는 캐시(사용자가 손상시킬 수 있는 JSON)와 실시간 API 응답 양쪽에서 오므로,
+    이 지점에서 걸러야 두 경로 모두 haversine의 예외를 예방할 수 있다. 값 종류를 나열해서
+    막는 대신 변환·검사 자체를 try/except로 감싼다 — float() 표현 범위를 벗어난 거대한
+    정수 등 예상 못 한 입력이 와도 예외 종류를 계속 추가할 필요 없이 전부 "무효"로 처리된다.
+    """
+    if isinstance(value, bool):
+        return False
+    try:
+        return isinstance(value, (int, float)) and math.isfinite(float(value))
+    except (OverflowError, ValueError):
+        return False
 
 
 def aggregate(
@@ -36,10 +52,13 @@ def aggregate(
     same_industry_count/nearest_distance_m/industry_breakdown은 첫 페이지까지만 집계된다.
     total_count는 API의 totalCount를 그대로 쓰므로 이 한계와 무관하게 정확하다.
     """
+    # dict가 아닌 요소(손상된 캐시, 예상 밖 API 응답 등)는 이후 모든 처리에서 안전하도록 여기서 제외한다.
+    stores = [store for store in stores if isinstance(store, dict)]
+
     industry_breakdown: dict[str, int] = {}
     for store in stores:
         name = store.get("indsMclsNm")
-        if name:
+        if isinstance(name, str) and name:
             industry_breakdown[name] = industry_breakdown.get(name, 0) + 1
 
     if industry is None:
@@ -62,7 +81,7 @@ def aggregate(
     distances = [
         _haversine_m(lat, lng, store["lat"], store["lon"])
         for store in matches
-        if store.get("lat") is not None and store.get("lon") is not None
+        if _valid_coord(store.get("lat")) and _valid_coord(store.get("lon"))
     ]
     nearest = round(min(distances)) if distances else None
 
@@ -74,8 +93,12 @@ def aggregate(
     }
 
 
-def fetch(lat: float, lng: float, radius: int = 500, industry: str | None = None) -> dict | None:
-    """상권정보 OpenAPI(반경내 상가업소 조회)를 호출해 계약 형식으로 변환한다. 실패 시 None.
+def fetch_raw(lat: float, lng: float, radius: int = 500) -> tuple[list[dict], int] | None:
+    """상권정보 OpenAPI(반경내 상가업소 조회)를 호출해 원본 매장 목록·전체 매장 수를 반환한다.
+
+    업종 집계 없이 원본만 반환한다 — market_repo가 이 결과를 업종과 무관하게 캐싱하고,
+    aggregate()는 조회할 때마다 별도로 호출하기 위함(같은 좌표라도 industry가 다르면
+    캐시를 재사용해야 하므로). 실패 시 None.
 
     MARKET_API_KEY는 디코딩 키를 쓴다 — httpx의 params=가 자동으로 URL 인코딩하므로,
     인코딩 키를 넣으면 이중 인코딩되어 인증에 실패한다.
@@ -113,4 +136,14 @@ def fetch(lat: float, lng: float, radius: int = 500, industry: str | None = None
     stores = [item] if isinstance(item, dict) else item
     total_count = int(body.get("totalCount", len(stores)))
 
+    return stores, total_count
+
+
+def fetch(lat: float, lng: float, radius: int = 500, industry: str | None = None) -> dict | None:
+    """상권정보 OpenAPI를 호출해 계약 형식(docs/repo_contract.md)으로 변환한다. 실패 시 None."""
+    fetched = fetch_raw(lat, lng, radius)
+    if fetched is None:
+        return None
+
+    stores, total_count = fetched
     return aggregate(stores, total_count, industry, lat, lng)

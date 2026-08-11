@@ -65,6 +65,69 @@ def test_aggregate_with_industry_no_match_returns_zero_and_none_distance() -> No
     assert result["nearest_distance_m"] is None
 
 
+def test_aggregate_ignores_store_with_non_string_industry_name() -> None:
+    """indsMclsNm이 문자열이 아니면(예: 손상된 캐시) 집계에서 조용히 제외한다."""
+    stores = [*_STORES, {"indsLclsNm": "음식점", "indsMclsNm": ["카페"], "lat": 37.5, "lon": 127.0}]
+
+    result = aggregate(stores, total_count=4, industry=None, lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+
+    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1}
+
+
+def test_aggregate_ignores_store_with_non_numeric_coordinates() -> None:
+    """lat/lon이 숫자가 아니거나 bool이면(예: 손상된 캐시) 거리 계산에서 제외한다."""
+    stores = [
+        {
+            "indsLclsNm": "음식점",
+            "indsMclsNm": "카페",
+            "indsSclsNm": "커피전문점",
+            "lat": "37.4981",
+            "lon": 127.0277,
+        },
+        {
+            "indsLclsNm": "음식점",
+            "indsMclsNm": "카페",
+            "indsSclsNm": "커피전문점",
+            "lat": True,
+            "lon": 127.0277,
+        },
+    ]
+
+    result = aggregate(stores, total_count=2, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+
+    assert result["same_industry_count"] == 2
+    assert result["nearest_distance_m"] is None
+
+
+def test_aggregate_ignores_coordinate_beyond_float_range() -> None:
+    """float() 표현 범위를 넘는 거대한 정수 좌표도 OverflowError 없이 제외한다."""
+    huge_int = 10**10000
+    stores = [
+        {
+            "indsLclsNm": "음식점",
+            "indsMclsNm": "카페",
+            "indsSclsNm": "커피전문점",
+            "lat": huge_int,
+            "lon": 127.0277,
+        }
+    ]
+
+    result = aggregate(stores, total_count=1, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+
+    assert result["same_industry_count"] == 1
+    assert result["nearest_distance_m"] is None
+
+
+def test_aggregate_ignores_non_dict_items_in_stores() -> None:
+    """stores 안에 dict가 아닌 요소가 섞여 있어도(예: 예상 밖 API 응답) 예외 없이 제외한다."""
+    stores = [*_STORES, None, "문자열", 123]
+
+    result = aggregate(stores, total_count=6, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+
+    assert result["same_industry_count"] == 2
+    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1}
+
+
 @patch("model_consult.clients.market_api.httpx.get")
 def test_fetch_builds_request_and_returns_none_without_api_key(
     mock_get: MagicMock, monkeypatch
@@ -102,6 +165,22 @@ def test_fetch_parses_response_into_contract_shape(mock_get: MagicMock, monkeypa
     assert called_params["radius"] == 500
     assert called_params["cx"] == _GANGNAM_LNG
     assert called_params["cy"] == _GANGNAM_LAT
+
+
+@patch("model_consult.clients.market_api.httpx.get")
+def test_fetch_ignores_non_dict_items_from_live_response(mock_get: MagicMock, monkeypatch) -> None:
+    """실시간 API가 items 안에 예상 밖 값(null 등)을 섞어 보내도 예외 없이 제외한다."""
+    monkeypatch.setenv("MARKET_API_KEY", "test-decoding-key")
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "header": {"resultCode": "00", "resultMsg": "NORMAL SERVICE"},
+        "body": {"items": [*_STORES, None], "numOfRows": 4, "pageNo": 1, "totalCount": 4},
+    }
+    mock_get.return_value = mock_response
+
+    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="카페")
+
+    assert result["same_industry_count"] == 2
 
 
 @patch("model_consult.clients.market_api.httpx.get")
