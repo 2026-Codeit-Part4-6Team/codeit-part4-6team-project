@@ -35,6 +35,14 @@ docker compose up --build backend
 curl http://localhost:18000/health
 ```
 
+서비스 DB 테이블은 배포마다 자동으로 초기화하지 않습니다. 최초 생성 또는 스키마 초기화가 필요한 환경에서 아래 명령을 명시적으로 실행합니다.
+
+```bash
+docker compose run --rm backend python -m backend.init_db
+```
+
+서비스 초기화 명령은 `users`, `payments`, `generations`, `waiting_copies` 네 테이블만 관리합니다. 모델 캐시 테이블은 별도 초기화 책임을 갖습니다.
+
 ## 현재 구조
 
 ```text
