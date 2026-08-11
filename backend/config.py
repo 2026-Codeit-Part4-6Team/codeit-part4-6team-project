@@ -18,6 +18,11 @@ def _read_bool(name: str, default: bool) -> bool:
     return raw == "true"
 
 
+def _read_float(name: str, default: float) -> float:
+    """환경변수 실수를 읽습니다."""
+    return float(os.getenv(name, str(default)))
+
+
 @dataclass(frozen=True)
 class Settings:
     """서비스 실행 설정."""
@@ -32,6 +37,9 @@ class Settings:
     session_cookie_secure: bool
     naver_maps_api_key_id: str
     naver_maps_api_key: str
+    geocode_fallback_enabled: bool
+    geocode_fallback_lat: float
+    geocode_fallback_lng: float
 
 
 def load_settings() -> Settings:
@@ -49,6 +57,9 @@ def load_settings() -> Settings:
         session_cookie_secure=_read_bool("SESSION_COOKIE_SECURE", False),
         naver_maps_api_key_id=os.getenv("NAVER_MAPS_API_KEY_ID", ""),
         naver_maps_api_key=os.getenv("NAVER_MAPS_API_KEY", ""),
+        geocode_fallback_enabled=_read_bool("GEOCODE_FALLBACK_ENABLED", False),
+        geocode_fallback_lat=_read_float("GEOCODE_FALLBACK_LAT", 37.4979),
+        geocode_fallback_lng=_read_float("GEOCODE_FALLBACK_LNG", 127.0276),
     )
 
 
