@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Remove deployment images older than the current and rollback tags."""
 
 from __future__ import annotations

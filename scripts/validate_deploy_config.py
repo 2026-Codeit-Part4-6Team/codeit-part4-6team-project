@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate deployment variables before they reach SSH or Docker commands."""
 
 from __future__ import annotations
