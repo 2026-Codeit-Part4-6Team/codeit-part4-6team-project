@@ -10,8 +10,9 @@
 
 ## 워크플로 트리거
 
-`ci.yml`은 `main` 대상 PR에서 자동 실행합니다. `main` Branch ruleset에서 `Python tests`,
-`Deployment assets`, `Compose smoke test`를 필수 상태 검사로 등록하여 CI 실패 시 병합을 차단합니다.
+`ci.yml`은 `main` 대상 PR에서 자동 실행합니다. 현재 저장소 플랜에서는 required status check를
+강제할 수 없으므로, `Python tests`, `Deployment assets`, `Compose smoke test`가 모두 통과했는지
+리뷰어가 확인한 뒤 병합합니다.
 
 `deploy.yml`은 Push로 실행되지 않습니다. 워크플로가 기본 브랜치에 병합된 뒤 GitHub의
 `Actions` → `Deploy` → `Run workflow`에서 `main`을 선택하고 확인 항목을 체크해 실행합니다.
@@ -47,6 +48,7 @@ Pull Request
 | 2 | Python `3.11`, uv `0.11.32` 설정 | 고정 버전 설치 성공 |
 | 3 | `uv sync --locked --all-groups` | `uv.lock` 변경 없이 의존성 설치 성공 |
 | 4 | `uv run --locked --all-groups pytest` | 전체 테스트 통과 |
+| 5 | `uv run --locked --group dev ruff check .` | Ruff 검사 통과 |
 
 테스트에서는 공용 `TestClient` fixture를 사용해 클라이언트를 명시적으로 종료합니다. 이에 따라
 Windows와 Linux 모두 테스트 통과 후 `pytest` 프로세스가 정상 종료되어야 합니다.
@@ -142,11 +144,11 @@ JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습�
 내부 생성 요청은 현재 Python 기반 Streamlit 스켈레톤에 맞춘 검사입니다. React 이미지로 교체할
 때는 프론트엔드 런타임과 API 진입점에 맞게 검사 명령도 함께 변경합니다.
 
-## Main Branch Ruleset
+## Main Branch 병합 정책
 
 - Require a pull request before merging
-- Require status checks to pass before merging
-- 필수 검사: `Python tests`, `Deployment assets`, `Compose smoke test`
+- 병합 전 확인할 검사: `Python tests`, `Deployment assets`, `Compose smoke test`
+- 현재 저장소 플랜에서는 required status check를 강제하지 않으므로 리뷰어가 검사 결과를 확인
 - 팀 운영 정책상 가능하면 직접 Push를 제한
 
 ## GitHub Repository Variables

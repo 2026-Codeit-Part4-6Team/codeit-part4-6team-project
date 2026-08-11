@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: uv run --locked --all-groups pytest
 
+      - name: Run lint
+        run: uv run --locked --group dev ruff check .
+
   deployment-assets:
     name: Deployment assets
     runs-on: ubuntu-latest
