@@ -46,6 +46,19 @@ class RegisterRequest(StrictModel):
         return value.strip().lower() if isinstance(value, str) else value
 
 
+class LoginRequest(StrictModel):
+    """서비스 로그인 요청."""
+
+    username: str = Field(min_length=3, max_length=100)
+    password: SecretStr = Field(min_length=8, max_length=72)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        """로그인 사용자명을 회원가입과 같은 방식으로 정규화합니다."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+
 class UserResponse(StrictModel):
     """민감정보를 제외한 사용자 응답."""
 

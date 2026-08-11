@@ -1,13 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.schemas import RegisterRequest, UserResponse
+from backend.schemas import LoginRequest, RegisterRequest, UserResponse
 from backend.services.auth_service import (
     DuplicateEmailError,
     DuplicateUsernameError,
+    authenticate_user,
     register_user,
 )
 
@@ -31,3 +32,28 @@ def register(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "duplicate_email", "message": "이미 사용 중인 이메일입니다."},
         ) from error
+
+
+@router.post("/login", response_model=UserResponse)
+def login(
+    payload: LoginRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> UserResponse:
+    """자격 증명을 확인하고 Session에 사용자 ID를 저장합니다."""
+    user = authenticate_user(db, payload.username, payload.password.get_secret_value())
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "invalid_credentials", "message": "사용자명 또는 비밀번호가 올바르지 않습니다."},
+        )
+    request.session.clear()
+    request.session["user_id"] = user.id
+    return UserResponse.model_validate(user)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(request: Request) -> Response:
+    """현재 Session을 제거합니다."""
+    request.session.clear()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -10,6 +10,14 @@ def _read_int(name: str, default: int, *, minimum: int = 0) -> int:
     return value
 
 
+def _read_bool(name: str, default: bool) -> bool:
+    """환경변수 boolean을 읽습니다."""
+    raw = os.getenv(name, str(default)).strip().lower()
+    if raw not in {"true", "false"}:
+        raise ValueError(f"{name}은 true 또는 false여야 합니다.")
+    return raw == "true"
+
+
 @dataclass(frozen=True)
 class Settings:
     """서비스 실행 설정."""
@@ -19,6 +27,9 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    session_secret_key: str
+    session_max_age_seconds: int
+    session_cookie_secure: bool
 
 
 def load_settings() -> Settings:
@@ -31,6 +42,9 @@ def load_settings() -> Settings:
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
         ),
+        session_secret_key=os.getenv("SESSION_SECRET_KEY", "local-development-secret"),
+        session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
+        session_cookie_secure=_read_bool("SESSION_COOKIE_SECURE", False),
     )
 
 
