@@ -21,6 +21,7 @@ dev = [
 ]
 model-consult = [
     "langgraph>=1.2.10,<2.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
 ]
 
 [tool.pytest.ini_options]
