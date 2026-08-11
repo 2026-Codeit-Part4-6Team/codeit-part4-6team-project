@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from backend.app.schemas.generation import GenerateRequest
-from backend.app.services.generation import GenerationService
+from backend.schemas import GenerateRequest
+from backend.services.generation_service import GenerationService
 
 
 def test_generation_service_returns_mock_result() -> None:

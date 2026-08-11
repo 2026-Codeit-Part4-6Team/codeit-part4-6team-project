@@ -38,10 +38,10 @@ curl http://localhost:18000/health
 ## 현재 구조
 
 ```text
-backend/app/
+backend/
 ├── main.py              애플리케이션 생성과 라우터 등록
-├── api/                 HTTP 엔드포인트
-├── schemas/             요청·응답 스키마
+├── schemas.py           요청·응답 스키마
+├── routers/             HTTP 엔드포인트
 └── services/            생성 유스케이스
 ```
 

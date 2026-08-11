@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from backend.app.schemas.generation import GenerateRequest, GenerateResponse
-from backend.app.services.generation import GenerationService
+from backend.schemas import GenerateRequest, GenerateResponse
+from backend.services.generation_service import GenerationService
 
 router = APIRouter(tags=["generation"])
 generation_service = GenerationService()
