@@ -99,7 +99,7 @@ Run workflow
 | ---: | --- | --- |
 | 1 | 실행 브랜치 확인 | `refs/heads/main`과 일치 |
 | 2 | 수동 배포 확인 | `confirm_deploy=true` |
-| 3 | Repository Variables 확인 | 필수 GCP·VM 설정값 존재 |
+| 3 | Repository Variables 확인 | 필수 GCP·VM 설정값 존재 및 안전한 형식 검증 |
 | 4 | `compose.deploy.yaml` 검증 | 예시 `.env`와 커밋 SHA로 설정 해석 성공 |
 
 이 단계는 외부 자원을 변경하지 않습니다. 조건이 맞지 않으면 이미지 빌드 전에 종료합니다.
@@ -136,6 +136,9 @@ WIF 인증은 작업공간에 자격 증명 파일을 생성하지 않으며, `g
 | 6 | 고정 Compose 프로젝트 재기동 | 두 컨테이너가 healthy 상태 |
 | 7 | 프론트엔드→백엔드 내부 생성 요청 | `BACKEND_URL` 연결 및 `completed` 상태 확인 |
 | 8 | 외부 프론트엔드 헬스체크 | `PUBLIC_HEALTHCHECK_URL` 성공 응답 |
+
+CD는 SSH 연결 직전에도 Repository Variables를 다시 검증합니다. 배포 경로, SSH 사용자, 이미지
+경로 등 원격 명령에 전달되는 값은 허용된 형식만 통과합니다.
 
 CD는 VM의 실제 `.env`를 덮어쓰지 않으며 호스트에 마운트된 데이터 디렉터리를 유지합니다.
 JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습니다. 내부 생성 요청과 외부
