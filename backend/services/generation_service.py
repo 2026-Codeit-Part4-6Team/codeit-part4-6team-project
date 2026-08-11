@@ -1,10 +1,6 @@
 from uuid import uuid4
 
-from backend.app.schemas.generation import (
-    GenerateRequest,
-    GenerateResponse,
-    GenerationResult,
-)
+from backend.schemas import GenerateRequest, GenerateResponse, GenerationResult
 
 
 class GenerationService:
