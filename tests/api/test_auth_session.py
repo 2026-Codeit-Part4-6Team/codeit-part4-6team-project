@@ -2,9 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from backend.clients.geocoding_client import get_geocoding_client
 from backend.database import create_database_engine, get_db
 from backend.init_db import create_tables
 from backend.main import create_app
+from tests.fakes import SuccessfulGeocodingClient
 
 
 @pytest.fixture
@@ -20,6 +22,7 @@ def session_client(tmp_path):
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_geocoding_client] = SuccessfulGeocodingClient
     with TestClient(app) as client:
         client.post(
             "/auth/register",
