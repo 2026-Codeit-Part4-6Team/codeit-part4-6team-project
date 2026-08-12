@@ -85,10 +85,16 @@ class NaverGeocodingClient:
             if payload.get("status") != "OK":
                 raise GeocodingProviderError("지오코딩 제공자가 오류 상태를 반환했습니다.")
             addresses = payload["addresses"]
+            if not isinstance(addresses, list):
+                raise GeocodingProviderError("지오코딩 주소 목록 형식이 올바르지 않습니다.")
             if not addresses:
                 raise GeocodingNotFound(address)
             first = addresses[0]
-            road_address = first.get("roadAddress") or first["jibunAddress"]
+            if not isinstance(first, dict):
+                raise GeocodingProviderError("지오코딩 주소 형식이 올바르지 않습니다.")
+            road_address = first.get("roadAddress") or first.get("jibunAddress")
+            if not isinstance(road_address, str) or not road_address.strip():
+                raise GeocodingProviderError("지오코딩 주소 값이 올바르지 않습니다.")
             return GeocodingResult(
                 road_address=road_address,
                 lat=_parse_coordinate(first["y"], "위도", -90, 90),

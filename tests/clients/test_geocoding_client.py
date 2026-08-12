@@ -142,3 +142,27 @@ def test_geocode_rejects_provider_coordinates_outside_valid_ranges():
 
     with pytest.raises(GeocodingProviderError):
         asyncio.run(client.geocode("서울"))
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": "OK", "addresses": None},
+        {"status": "OK", "addresses": [{}]},
+        {"status": "OK", "addresses": [{"roadAddress": "", "jibunAddress": None}]},
+    ],
+)
+def test_geocode_rejects_malformed_provider_payload(payload):
+    """구조가 깨진 제공자 응답은 주소 미검색이 아닌 제공자 오류입니다."""
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    client = NaverGeocodingClient(
+        api_key_id="id",
+        api_key="secret",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(GeocodingProviderError):
+        asyncio.run(client.geocode("서울"))
