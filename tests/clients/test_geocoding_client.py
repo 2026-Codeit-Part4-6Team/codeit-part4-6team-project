@@ -166,3 +166,23 @@ def test_geocode_rejects_malformed_provider_payload(payload):
 
     with pytest.raises(GeocodingProviderError):
         asyncio.run(client.geocode("서울"))
+
+
+@pytest.mark.parametrize("x_value", [True, 10**400])
+def test_geocode_rejects_non_finite_or_boolean_coordinates(x_value):
+    """boolean과 float 변환 overflow 좌표는 제공자 오류입니다."""
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"status": "OK", "addresses": [{"roadAddress": "주소", "x": x_value, "y": 37.5}]},
+        )
+
+    client = NaverGeocodingClient(
+        api_key_id="id",
+        api_key="secret",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(GeocodingProviderError):
+        asyncio.run(client.geocode("서울"))
