@@ -29,9 +29,11 @@ class GeocodingProviderError(Exception):
 
 def _parse_coordinate(value: object, name: str, minimum: float, maximum: float) -> float:
     """제공자 좌표를 유한한 허용 범위로 변환합니다."""
+    if isinstance(value, bool):
+        raise GeocodingProviderError(f"지오코딩 {name} 좌표가 올바르지 않습니다.")
     try:
         coordinate = float(value)
-    except (TypeError, ValueError) as error:
+    except (OverflowError, TypeError, ValueError) as error:
         raise GeocodingProviderError(f"지오코딩 {name} 좌표가 올바르지 않습니다.") from error
     if not math.isfinite(coordinate) or not minimum <= coordinate <= maximum:
         raise GeocodingProviderError(f"지오코딩 {name} 좌표가 허용 범위를 벗어났습니다.")

@@ -209,3 +209,13 @@ def test_test_environment_rejects_geocoding_fallback(monkeypatch):
 
     with pytest.raises(ValueError, match="fallback"):
         load_settings()
+
+
+def test_production_settings_reject_whitespace_secret(monkeypatch):
+    """운영 Secret은 공백만 있는 값도 거부합니다."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SESSION_SECRET_KEY", "   ")
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "true")
+
+    with pytest.raises(ValueError, match="SESSION_SECRET_KEY"):
+        load_settings()

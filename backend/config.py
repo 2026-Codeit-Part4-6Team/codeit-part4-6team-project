@@ -55,6 +55,8 @@ def load_settings() -> Settings:
     if environment not in {"development", "demo"} and geocode_fallback_enabled:
         raise ValueError("geocoding fallback은 development 또는 demo 환경에서만 사용할 수 있습니다.")
     secret_key = os.getenv("SESSION_SECRET_KEY")
+    if secret_key is not None:
+        secret_key = secret_key.strip()
     session_cookie_secure = _read_bool("SESSION_COOKIE_SECURE", False)
     if environment == "production":
         if not secret_key or secret_key in {
