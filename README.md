@@ -47,3 +47,12 @@ uv export --locked --no-default-groups \
 
 - [백엔드 안내](backend/README.md)
 - [프론트엔드 안내](frontend/README.md)
+
+## CI/CD
+
+`main` 대상 PR에서는 Python 테스트, 배포 자산 검사, Docker Compose 스모크 테스트를 자동 수행합니다.
+CI를 통과해 `main`에 병합된 뒤에는 수동 배포 워크플로를 실행합니다. 배포 워크플로는
+Artifact Registry에 커밋 SHA 기반 이미지를 저장한 뒤 GCP VM의 애플리케이션 컨테이너만
+교체합니다. JupyterHub와 모델 실험 환경은 배포 대상에 포함하지 않습니다.
+
+- [CI/CD 설정 및 운영 안내](.github/workflows/README.md)
