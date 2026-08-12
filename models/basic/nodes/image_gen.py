@@ -1,0 +1,43 @@
+import openai
+
+from ..clients.image_client import generate_image
+from ..graph.state import BasicState
+
+
+def _classify_error(exc: Exception) -> str:
+    if isinstance(exc, openai.RateLimitError):
+        return "rate_limit"
+    if isinstance(exc, openai.APITimeoutError):
+        return "timeout"
+    if isinstance(exc, openai.BadRequestError):
+        return "content_policy"
+    return "unknown"
+
+
+def image_gen_node(state: BasicState) -> dict:
+    store = state["store"]
+    updated = []
+    images = []
+
+    for c in state["ranked_copies"]:
+        if not c.get("copy"):
+            updated.append(c)
+            continue
+
+        prompt = (
+            f"{store.get('type', '가게')} 광고 이미지, "
+            f"소재: {c['copy']}, 밝고 따뜻한 느낌의 상업 사진 스타일"
+        )
+        try:
+            image_b64 = generate_image(prompt)
+            updated.append({**c, "image_b64": image_b64})
+            images.append(image_b64)
+        except Exception as exc:
+            reason = _classify_error(exc)
+            updated.append({
+                **c,
+                "image_b64": None,
+                "error": {"field": "image", "reason": reason, "message": str(exc)},
+            })
+
+    return {"ranked_copies": updated, "image_results": images}
