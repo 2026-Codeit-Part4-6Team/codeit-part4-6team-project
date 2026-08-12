@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.auth import hash_password, verify_password
 from backend.clients.geocoding_client import (
     GeocodingClient,
+    GeocodingNotFound,
     GeocodingProviderError,
     GeocodingResult,
 )
@@ -61,9 +62,14 @@ async def register_user(
     else:
         email = None
 
+    db.rollback()
     try:
         geocoded = await geocoder.geocode(request.address)
+    except GeocodingNotFound:
+        db.rollback()
+        raise
     except GeocodingProviderError:
+        db.rollback()
         if not policy.fallback_enabled:
             raise
         logger.warning("Geocoding provider failed; registration fallback coordinates are used")

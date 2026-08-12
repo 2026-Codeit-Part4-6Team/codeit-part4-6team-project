@@ -200,3 +200,12 @@ def test_production_settings_reject_fallback_and_unknown_environment(monkeypatch
     monkeypatch.setenv("GEOCODE_FALLBACK_ENABLED", "false")
     with pytest.raises(ValueError, match="APP_ENV"):
         load_settings()
+
+
+def test_test_environment_rejects_geocoding_fallback(monkeypatch):
+    """자동 테스트 환경도 실제 provider 장애를 fallback으로 숨기지 않습니다."""
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("GEOCODE_FALLBACK_ENABLED", "true")
+
+    with pytest.raises(ValueError, match="fallback"):
+        load_settings()

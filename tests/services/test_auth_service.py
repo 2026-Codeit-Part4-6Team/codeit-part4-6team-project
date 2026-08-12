@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +19,7 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
     db.scalar.side_effect = [None, None, 7]
     db.commit.side_effect = IntegrityError("duplicate", {}, Exception("unique"))
     geocoder = Mock()
-    geocoder.geocode.return_value = GeocodingResult("도로명 주소", 37.5, 127.0)
+    geocoder.geocode = AsyncMock(return_value=GeocodingResult("도로명 주소", 37.5, 127.0))
     request = RegisterRequest(
         username="owner",
         password="safe-password",
@@ -31,4 +31,4 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
     with pytest.raises(DuplicateUsernameError):
         asyncio.run(register_user(db, request, geocoder, GeocodingPolicy()))
 
-    db.rollback.assert_called_once_with()
+    assert db.rollback.call_count == 2

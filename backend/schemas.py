@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -98,6 +98,14 @@ class UserResponse(StrictModel):
     credits: int = Field(ge=0)
     daily_free_used: int = Field(ge=0)
     daily_free_reset_at: datetime | None
+
+    @field_validator("daily_free_reset_at", mode="before")
+    @classmethod
+    def normalize_reset_at_to_utc(cls, value: object) -> object:
+        """SQLite가 timezone을 제거한 UTC 시각을 API offset으로 복원합니다."""
+        if isinstance(value, datetime) and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
 
 
 class PreviewGenerationResult(StrictModel):

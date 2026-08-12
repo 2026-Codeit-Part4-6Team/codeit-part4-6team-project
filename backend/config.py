@@ -51,6 +51,9 @@ def load_settings() -> Settings:
     environment = os.getenv("APP_ENV", "development").strip().lower()
     if environment not in {"development", "test", "demo", "production"}:
         raise ValueError("APP_ENV는 development, test, demo, production 중 하나여야 합니다.")
+    geocode_fallback_enabled = _read_bool("GEOCODE_FALLBACK_ENABLED", False)
+    if environment not in {"development", "demo"} and geocode_fallback_enabled:
+        raise ValueError("geocoding fallback은 development 또는 demo 환경에서만 사용할 수 있습니다.")
     secret_key = os.getenv("SESSION_SECRET_KEY")
     session_cookie_secure = _read_bool("SESSION_COOKIE_SECURE", False)
     if environment == "production":
@@ -61,8 +64,6 @@ def load_settings() -> Settings:
             raise ValueError("운영 환경에서는 SESSION_SECRET_KEY가 필요합니다.")
         if not session_cookie_secure:
             raise ValueError("운영 환경에서는 SESSION_COOKIE_SECURE=true가 필요합니다.")
-        if _read_bool("GEOCODE_FALLBACK_ENABLED", False):
-            raise ValueError("운영 환경에서는 geocoding fallback을 사용할 수 없습니다.")
     else:
         secret_key = secret_key or "local-development-secret"
     return Settings(
@@ -78,7 +79,7 @@ def load_settings() -> Settings:
         session_cookie_secure=session_cookie_secure,
         naver_maps_api_key_id=os.getenv("NAVER_MAPS_API_KEY_ID", ""),
         naver_maps_api_key=os.getenv("NAVER_MAPS_API_KEY", ""),
-        geocode_fallback_enabled=_read_bool("GEOCODE_FALLBACK_ENABLED", False),
+        geocode_fallback_enabled=geocode_fallback_enabled,
         geocode_fallback_lat=_read_coordinate(
             "GEOCODE_FALLBACK_LAT", 37.4979, minimum=-90, maximum=90
         ),
