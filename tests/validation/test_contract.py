@@ -6,8 +6,8 @@ uv run pytest tests/validation/test_contract.py.py -q
 """
 
 """검증 함수 4종 계약 스모크 테스트 — 스텁이든 실구현이든 항상 통과해야 함"""
-from validation.security import check_input, check_output
 from validation.regulation import check_regulation
+from validation.security import check_input, check_output
 from validation.self_check import self_check
 
 
