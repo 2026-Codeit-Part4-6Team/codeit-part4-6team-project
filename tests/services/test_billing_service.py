@@ -7,6 +7,7 @@ from backend.services.billing_service import (
     estimate_generation,
     reserve_generation_usage,
     rollback_generation_usage,
+    settle_generation_usage,
 )
 from backend.services.credit_service import InsufficientCredits
 from backend.services.usage_service import UsageReservation
@@ -134,3 +135,55 @@ def test_free_rollback_is_idempotent():
     rollback_generation_usage(user, reservation)
 
     assert user.daily_free_used == 9
+
+
+def test_insufficient_credits_with_zero_free_limit_does_not_reset_usage():
+    """무료 한도가 0인 상태에서 잔액 부족이면 사용자 상태를 바꾸지 않습니다."""
+    reset_at = datetime(2026, 8, 11, 15, 0, tzinfo=UTC)
+    now = datetime(2026, 8, 12, 16, 0, tzinfo=UTC)
+    user = make_user(used=7, credits=0, reset_at=reset_at)
+
+    with pytest.raises(InsufficientCredits):
+        reserve_generation_usage(user, "consultant", now, free_limit=0)
+
+    assert (user.daily_free_used, user.credits, user.daily_free_reset_at) == (7, 0, reset_at)
+
+
+def test_rollback_dispatches_by_reservation_type_not_mutable_plan():
+    """Reservation plan 필드가 바뀌어도 실제 예약 종류를 기준으로 복구합니다."""
+    user = make_user(
+        used=9,
+        credits=0,
+        reset_at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
+    )
+    reservation = reserve_generation_usage(
+        user,
+        "basic",
+        datetime(2026, 8, 12, 14, 0, tzinfo=UTC),
+        free_limit=10,
+    )
+    reservation.plan = "paid"
+
+    rollback_generation_usage(user, reservation)
+
+    assert user.daily_free_used == 9
+
+
+def test_settled_reservation_cannot_be_rolled_back():
+    """성공 확정한 Reservation은 이후 rollback에서 상태를 바꾸지 않습니다."""
+    user = make_user(
+        used=9,
+        credits=0,
+        reset_at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
+    )
+    reservation = reserve_generation_usage(
+        user,
+        "basic",
+        datetime(2026, 8, 12, 14, 0, tzinfo=UTC),
+        free_limit=10,
+    )
+
+    settle_generation_usage(reservation)
+    rollback_generation_usage(user, reservation)
+
+    assert user.daily_free_used == 10

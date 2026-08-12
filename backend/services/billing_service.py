@@ -92,9 +92,16 @@ def reserve_generation_usage(
     return reserve_credits(user, chatbot_type)
 
 
+def settle_generation_usage(reservation: BillingReservation) -> None:
+    """성공적으로 확정된 Reservation을 rollback 대상에서 제외합니다."""
+    reservation.settled = True
+
+
 def rollback_generation_usage(user: User, reservation: BillingReservation) -> None:
     """무료 또는 유료 예약을 공통 경계에서 rollback합니다."""
-    if reservation.plan == "free":
+    if isinstance(reservation, UsageReservation):
         rollback_free_usage(user, reservation)
-    else:
+    elif isinstance(reservation, CreditReservation):
         rollback_credits(user, reservation)
+    else:
+        raise TypeError(f"지원하지 않는 Reservation 타입입니다: {type(reservation).__name__}")

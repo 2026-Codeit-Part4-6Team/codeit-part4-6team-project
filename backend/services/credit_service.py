@@ -29,7 +29,9 @@ def credit_cost_for(chatbot_type: ChatbotType) -> int:
     """챗봇 종류에 설정된 1회 생성 비용을 반환합니다."""
     if chatbot_type == "basic":
         return settings.basic_credit_cost
-    return settings.consultant_credit_cost
+    if chatbot_type == "consultant":
+        return settings.consultant_credit_cost
+    raise ValueError(f"지원하지 않는 챗봇 종류입니다: {chatbot_type}")
 
 
 def reserve_credits(user: User, chatbot_type: ChatbotType) -> CreditReservation:

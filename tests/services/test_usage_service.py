@@ -88,3 +88,20 @@ def test_free_usage_rollback_never_goes_below_zero():
 
     rollback_free_usage(user, UsageReservation(free_count_incremented=False))
     assert user.daily_free_used == 0
+
+
+def test_old_free_reservation_does_not_rollback_new_day_usage():
+    """자정 전 예약의 실패가 다음 날 무료 사용량을 줄이지 않습니다."""
+    before_midnight = datetime(2026, 8, 12, 14, 59, tzinfo=UTC)
+    after_midnight = datetime(2026, 8, 12, 15, 1, tzinfo=UTC)
+    user = make_user(
+        used=9,
+        reset_at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
+    )
+
+    old_reservation = try_reserve_free_usage(user, before_midnight, limit=10)
+    try_reserve_free_usage(user, after_midnight, limit=10)
+
+    rollback_free_usage(user, old_reservation)
+
+    assert user.daily_free_used == 1

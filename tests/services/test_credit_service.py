@@ -25,6 +25,12 @@ def test_credit_cost_uses_chatbot_specific_policy():
     assert credit_cost_for("consultant") == 50
 
 
+def test_credit_cost_rejects_unknown_chatbot_type():
+    """계약 밖의 챗봇 종류는 Consultant 비용으로 fallback하지 않습니다."""
+    with pytest.raises(ValueError, match="지원하지 않는 챗봇 종류"):
+        credit_cost_for("unknown")
+
+
 @pytest.mark.parametrize(
     ("chatbot_type", "before", "expected_cost"),
     [("basic", 60, 10), ("consultant", 60, 50)],
