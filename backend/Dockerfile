@@ -18,4 +18,4 @@ COPY backend ./backend
 
 EXPOSE 8000
 
-CMD ["/app/.venv/bin/uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/bin/sh", "-c", "python -m backend.init_db && exec /app/.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000"]
