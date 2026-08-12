@@ -41,6 +41,7 @@
 | D-031 | 8/11 | models/ 를 backend/ 하위에 두지 않음 | 배포 단위·Mock 전략·소유권 경계·추후 분리 4가지 | backend/models/ |
 | D-032 | 8/11 | 디렉토리 구조 단일 소스 = docs/directory_structure.md | 4개 SDP가 각자 그려 혼란 발생 | SDP별 유지 |
 | D-033 | 8/12 | Dependabot version updates 비활성화 (alerts는 유지) | 자동 버전 PR은 노이즈, 단 보안 취약점 알림은 받아야 함 | 전체 비활성화 |
+| D-034 | 8/12 | Dependabot 취약점 13건 대응 보류 | 프로젝트 기간 중 버전 업 시 빌드 깨질 위험이 이득보다 큼 | 즉시 패치 |
 
 
 ## 변경 이력
