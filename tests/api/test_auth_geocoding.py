@@ -12,6 +12,7 @@ from backend.clients.geocoding_client import (
     GeocodingResult,
     get_geocoding_client,
 )
+from backend.config import load_settings
 from backend.database import create_database_engine, get_db
 from backend.init_db import create_tables
 from backend.main import create_app
@@ -157,3 +158,45 @@ def test_register_uses_configured_fallback_only_for_provider_failure(
         assert user.road_address == registration_payload()["address"]
         assert user.lat == pytest.approx(37.4979)
         assert user.lng == pytest.approx(127.0276)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("GEOCODE_FALLBACK_LAT", "91"),
+        ("GEOCODE_FALLBACK_LNG", "181"),
+        ("GEOCODE_FALLBACK_LAT", "nan"),
+    ],
+)
+def test_settings_rejects_invalid_fallback_coordinates(monkeypatch, name, value):
+    """Fallback 좌표는 유효한 위도·경도 범위의 유한값이어야 합니다."""
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(ValueError, match="좌표"):
+        load_settings()
+
+
+def test_production_settings_require_secret_and_secure_cookie(monkeypatch):
+    """운영 설정은 기본 Secret과 비보안 Cookie를 허용하지 않습니다."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("SESSION_SECRET_KEY", raising=False)
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
+
+    with pytest.raises(ValueError, match="SESSION_SECRET_KEY"):
+        load_settings()
+
+
+def test_production_settings_reject_fallback_and_unknown_environment(monkeypatch):
+    """운영 환경은 fallback을 끄고 알려진 환경명만 사용합니다."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SESSION_SECRET_KEY", "real-secret")
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "true")
+    monkeypatch.setenv("GEOCODE_FALLBACK_ENABLED", "true")
+
+    with pytest.raises(ValueError, match="fallback"):
+        load_settings()
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("GEOCODE_FALLBACK_ENABLED", "false")
+    with pytest.raises(ValueError, match="APP_ENV"):
+        load_settings()

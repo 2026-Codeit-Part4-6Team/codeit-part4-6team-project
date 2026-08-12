@@ -1,3 +1,4 @@
+import math
 import os
 from dataclasses import dataclass
 
@@ -18,9 +19,12 @@ def _read_bool(name: str, default: bool) -> bool:
     return raw == "true"
 
 
-def _read_float(name: str, default: float) -> float:
-    """환경변수 실수를 읽습니다."""
-    return float(os.getenv(name, str(default)))
+def _read_coordinate(name: str, default: float, *, minimum: float, maximum: float) -> float:
+    """환경변수 좌표를 유한한 허용 범위로 읽습니다."""
+    value = float(os.getenv(name, str(default)))
+    if not math.isfinite(value) or not minimum <= value <= maximum:
+        raise ValueError(f"{name} 좌표는 {minimum}에서 {maximum} 사이의 유한값이어야 합니다.")
+    return value
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,23 @@ class Settings:
 
 def load_settings() -> Settings:
     """환경변수에서 서비스 설정을 생성합니다."""
+    environment = os.getenv("APP_ENV", "development").strip().lower()
+    if environment not in {"development", "test", "demo", "production"}:
+        raise ValueError("APP_ENV는 development, test, demo, production 중 하나여야 합니다.")
+    secret_key = os.getenv("SESSION_SECRET_KEY")
+    session_cookie_secure = _read_bool("SESSION_COOKIE_SECURE", False)
+    if environment == "production":
+        if not secret_key or secret_key in {
+            "local-development-secret",
+            "change-this-in-real-environments",
+        }:
+            raise ValueError("운영 환경에서는 SESSION_SECRET_KEY가 필요합니다.")
+        if not session_cookie_secure:
+            raise ValueError("운영 환경에서는 SESSION_COOKIE_SECURE=true가 필요합니다.")
+        if _read_bool("GEOCODE_FALLBACK_ENABLED", False):
+            raise ValueError("운영 환경에서는 geocoding fallback을 사용할 수 없습니다.")
+    else:
+        secret_key = secret_key or "local-development-secret"
     return Settings(
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         daily_free_limit=_read_int("DAILY_FREE_LIMIT", 10),
@@ -52,14 +73,18 @@ def load_settings() -> Settings:
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
         ),
-        session_secret_key=os.getenv("SESSION_SECRET_KEY", "local-development-secret"),
+        session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
-        session_cookie_secure=_read_bool("SESSION_COOKIE_SECURE", False),
+        session_cookie_secure=session_cookie_secure,
         naver_maps_api_key_id=os.getenv("NAVER_MAPS_API_KEY_ID", ""),
         naver_maps_api_key=os.getenv("NAVER_MAPS_API_KEY", ""),
         geocode_fallback_enabled=_read_bool("GEOCODE_FALLBACK_ENABLED", False),
-        geocode_fallback_lat=_read_float("GEOCODE_FALLBACK_LAT", 37.4979),
-        geocode_fallback_lng=_read_float("GEOCODE_FALLBACK_LNG", 127.0276),
+        geocode_fallback_lat=_read_coordinate(
+            "GEOCODE_FALLBACK_LAT", 37.4979, minimum=-90, maximum=90
+        ),
+        geocode_fallback_lng=_read_coordinate(
+            "GEOCODE_FALLBACK_LNG", 127.0276, minimum=-180, maximum=180
+        ),
     )
 
 

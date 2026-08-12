@@ -120,3 +120,25 @@ def test_geocode_wraps_provider_failures(failure: str):
 
     with pytest.raises(GeocodingProviderError):
         asyncio.run(client.geocode("서울"))
+
+
+def test_geocode_rejects_provider_coordinates_outside_valid_ranges():
+    """제공자가 반환한 범위 밖 좌표는 외부 장애로 처리합니다."""
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "status": "OK",
+                "addresses": [{"roadAddress": "주소", "x": "181", "y": "91"}],
+            },
+        )
+
+    client = NaverGeocodingClient(
+        api_key_id="id",
+        api_key="secret",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(GeocodingProviderError):
+        asyncio.run(client.geocode("서울"))

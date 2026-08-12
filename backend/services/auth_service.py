@@ -4,6 +4,7 @@ from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.auth import hash_password, verify_password
@@ -87,7 +88,15 @@ async def register_user(
         daily_free_reset_at=next_daily_free_reset_at(),
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        if db.scalar(select(User.id).where(User.username == request.username)) is not None:
+            raise DuplicateUsernameError from error
+        if email is not None and db.scalar(select(User.id).where(User.email == email)) is not None:
+            raise DuplicateEmailError from error
+        raise
     db.refresh(user)
     return user
 

@@ -55,6 +55,7 @@ def test_register_stores_normalized_username_and_bcrypt_hash(registration_contex
 
     assert response.status_code == 201
     assert response.json()["username"] == "codeit_owner"
+    assert response.json()["daily_free_reset_at"] is not None
     assert "password" not in response.json()
     with testing_session() as session:
         user = session.scalar(select(User).where(User.username == "codeit_owner"))
@@ -93,3 +94,15 @@ def test_register_validation_does_not_echo_password(registration_context):
 
     assert response.status_code == 422
     assert "secret" not in response.text
+
+
+def test_register_rejects_password_over_72_utf8_bytes(registration_context):
+    """UTF-8 바이트 기준 bcrypt 제한을 넘는 비밀번호는 거부합니다."""
+    client, _ = registration_context
+
+    response = client.post(
+        "/auth/register",
+        json=valid_registration(password="가" * 25),
+    )
+
+    assert response.status_code == 422

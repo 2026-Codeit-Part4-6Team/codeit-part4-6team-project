@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -32,7 +33,7 @@ class RegisterRequest(StrictModel):
     """서비스 회원가입 요청."""
 
     username: str = Field(min_length=3, max_length=100)
-    password: SecretStr = Field(min_length=8, max_length=72)
+    password: SecretStr
     name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
     business_name: str = Field(min_length=1, max_length=200)
@@ -46,18 +47,36 @@ class RegisterRequest(StrictModel):
         """사용자명의 공백과 대소문자를 정규화합니다."""
         return value.strip().lower() if isinstance(value, str) else value
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
+
 
 class LoginRequest(StrictModel):
     """서비스 로그인 요청."""
 
     username: str = Field(min_length=3, max_length=100)
-    password: SecretStr = Field(min_length=8, max_length=72)
+    password: SecretStr
 
     @field_validator("username", mode="before")
     @classmethod
     def normalize_username(cls, value: object) -> object:
         """로그인 사용자명을 회원가입과 같은 방식으로 정규화합니다."""
         return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
 
 
 class UserResponse(StrictModel):
@@ -78,6 +97,7 @@ class UserResponse(StrictModel):
     lng: float | None
     credits: int = Field(ge=0)
     daily_free_used: int = Field(ge=0)
+    daily_free_reset_at: datetime | None
 
 
 class PreviewGenerationResult(StrictModel):

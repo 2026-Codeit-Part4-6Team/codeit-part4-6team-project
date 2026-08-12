@@ -50,6 +50,7 @@ def test_login_sets_secure_session_attributes_and_me_works(session_client):
     me_response = session_client.get("/users/me")
     assert me_response.status_code == 200
     assert me_response.json()["username"] == "owner"
+    assert me_response.json()["daily_free_reset_at"] is not None
 
 
 def test_login_failures_use_same_401_response(session_client):
