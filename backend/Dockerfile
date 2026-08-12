@@ -15,7 +15,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project --only-group backend
 
 COPY backend ./backend
-COPY cache ./cache
 
 EXPOSE 8000
 
