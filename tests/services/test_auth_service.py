@@ -23,6 +23,7 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
     request = RegisterRequest(
         username="owner",
         password="safe-password",
+        email="owner@example.com",
         business_name="카페",
         business_type="카페",
         address="서울",
