@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -24,6 +25,17 @@ class GeocodingNotFound(Exception):
 
 class GeocodingProviderError(Exception):
     """지오코딩 제공자 호출 또는 응답 해석에 실패할 때 발생합니다."""
+
+
+def _parse_coordinate(value: object, name: str, minimum: float, maximum: float) -> float:
+    """제공자 좌표를 유한한 허용 범위로 변환합니다."""
+    try:
+        coordinate = float(value)
+    except (TypeError, ValueError) as error:
+        raise GeocodingProviderError(f"지오코딩 {name} 좌표가 올바르지 않습니다.") from error
+    if not math.isfinite(coordinate) or not minimum <= coordinate <= maximum:
+        raise GeocodingProviderError(f"지오코딩 {name} 좌표가 허용 범위를 벗어났습니다.")
+    return coordinate
 
 
 @runtime_checkable
@@ -79,8 +91,8 @@ class NaverGeocodingClient:
             road_address = first.get("roadAddress") or first["jibunAddress"]
             return GeocodingResult(
                 road_address=road_address,
-                lat=float(first["y"]),
-                lng=float(first["x"]),
+                lat=_parse_coordinate(first["y"], "위도", -90, 90),
+                lng=_parse_coordinate(first["x"], "경도", -180, 180),
             )
         except GeocodingNotFound:
             raise
