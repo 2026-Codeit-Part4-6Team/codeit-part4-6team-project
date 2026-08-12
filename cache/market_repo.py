@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from cache.db import SessionLocal
 from cache.models import MarketCache
 from cache.ttl import expired
-from model_consult.clients.market_api import aggregate, fetch_raw
+from models.consult.clients.market_api import aggregate, fetch_raw
 
 logger = logging.getLogger(__name__)
 
