@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from cache.models import Base, MarketCache
+from cache.models import BannedKeyword, Base, MarketCache, ReviewCache, TrendCache
 
 
 def test_market_cache_round_trip() -> None:
@@ -44,3 +44,39 @@ def test_created_at_is_utc_not_local() -> None:
 
     utc_now = datetime.now(UTC).replace(tzinfo=None)
     assert abs((utc_now - row.created_at).total_seconds()) < 60
+
+
+def test_cache_models_cover_contract_tables() -> None:
+    """Contract의 Cache 스키마 네 종류를 같은 Cache Base로 생성합니다."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+
+    with Session() as session:
+        session.add(
+            TrendCache(
+                keyword="아이스아메리카노",
+                direction="상승",
+                related_json="[]",
+            )
+        )
+        session.add(
+            ReviewCache(
+                category="카페",
+                review_summary="친절함",
+                num_reviews=3,
+            )
+        )
+        session.add(
+            BannedKeyword(
+                keyword="최고",
+                category="exaggeration",
+                action="warn",
+                message="근거를 함께 제시하세요.",
+            )
+        )
+        session.commit()
+
+        assert session.query(TrendCache).count() == 1
+        assert session.query(ReviewCache).count() == 1
+        assert session.query(BannedKeyword).count() == 1

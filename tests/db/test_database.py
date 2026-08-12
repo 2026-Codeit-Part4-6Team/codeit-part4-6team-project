@@ -14,8 +14,8 @@ def test_sqlite_foreign_keys_are_enabled(tmp_path):
     assert enabled == 1
 
 
-def test_init_db_creates_only_service_tables(tmp_path):
-    """서비스 초기화는 서비스 소유 테이블 네 개만 생성합니다."""
+def test_init_db_creates_service_and_cache_tables(tmp_path):
+    """서비스 초기화는 서비스 4개와 Cache 스키마를 생성합니다."""
     engine = create_database_engine(f"sqlite:///{tmp_path / 'test.db'}")
 
     create_tables(engine)
@@ -25,4 +25,8 @@ def test_init_db_creates_only_service_tables(tmp_path):
         "payments",
         "generations",
         "waiting_copies",
+        "market_cache",
+        "trend_cache",
+        "review_cache",
+        "banned_keywords",
     }
