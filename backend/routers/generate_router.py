@@ -37,7 +37,6 @@ def estimate(
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail={
-                "code": "insufficient_credits",
                 "required": error.required,
                 "current": error.available,
             },

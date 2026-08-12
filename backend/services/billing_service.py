@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from backend.config import settings
 from backend.models import User
 from backend.schemas import ChatbotType
 from backend.services.credit_service import (
@@ -59,7 +58,7 @@ def estimate_generation(
     if free_remaining > 0:
         return BillingEstimate(
             is_free=True,
-            free_remaining=free_remaining - 1,
+            free_remaining=free_remaining,
             estimated_credits=0,
             current_credits=user.credits,
             credits_after=user.credits,
@@ -84,11 +83,10 @@ def reserve_generation_usage(
     chatbot_type: ChatbotType,
     now: datetime,
     *,
-    free_limit: int | None = None,
+    free_limit: int,
 ) -> BillingReservation:
     """무료를 우선 예약하고, 소진 시 챗봇별 Credit을 예약합니다."""
-    limit = settings.daily_free_limit if free_limit is None else free_limit
-    free_reservation = try_reserve_free_usage(user, now, limit)
+    free_reservation = try_reserve_free_usage(user, now, free_limit)
     if free_reservation is not None:
         return free_reservation
     return reserve_credits(user, chatbot_type)

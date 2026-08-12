@@ -86,3 +86,23 @@ def test_estimate_does_not_mutate_user_state(billing_context):
     with testing_session() as session:
         user = session.scalar(select(User).where(User.username == "owner"))
         assert user.daily_free_used == 0
+
+
+def test_paid_estimate_returns_only_required_and_current_on_402(billing_context):
+    """유료 잔액 부족 응답은 계약된 두 값만 노출합니다."""
+    app, testing_session = billing_context
+    with testing_session() as session:
+        user = session.scalar(select(User).where(User.username == "owner"))
+        user.daily_free_used = 10
+        user.credits = 49
+        session.commit()
+
+    with TestClient(app) as client:
+        login(client)
+        response = client.post(
+            "/generate/estimate",
+            json={"chatbot_type": "consultant", "question": "전략", "platform": None},
+        )
+
+    assert response.status_code == 402
+    assert response.json()["detail"] == {"required": 50, "current": 49}

@@ -35,7 +35,7 @@ def test_estimate_is_side_effect_free_for_free_generation():
     )
 
     assert result.is_free is True
-    assert result.free_remaining == 6
+    assert result.free_remaining == 7
     assert result.estimated_credits == 0
     assert result.credits_after == 40
     assert (user.daily_free_used, user.credits, user.daily_free_reset_at) == (3, 40, reset_at)
@@ -93,4 +93,44 @@ def test_reservation_and_rollback_share_one_billing_boundary():
     rollback_generation_usage(user, reservation)
 
     assert isinstance(reservation, UsageReservation)
+    assert user.daily_free_used == 9
+
+
+def test_paid_rollback_is_idempotent():
+    """같은 유료 Reservation의 rollback은 한 번만 잔액을 복구합니다."""
+    user = make_user(
+        used=10,
+        credits=60,
+        reset_at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
+    )
+    reservation = reserve_generation_usage(
+        user,
+        "consultant",
+        datetime(2026, 8, 11, 16, 0, tzinfo=UTC),
+        free_limit=10,
+    )
+
+    rollback_generation_usage(user, reservation)
+    rollback_generation_usage(user, reservation)
+
+    assert user.credits == 60
+
+
+def test_free_rollback_is_idempotent():
+    """같은 무료 Reservation의 rollback은 한 번만 카운터를 복구합니다."""
+    user = make_user(
+        used=9,
+        credits=0,
+        reset_at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
+    )
+    reservation = reserve_generation_usage(
+        user,
+        "basic",
+        datetime(2026, 8, 11, 16, 0, tzinfo=UTC),
+        free_limit=10,
+    )
+
+    rollback_generation_usage(user, reservation)
+    rollback_generation_usage(user, reservation)
+
     assert user.daily_free_used == 9

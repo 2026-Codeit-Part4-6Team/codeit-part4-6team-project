@@ -6,13 +6,14 @@ from backend.models import User
 from backend.time_utils import as_utc, next_seoul_midnight_utc
 
 
-@dataclass(frozen=True)
+@dataclass
 class UsageReservation:
     """무료 생성 요청이 예약한 사용량입니다."""
 
     plan: Literal["free"] = "free"
     credits_used: Literal[0] = 0
     free_count_incremented: bool = True
+    settled: bool = False
 
 
 def reset_daily_usage_if_due(user: User, now: datetime) -> bool:
@@ -43,5 +44,8 @@ def try_reserve_free_usage(
 
 def rollback_free_usage(user: User, reservation: UsageReservation) -> None:
     """예약에서 증가한 무료 사용량을 0 미만이 되지 않게 복구합니다."""
+    if reservation.settled:
+        return
     if reservation.free_count_incremented:
         user.daily_free_used = max(0, user.daily_free_used - 1)
+    reservation.settled = True

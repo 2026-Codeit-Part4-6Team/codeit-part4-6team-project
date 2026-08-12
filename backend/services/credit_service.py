@@ -6,13 +6,14 @@ from backend.models import User
 from backend.schemas import ChatbotType
 
 
-@dataclass(frozen=True)
+@dataclass
 class CreditReservation:
     """유료 생성 요청이 예약한 크레딧입니다."""
 
     credits_used: int
     plan: Literal["paid"] = "paid"
     free_count_incremented: Literal[False] = False
+    settled: bool = False
 
 
 class InsufficientCredits(Exception):
@@ -43,4 +44,7 @@ def reserve_credits(user: User, chatbot_type: ChatbotType) -> CreditReservation:
 
 def rollback_credits(user: User, reservation: CreditReservation) -> None:
     """예약에서 차감한 크레딧을 사용자 잔액에 복구합니다."""
+    if reservation.settled:
+        return
     user.credits += reservation.credits_used
+    reservation.settled = True
