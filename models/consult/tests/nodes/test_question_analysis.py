@@ -85,6 +85,9 @@ def test_falls_back_when_response_is_not_json(mock_call_llm) -> None:
         {"is_sufficient": True, "missing_info": []},
         ["질문", True, []],
         "그냥 문자열",
+        # is_sufficient와 missing_info가 서로 모순되는 경우
+        {"rewritten_question": "질문", "is_sufficient": True, "missing_info": ["주소"]},
+        {"rewritten_question": "질문", "is_sufficient": False, "missing_info": []},
     ],
 )
 @patch("models.consult.nodes.question_analysis.call_llm")
@@ -109,3 +112,16 @@ def test_propagates_call_llm_failure(mock_call_llm) -> None:
 
     with pytest.raises(openai.RateLimitError):
         question_analysis(_state("원본 질문"))
+
+
+@patch("models.consult.nodes.question_analysis.call_llm")
+def test_fallback_missing_info_not_shared_across_calls(mock_call_llm) -> None:
+    """폴백에서 반환한 missing_info 리스트를 호출자가 수정해도 다음 호출의 폴백에 남지 않는다."""
+    mock_call_llm.return_value = "이건 JSON이 아님"
+
+    first = question_analysis(_state("첫 번째 질문"))
+    first["context"]["question_analysis"]["missing_info"].append("오염된 값")
+
+    second = question_analysis(_state("두 번째 질문"))
+
+    assert second["context"]["question_analysis"]["missing_info"] == []

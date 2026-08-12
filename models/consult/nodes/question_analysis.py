@@ -5,7 +5,11 @@ from models.consult.graph.state import ConsultState
 from models.consult.llm import call_llm
 from models.consult.prompts.question_analysis import SYSTEM_PROMPT, build_user_prompt
 
-_FALLBACK_ANALYSIS = {"is_sufficient": True, "missing_info": []}
+
+def _fallback_analysis() -> dict:
+    """폴백 시 매번 새 dict/list를 만든다 — 공유 객체를 반환하면 호출자가 리스트를
+    수정했을 때 이후 요청의 폴백에도 그 값이 남는다."""
+    return {"is_sufficient": True, "missing_info": []}
 
 
 def question_analysis(state: ConsultState) -> dict:
@@ -29,10 +33,10 @@ def _parse_response(raw: str, original_question: str) -> tuple[str, dict]:
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        return original_question, dict(_FALLBACK_ANALYSIS)
+        return original_question, _fallback_analysis()
 
     if not isinstance(parsed, dict):
-        return original_question, dict(_FALLBACK_ANALYSIS)
+        return original_question, _fallback_analysis()
 
     rewritten = parsed.get("rewritten_question")
     is_sufficient = parsed.get("is_sufficient")
@@ -44,8 +48,9 @@ def _parse_response(raw: str, original_question: str) -> tuple[str, dict]:
         and isinstance(is_sufficient, bool)
         and isinstance(missing_info, list)
         and all(isinstance(item, str) for item in missing_info)
+        and is_sufficient == (len(missing_info) == 0)
     )
     if not valid:
-        return original_question, dict(_FALLBACK_ANALYSIS)
+        return original_question, _fallback_analysis()
 
     return rewritten, {"is_sufficient": is_sufficient, "missing_info": missing_info}
