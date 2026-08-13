@@ -323,3 +323,351 @@ def test_replay_failed_blocked_is_public_but_error_is_http_boundary(tmp_path):
         with pytest.raises(ModelExecutionError) as caught:
             replay_existing_generation(error_generation, error_request)
         assert caught.value.reason == "provider_error"
+
+class RecordingClient:
+    def __init__(self, result, *, db: Session | None = None):
+        self.result = result
+        self.db = db
+        self.calls = 0
+        self.in_transaction_during_call = None
+
+    async def generate(self, _request):
+        self.calls += 1
+        if self.db is not None:
+            self.in_transaction_during_call = self.db.in_transaction()
+        return self.result
+
+
+class RaisingClient:
+    def __init__(self, error: Exception):
+        self.error = error
+        self.calls = 0
+
+    async def generate(self, _request):
+        self.calls += 1
+        raise self.error
+
+
+def basic_result_with_images():
+    payload = basic_result_payload()
+    for index, proposal in enumerate(payload["proposals"], start=1):
+        proposal["image_b64"] = f"image-{index}"
+    return payload
+
+
+def test_generate_free_basic_commits_done_and_strips_images(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=100, used=0, reset_at=now + timedelta(hours=12))
+        request = basic_request(max_accepted_credits=0)
+        client = RecordingClient(basic_result_with_images(), db=db)
+
+        response = run(
+            generate(
+                db,
+                user,
+                request,
+                "00000000-0000-0000-0000-000000000011",
+                client,
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        assert response.status == "done"
+        assert response.usage.plan == "free"
+        assert response.usage.credits_used == 0
+        assert client.calls == 1
+        assert client.in_transaction_during_call is False
+
+        db.refresh(user)
+        row = db.get(Generation, response.generation_id)
+        assert user.daily_free_used == 1
+        assert user.credits == 100
+        assert row is not None
+        assert row.status == "done"
+        assert row.tokens_used == 3
+        assert "image_b64" not in row.result_json
+        assert row.copy_content is None
+        assert row.image_b64 is None
+        assert row.selected_proposal_index is None
+        assert row.hitl_approved is False
+
+
+def test_generate_paid_consultant_charges_once(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=20,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        request = consultant_request(max_accepted_credits=10)
+        client = RecordingClient(consultant_result_payload())
+
+        response = run(
+            generate(
+                db,
+                user,
+                request,
+                "00000000-0000-0000-0000-000000000012",
+                client,
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        db.refresh(user)
+        assert response.status == "done"
+        assert response.usage.plan == "paid"
+        assert response.usage.credits_used == 10
+        assert user.credits == 10
+        assert client.calls == 1
+
+
+def test_generate_billing_confirmation_failure_does_not_insert_or_charge(tmp_path):
+    from asyncio import run
+
+    from backend.services.credit_service import BillingConfirmationRequired
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=100,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        client = RecordingClient(basic_result_payload())
+
+        with pytest.raises(BillingConfirmationRequired):
+            run(
+                generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=0),
+                    "00000000-0000-0000-0000-000000000013",
+                    client,
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.refresh(user)
+        assert user.credits == 100
+        assert db.query(Generation).count() == 0
+        assert client.calls == 0
+
+
+def test_generate_insufficient_credits_does_not_insert(tmp_path):
+    from asyncio import run
+
+    from backend.services.credit_service import InsufficientCredits
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=49,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+
+        with pytest.raises(InsufficientCredits):
+            run(
+                generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=50),
+                    "00000000-0000-0000-0000-000000000014",
+                    RecordingClient(basic_result_payload()),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+        assert db.query(Generation).count() == 0
+
+
+def test_generate_blocked_result_compensates_committed_free_usage(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, used=0, reset_at=now + timedelta(hours=12))
+        blocked = {
+            "status": "blocked",
+            "action": "reask",
+            "reason": "insufficient_info",
+            "message": "추가 정보를 입력해 주세요.",
+        }
+
+        response = run(
+            generate(
+                db,
+                user,
+                basic_request(),
+                "00000000-0000-0000-0000-000000000015",
+                RecordingClient(blocked),
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        db.refresh(user)
+        row = db.get(Generation, response.generation_id)
+        assert response.status == "failed"
+        assert response.result is not None
+        assert response.result.status == "blocked"
+        assert response.usage.credits_used == 0
+        assert user.daily_free_used == 0
+        assert row is not None
+        assert row.status == "failed"
+        assert row.credits_used == 0
+        assert json.loads(row.result_json)["status"] == "blocked"
+
+
+def test_generate_error_result_compensates_paid_credit_and_raises(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import ModelExecutionError, generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        request = basic_request(max_accepted_credits=50)
+        key = "00000000-0000-0000-0000-000000000016"
+
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generate(
+                    db,
+                    user,
+                    request,
+                    key,
+                    RecordingClient(
+                        {
+                            "status": "error",
+                            "reason": "provider_error",
+                            "message": "provider failed",
+                        }
+                    ),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.refresh(user)
+        row = db.query(Generation).filter_by(idempotency_key=key).one()
+        assert caught.value.reason == "provider_error"
+        assert user.credits == 50
+        assert row.status == "failed"
+        assert row.credits_used == 0
+        assert json.loads(row.result_json)["reason"] == "provider_error"
+
+
+def test_generate_client_exception_is_compensated_as_unknown(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import ModelExecutionError, generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=50),
+                    "00000000-0000-0000-0000-000000000017",
+                    RaisingClient(RuntimeError("secret provider detail")),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.refresh(user)
+        assert caught.value.reason == "unknown"
+        assert "secret provider detail" not in caught.value.message
+        assert user.credits == 50
+
+
+def test_same_key_done_replay_does_not_call_model_or_charge_again(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=100, used=0, reset_at=now + timedelta(hours=12))
+        request = basic_request()
+        key = "00000000-0000-0000-0000-000000000018"
+        client = RecordingClient(basic_result_payload())
+
+        first = run(
+            generate(
+                db,
+                user,
+                request,
+                key,
+                client,
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+        second = run(
+            generate(
+                db,
+                user,
+                request,
+                key,
+                client,
+                now=now + timedelta(seconds=1),
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        db.refresh(user)
+        assert first.generation_id == second.generation_id
+        assert client.calls == 1
+        assert user.daily_free_used == 1

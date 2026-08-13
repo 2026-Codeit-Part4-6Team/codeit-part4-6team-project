@@ -1,12 +1,23 @@
+import asyncio
 import hashlib
 import json
 from typing import Literal
+from uuid import UUID
 
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from backend.clients.chatbot_client import ChatbotClient
 from backend.models import Generation, User
+from backend.services.credit_service import (
+    apply_generation_usage_rollback,
+    finalize_generation_usage_rollback,
+    reserve_generation_usage,
+    reset_generation_usage_rollback,
+    settle_generation_usage,
+)
 from backend.schemas import (
     MODEL_RESULT_ADAPTER,
     BasicModelResult,
@@ -130,7 +141,11 @@ def build_model_request(
     business_name = _required_non_blank(user.business_name, "business_name")
     business_type = _required_non_blank(user.business_type, "business_type")
     road_address = user.road_address
-    address = road_address if road_address is not None and road_address.strip() else user.address
+    address = (
+        road_address
+        if road_address is not None and road_address.strip()
+        else user.address
+    )
     address = _required_non_blank(address, "address")
     if user.lat is None or user.lng is None:
         raise GenerationDataInvariantError("가게 좌표가 필요합니다.")
@@ -232,3 +247,211 @@ def replay_existing_generation(
         )
 
     raise GenerationDataInvariantError("알 수 없는 generation 상태입니다.")
+
+
+def _normalize_idempotency_key(value: str) -> str:
+    try:
+        return str(UUID(value))
+    except (TypeError, ValueError, AttributeError) as error:
+        raise ValueError("Idempotency-Key는 UUID여야 합니다.") from error
+
+
+def _find_existing_generation(
+    db: Session, user_id: int, idempotency_key: str
+) -> Generation | None:
+    return db.scalar(
+        select(Generation).where(
+            Generation.user_id == user_id,
+            Generation.idempotency_key == idempotency_key,
+        )
+    )
+
+
+def _load_generating_generation(
+    db: Session, generation_id: int, user_id: int
+) -> Generation:
+    generation = db.scalar(
+        select(Generation).where(
+            Generation.id == generation_id,
+            Generation.user_id == user_id,
+        )
+    )
+    if generation is None or generation.status != "generating":
+        raise GenerationDataInvariantError(
+            "generation은 transaction 2 시작 시 generating 상태여야 합니다."
+        )
+    return generation
+
+
+def _internal_error(message: str) -> ModelExecutionError:
+    return ModelExecutionError(reason="unknown", message=message)
+
+
+def _failed_error_result(
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"],
+    message: str,
+) -> ErrorResult:
+    return ErrorResult(status="error", reason=reason, message=message)
+
+
+def _handle_failed_result(
+    db: Session,
+    user: User,
+    generation_id: int,
+    reservation,
+    result: BlockedResult | ErrorResult,
+    *,
+    now,
+) -> GenerationResponse:
+    generation = _load_generating_generation(db, generation_id, user.id)
+    generation.status = "failed"
+    apply_generation_usage_rollback(db, user.id, reservation, now)
+    generation.credits_used = 0
+    generation.tokens_used = 0
+    generation.result_json = serialize_model_result_for_storage(result)
+    try:
+        db.commit()
+    except SQLAlchemyError as error:
+        db.rollback()
+        reset_generation_usage_rollback(reservation)
+        raise _internal_error("generation_failure_persistence_failed") from error
+
+    finalize_generation_usage_rollback(reservation)
+    if isinstance(result, ErrorResult):
+        raise ModelExecutionError(reason=result.reason, message=result.message)
+
+    return GenerationResponse(
+        generation_id=generation_id,
+        status="failed",
+        chatbot_type=generation.chatbot_type,
+        result=result,
+        usage=GenerationUsage(plan=generation.plan, credits_used=0),
+    )
+
+
+async def generate(
+    db: Session,
+    user: User,
+    request: GenerateRequest,
+    idempotency_key: str,
+    chatbot_client: ChatbotClient,
+    *,
+    now,
+    free_limit: int,
+    model_timeout_seconds: int,
+) -> GenerationResponse:
+    """D4 생성 요청의 idempotency, reservation, model, persistence를 조율합니다."""
+    normalized_key = _normalize_idempotency_key(idempotency_key)
+    request_hash = hash_generate_request(request)
+
+    existing = _find_existing_generation(db, user.id, normalized_key)
+    if existing is not None:
+        return replay_existing_generation(existing, request)
+
+    model_request = build_model_request(db, user, request)
+
+    try:
+        reservation = reserve_generation_usage(
+            db,
+            user.id,
+            request.chatbot_type,
+            now,
+            free_limit,
+            request.max_accepted_credits,
+        )
+        generation = Generation(
+            user_id=user.id,
+            source_gen_id=request.source_gen_id,
+            chatbot_type=request.chatbot_type,
+            idempotency_key=normalized_key,
+            request_hash=request_hash,
+            question=request.question,
+            platform=request.platform,
+            plan=reservation.plan,
+            credits_used=reservation.credits_used,
+            status="pending",
+        )
+        db.add(generation)
+        db.flush()
+        generation_id = generation.id
+        generation.status = "generating"
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        existing = _find_existing_generation(db, user.id, normalized_key)
+        if existing is None:
+            raise _internal_error("generation_idempotency_race_unresolved") from error
+        return replay_existing_generation(existing, request)
+    except Exception:
+        db.rollback()
+        raise
+
+    try:
+        raw_result = await asyncio.wait_for(
+            chatbot_client.generate(model_request),
+            timeout=model_timeout_seconds,
+        )
+        result = MODEL_RESULT_ADAPTER.validate_python(
+            raw_result,
+            chatbot_type=request.chatbot_type,
+        )
+    except TimeoutError:
+        return _handle_failed_result(
+            db,
+            user,
+            generation_id,
+            reservation,
+            _failed_error_result("timeout", "model_request_timeout"),
+            now=now,
+        )
+    except (ValidationError, ValueError):
+        return _handle_failed_result(
+            db,
+            user,
+            generation_id,
+            reservation,
+            _failed_error_result("unknown", "model_result_validation_failed"),
+            now=now,
+        )
+    except Exception:
+        return _handle_failed_result(
+            db,
+            user,
+            generation_id,
+            reservation,
+            _failed_error_result("unknown", "model_execution_failed"),
+            now=now,
+        )
+
+    if isinstance(result, (BlockedResult, ErrorResult)):
+        return _handle_failed_result(
+            db,
+            user,
+            generation_id,
+            reservation,
+            result,
+            now=now,
+        )
+
+    generation = _load_generating_generation(db, generation_id, user.id)
+    generation.result_json = serialize_model_result_for_storage(result)
+    generation.title = result.title
+    generation.tokens_used = result.tokens_used
+    generation.status = "done"
+    try:
+        db.commit()
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise _internal_error("generation_success_persistence_failed") from error
+
+    settle_generation_usage(reservation)
+    return GenerationResponse(
+        generation_id=generation_id,
+        status="done",
+        chatbot_type=request.chatbot_type,
+        result=result,
+        usage=GenerationUsage(
+            plan=reservation.plan,
+            credits_used=reservation.credits_used,
+        ),
+    )
