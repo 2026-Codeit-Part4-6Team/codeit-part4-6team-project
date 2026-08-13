@@ -1,0 +1,65 @@
+import pytest
+from pydantic import ValidationError
+
+from backend.schemas import GenerateExtra, ModelRequest, StoreContext
+
+
+def make_store() -> StoreContext:
+    """필수 가게 Context를 생성합니다."""
+    return StoreContext(
+        name="카페 코드잇",
+        type="카페",
+        address="서울 강남구 역삼동",
+        lat=37.5,
+        lng=127.0,
+    )
+
+
+def test_generate_extra_accepts_only_five_contract_fields():
+    """추가 입력은 계약된 다섯 필드만 허용합니다."""
+    extra = GenerateExtra(
+        purpose="신메뉴 출시",
+        price_range="5000-8000",
+        target_age="20-30대",
+        strength="직접 로스팅",
+        clarification="아이스 아메리카노예요",
+    )
+    assert extra.clarification == "아이스 아메리카노예요"
+
+    with pytest.raises(ValidationError):
+        GenerateExtra.model_validate({"unknown": "value"})
+
+
+def test_model_request_applies_platform_policy():
+    """모델 요청도 챗봇별 플랫폼 정책을 검증합니다."""
+    basic = ModelRequest(
+        chatbot_type="basic",
+        user_id=1,
+        question="광고를 만들어줘",
+        platform="instagram",
+        store=make_store(),
+    )
+    consultant = ModelRequest(
+        chatbot_type="consultant",
+        user_id=1,
+        question="상권을 분석해줘",
+        store=make_store(),
+    )
+    assert basic.platform == "instagram"
+    assert consultant.platform is None
+
+    with pytest.raises(ValidationError):
+        ModelRequest(
+            chatbot_type="basic",
+            user_id=1,
+            question="광고를 만들어줘",
+            store=make_store(),
+        )
+
+
+def test_store_context_requires_coordinates():
+    """가게 Context는 두 모델이 공유할 좌표를 필수로 가집니다."""
+    with pytest.raises(ValidationError):
+        StoreContext.model_validate(
+            {"name": "카페", "type": "카페", "address": "서울 강남구"}
+        )
