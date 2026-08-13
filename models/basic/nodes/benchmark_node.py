@@ -1,5 +1,5 @@
-from ..retrieval.vectorstore import search_benchmark
 from ..graph.state import BasicState
+from ..retrieval.vectorstore import search_benchmark
 
 
 def benchmark_node(state: BasicState) -> dict:

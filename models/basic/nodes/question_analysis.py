@@ -1,7 +1,7 @@
 import json
 
-from ..llm import call_llm
 from ..graph.state import BasicState
+from ..llm import call_llm
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어시스턴트다.
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
@@ -32,6 +32,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 {"sufficient": true/false, "rewritten_question": "...", "message": "..."}
 """
 
+
 def question_analysis_node(state: BasicState) -> dict:
     context = {
         "question": state["question"],
@@ -51,11 +52,17 @@ def question_analysis_node(state: BasicState) -> dict:
         return {
             "status": "blocked",
             "tokens_used": tokens_used,
-            "issues": state.get("issues", []) + [{
-                "source": "question_analysis", "action": "reask",
-                "reason": "insufficient_info",
-                "message": parsed.get("message", "무엇을 광고하시는지 조금 더 알려주세요."),
-            }],
+            "issues": state.get("issues", [])
+            + [
+                {
+                    "source": "question_analysis",
+                    "action": "reask",
+                    "reason": "insufficient_info",
+                    "message": parsed.get(
+                        "message", "무엇을 광고하시는지 조금 더 알려주세요."
+                    ),
+                }
+            ],
         }
 
     return {

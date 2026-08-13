@@ -1,7 +1,7 @@
 import json
 
-from ..llm import call_llm
 from ..graph.state import BasicState
+from ..llm import call_llm
 
 SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 아래 후보 카피들을 요청 반영도·구체성·규제 안전성 기준으로 1~5점씩 평가하고,
@@ -10,6 +10,7 @@ SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 다음 JSON 형식으로만 답한다:
 {"ranked": [{"copy": "...", "score": 4.3}, ...]}
 """
+
 
 def ranking_node(state: BasicState) -> dict:
     candidates = state["copy_candidates"]

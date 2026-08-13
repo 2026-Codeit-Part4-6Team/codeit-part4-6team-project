@@ -1,5 +1,6 @@
 from ..graph.state import BasicState
 
+
 def channel_format_node(state: BasicState) -> dict:
     proposals = []
     for c in state["ranked_copies"]:

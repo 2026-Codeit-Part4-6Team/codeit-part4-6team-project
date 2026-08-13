@@ -1,9 +1,9 @@
 import json
 
-from ..llm import call_llm
 from ..graph.state import BasicState
+from ..llm import call_llm
 
-MAX_RETRY = 2 
+MAX_RETRY = 2
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고법을 준수한다.
 '최고', '유일', '1등'처럼 근거 없는 과장 표현과 질병 예방·치료 효능 표현은 쓰지 않는다.
@@ -20,6 +20,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 다음 JSON 형식으로만 답한다:
 {"candidates": ["카피1", "카피2", "카피3"]}
 """
+
 
 def copy_gen_node(state: BasicState) -> dict:
     context_data = state.get("context") or {}
@@ -50,11 +51,17 @@ def copy_gen_node(state: BasicState) -> dict:
         if i < len(raw_candidates) and raw_candidates[i]:
             candidates.append({"copy": raw_candidates[i]})
         else:
-            candidates.append({
-                "copy": None,
-                "image_b64": None,
-                "error": {"field": "copy", "reason": "parse_failed", "message": "카피 생성에 실패했습니다."},
-            })
+            candidates.append(
+                {
+                    "copy": None,
+                    "image_b64": None,
+                    "error": {
+                        "field": "copy",
+                        "reason": "parse_failed",
+                        "message": "카피 생성에 실패했습니다.",
+                    },
+                }
+            )
 
     updates = {
         "copy_candidates": candidates,
@@ -67,10 +74,12 @@ def copy_gen_node(state: BasicState) -> dict:
         updates["retry_count"] = retry_count
         if retry_count >= MAX_RETRY:
             updates["status"] = "error"
-            updates["issues"] = state.get("issues", []) + [{
-                "source": "copy_gen",
-                "reason": "copy_generation_failed",
-                "message": "카피 생성에 반복적으로 실패했습니다.",
-            }]
+            updates["issues"] = state.get("issues", []) + [
+                {
+                    "source": "copy_gen",
+                    "reason": "copy_generation_failed",
+                    "message": "카피 생성에 반복적으로 실패했습니다.",
+                }
+            ]
 
     return updates

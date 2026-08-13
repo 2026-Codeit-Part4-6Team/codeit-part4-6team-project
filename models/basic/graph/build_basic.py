@@ -1,10 +1,8 @@
-from langgraph.graph import StateGraph, START, END
-
-from .state import BasicState
+from langgraph.graph import END, START, StateGraph
 
 from ..nodes.benchmark_node import benchmark_node
-from ..nodes.channel_format import channel_format_node
 from ..nodes.channel import channel_node
+from ..nodes.channel_format import channel_format_node
 from ..nodes.copy_gen import copy_gen_node
 from ..nodes.image_gen import image_gen_node
 from ..nodes.image_review import image_review_node
@@ -16,17 +14,21 @@ from ..nodes.security_input import security_input_node
 from ..nodes.security_output import security_output_node
 from ..nodes.self_check_node import self_check_node
 from ..nodes.trend_for_copy import trend_for_copy_node
+from .state import BasicState
 
 MAX_RETRY = 2
 
 # 조건부 라우팅 함수 (상태 읽기)
 
+
 def route_after_security_input(state: BasicState) -> str:
     result = (state.get("validation") or {}).get("input") or {}
-    return "end_blocked" if result.get("action") == "block" else "question_analysis" 
+    return "end_blocked" if result.get("action") == "block" else "question_analysis"
+
 
 def route_after_question_analysis(state: BasicState) -> str:
     return "end_blocked" if state.get("status") == "blocked" else "channel"
+
 
 def route_after_copy_gen(state: BasicState) -> str:
     candidates = state.get("copy_candidates") or []
@@ -37,6 +39,7 @@ def route_after_copy_gen(state: BasicState) -> str:
         return "copy_gen"
     return "ranking"
 
+
 def route_after_regulation(state: BasicState) -> str:
     result = (state.get("validation") or {}).get("regulation") or {}
     if result.get("action") == "block":
@@ -44,6 +47,7 @@ def route_after_regulation(state: BasicState) -> str:
             return "end_blocked"
         return "copy_gen"
     return "image_gen"
+
 
 def route_after_image_review(state: BasicState) -> str:
     result = state.get("image_review_result") or {}
@@ -53,9 +57,11 @@ def route_after_image_review(state: BasicState) -> str:
         return "image_gen"
     return "channel_format"
 
+
 def route_after_self_check(state: BasicState) -> str:
     result = (state.get("validation") or {}).get("self_check") or {}
     return "end_blocked" if result.get("action") == "reject" else "__end__"
+
 
 def build_basic_graph():
     graph = StateGraph(BasicState)

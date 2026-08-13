@@ -1,5 +1,7 @@
 from validation.self_check import self_check
+
 from ..graph.state import BasicState
+
 
 def self_check_node(state: BasicState) -> dict:
     result_payload = state.get("result") or {}
@@ -11,8 +13,12 @@ def self_check_node(state: BasicState) -> dict:
     updates = {"validation": validation}
     if outcome.get("action") == "reject":
         updates["status"] = "blocked"
-        updates["issues"] = state.get("issues", []) + [{
-            "source": "self_check", "action": "block",
-            "reason": "self_check_failed", "message": outcome.get("message", ""),
-        }]
+        updates["issues"] = state.get("issues", []) + [
+            {
+                "source": "self_check",
+                "action": "block",
+                "reason": "self_check_failed",
+                "message": outcome.get("message", ""),
+            }
+        ]
     return updates
