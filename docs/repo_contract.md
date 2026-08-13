@@ -81,4 +81,4 @@ def get_trend(keyword: str, industry: str | None = None) -> dict | None:
 ## 참고
 
 - 두 함수 모두 캐시든 API 호출이든 시그니처는 동일하다. 호출하는 쪽은 내부 동작을 알 필요가 없다.
-- 상세 배경: `docs/consult_sdp.md` §2.4, §2.7
+- 상세 배경: `docs/sdp_consult.md` §2.4, §2.7
