@@ -49,7 +49,7 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
 
 def test_build_user_response_virtual_reset_is_non_mutating():
     """지난 reset 시각은 응답에서만 새 기간으로 보이며 ORM 값은 바꾸지 않습니다."""
-    stale_reset = datetime(2026, 8, 12, 15, 0)  # SQLite naive UTC
+    stale_reset = datetime(2026, 8, 12, 15, 0)  # noqa: DTZ001 - SQLite naive UTC
     now = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
     user = User(
         id=1,

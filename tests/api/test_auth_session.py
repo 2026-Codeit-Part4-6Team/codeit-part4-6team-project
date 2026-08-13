@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -111,7 +111,7 @@ def test_login_and_me_use_same_virtual_daily_free_snapshot(tmp_path):
             },
         ).status_code == 201
 
-        stale_reset = datetime(2020, 1, 1, 0, 0)
+        stale_reset = datetime(2020, 1, 1, 0, 0)  # noqa: DTZ001
         with testing_session() as session:
             user = session.scalar(select(User).where(User.username == "stale-owner"))
             assert user is not None
