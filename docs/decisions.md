@@ -44,6 +44,54 @@
 | D-034 | 8/12 | Dependabot 취약점 13건 대응 보류 | 프로젝트 기간 중 버전 업 시 빌드 깨질 위험이 이득보다 큼 | 즉시 패치 |
 | D-035 | 8/12 | models/shared/llm.py 는 컨설턴트 구현본 채택 | 이미 테스트 완료, 재작성은 낭비 | PM이 신규 작성 |
 | D-036 | 8/12 | 검증 함수 4종 스텁 반환값 수정 + 계약 스모크 테스트 추가 | 명세 표기(pass/warn/block)를 코드에 복사해 TypeError 발생, import로는 안 잡힘 | 수정만 하고 테스트 없이 |
+| D-037 | 8/12 | push 전 ruff --fix + pytest 로컬 실행 필수 | CI에서 import 정렬(I001)로 실패, 로컬 검증 누락이 원인 | CI만 의존 |
+| D-038 | 8/13 | 골든 데이터셋 60문항 확정 (기본25/컨설턴트20/거부15) | 3개 SDP 문항 수 충돌(55/55/30) 정리 + 과잉차단 가드 5 추가 | 55문항 유지 |
+| D-039 | 8/13 | 골든 데이터셋 2단계 구축 (8/14 파일럿15 → 8/19 전체60) | D8~D9 작성·검수 일정 겹침, 가이드도 "조기 구축" 권장 | D9 일괄 구축 |
+| D-040 | 8/13 | 생성 영역은 정답 문장 대신 rubric 사용 | 카피·전략은 정답이 하나가 아님 | 정답 문장 기재 |
+| D-041 | 8/13 | 동일업종 판정 = 상권 API 업종코드 필터(indsSclsCd/indsMclsCd), 텍스트 비교는 폴백 | "강남역 500m 카페 16곳"이 페이지 상한(최대 1000건/전체 6,691건)+텍스트 매칭 오차로 축소된 값일 가능성 큼. 근거 수치가 틀리면 전략·평가·발표가 동시에 무너짐 | 텍스트 비교 유지 / 전체 7페이지 페이징 |
+| D-042 | 8/13 | 상권 조회 = 호출 2회 방식(①numOfRows=1로 전체 totalCount ②업종코드 필터+numOfRows=1000) | 6,691건 전체 페이징(7회) 대비 호출 2회로 동일업종 수 정확 확보 + 최근접 거리 계산 가능 | 전체 페이징 후 로컬 집계 |
+| D-043 | 8/13 | 업종코드 매핑 단일 소스 = shared_data/industry_code_map.json (원본: 업종분류 2302 xlsx) | 텍스트 매칭 시 R10202 스터디카페 오탐·"비알코올 음료점업" 누락 발생. 각자 매핑하면 두 챗봇 결과 불일치 | 노드별 하드코딩 |
+| D-044 | 8/13 | 사용자 노출 reasons는 원시 수치만, 밀도 등급은 프롬프트 내부 힌트로만 사용 | 경계값(0/1~3/4~8/9+)이 임의 근사치라 검증 불가. golden_dataset.md 판정 기준은 must_contain_number(숫자) | 등급을 사용자에게 노출 |
+| D-045 | 8/13 | 등급 경계값 재조정은 D-038 교정 완료 이후 D9 [SHOULD] | 틀린 모수 위에서 경계값을 맞추면 교정 후 전부 재작업 | 즉시 재조정 / 영구 보류 |
+| D-046 | 8/13 | 계약 문서 버전 변경 시 decisions.md 변경이력 1줄 + 스크럼 diff 3줄 구두 공지 의무화 | Contract v0.2→v0.3에서 D1 합의가 조용히 번복, 발견이 담당자 개인 리뷰에 의존했음 | 문서 갱신만 |
+| D-047 | 8/13 | 내부 state 표현 ≠ 외부 응답 계약, 변환은 응답 직전 1곳에서만 | 계약 재변경 시 변환 함수 1개만 수정하면 됨. state를 계약 형식에 묶으면 전 노드 영향 | state를 계약 형식 그대로 사용 |
+| D-048 | 8/13 | validation/ 스텁 4종 즉시 main 머지(실구현 미완이어도 pass 반환) | PM 미제공이 D3 블로커(보안1 D4 이월). sdp_pm.md §2 스텁 선제공 원칙을 PM 본인이 위반 | 실구현 완료 후 일괄 머지 |
+| D-049 | 8/13 | models/shared/llm.py 이관 실행(컨설턴트 PR → PM 리뷰·머지 → 이후 PM 소유) — D-035 실행분 | 결정은 8/12에 났으나 당사자 통보 누락으로 담당자가 대기 상태였음 | 컨설턴트가 계속 보유 |
+| D-050 | 8/13 | 모델명·온도·재시도 상수 단일 소스 = models/shared/config.py | 챗봇별로 모델이 갈리면 비용·품질 비교 불가, $30 한도 추적도 어려움 | 각자 config 유지 |
+| D-051 | 8/13 | LLM 모델은 D5 A/B(3문항) 후 확정 — 현재 gpt-4o-mini 유지 | 코드잇 가이드 권장은 GPT-5.4 Nano/Mini 계열이나, D4(M3) 진행 중 변수 추가 시 원인 분석 불가 | 즉시 교체 / 현행 확정 |
+| D-052 | 8/13 | call_llm에 요청 데드라인(50초) 적용 — 잔여 시간 < 다음 백오프면 재시도 포기·폴백 | 백오프 14초+4회 호출이 D-025 60초 타임아웃과 충돌. LLM 사용 노드가 4곳이라 429 2회면 초과 | 재시도 3→2회 축소 |
+| D-053 | 8/13 | market_cache 중복 방지 = upsert 선적용, UNIQUE 인덱스는 D7에 서비스 담당이 추가 | 서비스 담당 DDL 대기 없이 방어 가능(D-017과 동일 패턴) | DDL 완료까지 대기 |
+| D-054 | 8/13 | 컨설턴트 골든 데이터셋 20문항(C-)을 D4~D6 노드 완성 시 유형별 적립 | golden_dataset.md v1.0이 SDP의 30문항을 20으로 정정. D9 일괄 작성은 지연 시 통째로 누락 | 30문항 유지 / D9 일괄 작성 |
+| D-055 | 8/13 | 캐시 적중률을 발표용 정량 지표로 승격(로그 집계 스크립트 추가) | 히트/미스 로깅이 이미 완료돼 추가 비용 최소, SDP §8.2 ★ 지표. "API 호출 N회 절감" 발표 근거 확보 | 로그만 유지 |
+| D-056 | 8/13 | 캐시 TTL 확정 = 상권 7일 · 트렌드 7일 · 리뷰 30일 (P-006 종료) | D1+D2에서 cache/ttl.py로 구현·검증 완료, 원본 API가 stdrYm 단위 갱신이라 7일 근거 성립 | 전 데이터 통일 TTL |
+| D-057 | 8/13 | 크레딧 단가 = 기본 50 / 컨설턴트 10 재확인 (Contract v0.3·config·테스트를 수정) | 기본 챗봇은 카피3+이미지3으로 실제 최대 비용, D-006·D-021이 이미 확정한 값. 계약 문서가 반대로 기재돼 코드·테스트까지 전파됨 | 계약값(기본10/컨설턴트50) 채택 |
+| D-058 | 8/13 | 정책·수치의 상위 소스 = decisions.md, 필드 형태의 상위 소스 = Contract 문서. 충돌 시 계약을 고친다 | D-054가 "담당자는 계약을 성실히 구현했는데 계약이 틀린" 사례. 소스 우선순위가 없으면 재발 | 계약 문서 우선 |
+| D-059 | 8/13 | 모델→서비스 인바운드 스키마는 extra="ignore", 프론트→서비스는 extra="forbid" 유지 | 모델이 필드 1개만 추가해도 전체 생성 실패. 반대로 프론트 미정의 필드는 S-05가 422를 요구 | 전부 forbid / 전부 ignore |
+| D-060 | 8/13 | ModelResult 파싱은 chatbot_type으로 명시 분기, 스마트 Union 미사용 | Basic·Consultant가 status="ok"를 공유해 판별자가 없음. 실패 시 4브랜치 에러로 원인 추적 불가 | Union 스마트 매칭 유지 |
+| D-061 | 8/13 | 캐시 테이블은 소유자(컨설턴트)가 자기 Base로 생성, 서비스 init_db는 4종 유지 | DATABASE_URL 통합 후 market_cache 생성 주체 부재 → 캐시가 에러 없이 항상 미스(R5·R12 대비책 무력화) | 서비스 init_db에 포함 / D7까지 방치 |
+| D-062 | 8/13 | SQLite 공유 파일에 WAL + timeout 30초 적용 | 서비스(generations)와 컨설턴트(market_cache)가 같은 파일에 동시 쓰기 → database is locked 위험 | 기본 설정 유지 |
+| D-063 | 8/13 | DB 시각은 naive UTC 저장, 읽는 즉시 UTC 부여 (models/shared 헬퍼 1개) | SQLite가 tz를 저장하지 않아 aware/naive 비교 TypeError 발생. UsageService(S-06)와 cache/ttl.py 양쪽에 영향 | 각자 처리 |
+| D-064 | 8/13 | 테스트는 개발 DB(./data/app.db) 사용 금지 — conftest에서 DATABASE_URL을 메모리로 고정 + get_db를 dependency_overrides로 tmp DB 세션 주입 + 회귀 테스트 1개 | conftest가 전역 engine을 써서 ①재실행 시 users.username UNIQUE 충돌로 간헐 실패 ②DATABASE_URL 통합 후 같은 파일의 시연용 market_cache가 rm 한 번에 소실(R12 대비책 무력화) ③공유 VM에서 타인 화면에 테스트 데이터 노출 | 현행 유지 / 테스트마다 수동 정리 |
+| D-065 | 8/13 | StoreContext 구성은 크레딧 차감 이전에 수행, 실패 시 422 | users.lat/lng·business_name이 nullable이라 좌표 없는 사용자에서 500 발생 가능 | 모델 호출 직전 구성 |
+| D-066 | 8/13 | Preview /generate → /preview/generate 이동 + include_in_schema=False, D4에 삭제 | 계약 엔드포인트와 경로가 같아 프론트·시연에서 오인 가능, 인증도 없음 | 현행 경로 유지 |
+| D-067 | 8/13 | 임시안 enum(payments.package·status)은 DB CHECK 대신 앱 계층 검증. 스키마 변경 시 개발 DB 재생성 | Alembic 미도입 + SQLite라 CHECK 변경이 테이블 재생성 수준. 임시안을 DB에 굳히면 변경 비용이 큼 | Alembic 도입 / CHECK 유지 |
+| D-068 | 8/13 | 설계 골격 PR은 D-028(300줄) 예외, 단 PR 본문에 사유 명시 | 구조·ORM·DTO·Mock은 쪼개면 오히려 중간 상태가 깨짐. 예외를 인정하되 무제한 확대는 방지 | 300줄 엄격 적용 |
+| D-069 | 8/13 | ERD 이미지를 코드 기준으로 갱신 | source_gen_id 실제 self-FK, payments.status 기본 pending, idempotency_key·request_hash·result_json·selected_proposal_index 누락 — 발표 자료에 그대로 들어감 | 이미지 유지 |
+| D-070 | 8/13 | .env.example의 상권 API 키 주석(디코딩 키 사용) 복원 | 공공데이터포털 인코딩/디코딩 키 혼동은 실호출로만 발견되는 삽질 포인트, 컨설턴트가 확인한 지식 | 축약본 유지 |
+| D-071 | 8/13 | regulation은 차단 카피를 배열에서 삭제하지 않고 error 슬롯으로 치환 | passed+failed 방식은 proposals가 2개가 되어 서비스 min_length=3에서 ValidationError(502). D-018 재확인 | 삭제 유지 / 프론트에서 3칸 패딩 |
+| D-072 | 8/13 | ranking LLM은 텍스트 대신 index+score 반환, 재정렬은 코드가 수행 | LLM이 개수를 줄이거나 카피를 몰래 고쳐 써도 계약이 안 깨짐. 개수 보존·원문 보존·실패항목 보존이 동시에 해결 | LLM 출력 그대로 신뢰 |
+| D-073 | 8/13 | 모델 error 응답 reason 매핑 확정 (copy_generation_failed→provider_error, 429→rate_limit, 타임아웃→timeout, 그 외 unknown) | assemble_response에 reason 자체가 없고 내부 코드가 계약 enum 밖이라 ErrorResult 검증 실패 | 내부 reason 그대로 노출 |
+| D-074 | 8/13 | extra 필드명은 계약 5종 고정(purpose·price_range·target_age·strength·clarification), 모델 테스트도 계약명 사용 | 모델 측이 target_customer·selling_point를 쓰고 있으나 서비스가 extra="forbid"라 422 | 모델 측 이름 허용 |
+| D-075 | 8/13 | 이미지 CLIP 검수는 MVP에서 비차단(점수 기록만), 게이트 승격은 D9 분포 확인 후 | clip-vit-base-patch32는 영어 전용인데 한국어 카피로 채점 → 임계값 0.25 통과 곤란 → 상시 재생성. FR-13b도 CLIP을 개발용 평가 지표로 규정 | 차단 게이트 유지 / CLIP 제거 |
+| D-076 | 8/13 | 이미지 없음(미생성)은 reject가 아니라 pass, 이미지 재생성 상한 1회, retry 카운터를 copy/image로 분리 | generate_image()가 None 반환 → 요청당 이미지 6장 구조. 공유 카운터 탓에 copy 재시도가 규제 재생성 예산을 잠식 | 공유 카운터 유지 |
+| D-077 | 8/13 | models/basic/llm.py 삭제 → models/shared/llm.py 사용 (D-035·D-046·D-047 실행) | 동일 코드 3중화, 챗봇별 모델이 갈리면 $30 예산 추적·품질 비교 불가 | 각자 보유 |
+| D-078 | 8/13 | 임베딩 등 모든 OpenAI 호출은 shared 래퍼 경유(429 백오프 일원화) | embedder.py가 OpenAI() 직접 호출 — 벤치마크 인덱싱은 연속 임베딩이라 429 최다 발생 지점(add 17·18) | 노드별 개별 처리 |
+| D-079 | 8/13 | trend 조회 키워드는 question_analysis가 추출한 keyword 사용, 질문 원문 금지 | 원문은 매번 달라 캐시 적중률 0 → NAVER 월 5만건 한도 직접 소모, 컨설턴트 Cache-Aside(R5) 무력화. 기존 LLM 호출에 필드 1개 추가라 추가 비용 0 | 질문 원문 유지 |
+| D-080 | 8/13 | torch·transformers·faiss는 basic 전용 그룹 + 지연 import, CLIP 미가용 시 점수 없이 통과 | 모듈 최상단 import라 build_basic_graph()만 불러도 torch 로드. CI 설치 시간·D7 백엔드 이미지 비대화·오프라인 가중치 다운로드 실패 | 현행 유지 |
+| D-081 | 8/13 | LLM provider 이원화: 운영·시연·평가 산출 = 코드잇 OpenAI, 로컬 대량 실험 = 대체 provider 허용(사용 시 기록 필수) | Groq(Llama-3.3) 사용 사실이 보고서에만 있고 결정 기록 없음. 발표 시 "무슨 모델로 낸 수치냐"에 답할 수 있어야 함 | OpenAI 전용 / 자유 사용 |
+| D-082 | 8/13 | 모델·provider 교체 시 PR "실험 결과" 섹션 + docs/prompt_tuning_log.md 전후 비교표 작성 필수 | 평가항목 "모델 선택 이유"·"성능 개선 시도"에 직결. 이번 Groq→OpenAI 교체가 미기록 | 구두 공유로 갈음 |
+| D-083 | 8/13 | platform = instagram·banner 2종 확정, blog 제외 (D-027 변경) | Contract v0.3 및 서비스 Literal이 2종, 코드도 2종. D-027만 낡은 상태로 남아 충돌 | blog 복원 |
+| D-084 | 8/13 | title은 question_analysis 반환값 사용(30자 자르기 폐기) | 마이페이지 생성 이력(FR-30)에 잘린 제목이 그대로 노출. 기존 LLM 호출에 필드 추가라 비용 0 | 요약 전용 LLM 호출 추가 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -54,6 +102,14 @@
 | 8/11 | D-016 | email → username | ORM 구현 상태와 맞춤 |
 | 8/11 | D-009 | request_id → Idempotency-Key | 서비스 담당 구현 편의 존중 |
 | 8/11 | D-0xx | Consultant 응답: proposals 평탄화 → strategy/reasons 유지 | actions를 copy로 합치면 프론트가 전략 카드 개별 렌더링 불가, reasons 의미 유실 | 평탄화 |
+| 8/13 | 골든 데이터셋 | 컨설턴트 30문항 → 20문항 | golden_dataset.md v1.0 기준으로 3개 SDP 문항 수 통일 |
+| 8/13 | 밀도 등급 | 사용자 노출 → 프롬프트 내부 힌트로만 사용 | 경계값이 임의 근사치라 외부 검증 불가 |
+| 8/13 | get_market 시그니처 | (lat,lng,radius) → (lat,lng,radius,industry=None) | 캐시는 업종 무관 원본만 저장, 집계는 호출 시 계산 — 캐시 재사용률 개선(SDP §2.7 원안 대비 담당자 개선안 채택) |
+| 8/13 | Contract v0.3 §4.5·§10.4·S-18 | Basic 10/Consultant 50 → Basic 50/Consultant 10 | D-006·D-021과 반전 기재됐던 것을 정정 |
+| 8/13 | .env.example | DATABASE_URL 공란(로컬 폴백) → sqlite:///./data/app.db | 서비스·캐시 DB 통합. 단 캐시 테이블 생성 주체는 D-058로 별도 지정 |
+| 8/13 | ERD | source_gen_id "FK 없이 값만 저장" → 실제 self-FK | 구현이 더 안전하므로 문서를 코드에 맞춤 |
+| 8/13 | D-027 | platform 3종(blog 포함) → 2종(instagram·banner) | Contract v0.3·서비스 Literal·모델 코드 모두 2종으로 수렴 |
+| 8/13 | D-019 | 이미지 재생성 1회 원칙을 코드에 반영(MAX_RETRY 공유 해제) | 공유 카운터로 인해 실질 2회 실행되던 것을 정정 |
 
 ## 보류 (Owner·Due 지정)
 
@@ -64,4 +120,13 @@
 | P-003 | 데이터 보관기간·삭제 방식 | 미정 | 전민재 PM | 8/20 |
 | P-004 | 재생성 시 동의창 재노출 | 재노출함 | 전민재 PM | 8/19 |
 | P-005 | `self_check` 사실성 검증(B) | SHOULD, 예산 여유 시 | 전민재 PM | 8/21 |
-| P-006 | 캐시 TTL 최종 확정 | 상권7일·트렌드7일·리뷰30일 | 컨설턴트 담당 | 8/12 |
+| P-006 | 캐시 TTL 최종 확정 | → **종료(D-053)** | — | 8/12 완료 |
+| P-007 | 상권 API 업종코드 체계 확인(신 2302 `I21201` vs 구 `I20102` 계열) | 응답 1건의 indsSclsCd 육안 확인 | 컨설턴트 담당 | 8/13 |
+| P-008 | 밀도 등급 경계값 샘플링 재조정(20개 지역) | D-038 교정 후 실시 [SHOULD] | 컨설턴트 담당 | 8/20 (D9) |
+| P-009 | LLM 모델 최종 확정(gpt-4o-mini vs GPT-5.4 Mini/Nano) | 3문항 A/B 후 결정 | 전민재 PM | 8/14 |
+| P-010 | Basic 응답의 suggested_chips 허용 여부 | 현행 빈 배열 고정(max_length=0) | 기본 챗봇 담당 | 8/14 |
+| P-011 | market_cache UNIQUE(lat,lng,radius) 추가 시점 | D7 통합 시 서비스 담당이 DDL 추가(그전까지 upsert로 방어, D-050) | 서비스 담당 | 8/18 |
+| P-012 | payments package·status enum 확정 | 임시안 유지, 결제 API 구현 전 확정 | 서비스 담당 | 8/19 |
+| P-013 | 이미지 생성 장수·병렬화(3장 직렬 / 상위 1안만 / 3장 병렬) | D6에 1장 실측 후 결정 | 기본 챗봇 담당 | 8/17 |
+| P-014 | 벤치마크 RAG 착수 시점 — 미착수 시 Hit Rate@5·MRR 산출 불가 | SDP상 D8, 지연 시 검색 지표를 보고서에서 제외할지 결정 | 전민재 PM | 8/17 |
+| P-015 | CLIP 한국어 대응(다국어 CLIP 교체 vs 영문 이미지 프롬프트로 채점) | 영문 프롬프트 안이 비용상 유리 | 기본 챗봇 담당 | 8/19 |
