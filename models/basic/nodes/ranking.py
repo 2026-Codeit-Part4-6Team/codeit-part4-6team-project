@@ -13,6 +13,8 @@ SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 
 
 def ranking_node(state: BasicState) -> dict:
+    """LLM Judge로 카피 후보들을 요청 반영도·구체성·규제 안전성 기준으로
+    채점해 점수 높은 순으로 정렬한다. 생성 실패 후보는 그대로 뒤에 붙인다."""
     candidates = state["copy_candidates"]
     valid = [c for c in candidates if c.get("copy")]
     failed = [c for c in candidates if not c.get("copy")]

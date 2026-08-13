@@ -1,4 +1,5 @@
 def assemble_response(state):
+    """파이프라인 최종 상태를 API 응답 형식(ok/error/blocked)으로 변환한다."""
     if state["status"] == "ok":
         return {
             "status": "ok",

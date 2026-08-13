@@ -4,6 +4,8 @@ from ..graph.state import BasicState
 
 
 def market_for_copy_node(state: BasicState) -> dict:
+    """가게 위치/업종 기준 상권 데이터를 조회해 동일 업종 경쟁 매장 수·거리
+    요약 문장을 context["market"]에 채운다."""
     store = state["store"]
     market = get_market(store["lat"], store["lng"], industry=store.get("type"))
 

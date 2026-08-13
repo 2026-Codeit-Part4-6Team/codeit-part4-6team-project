@@ -14,6 +14,7 @@ _clip_processor = None
 
 
 def _load_clip():
+    """CLIP 모델과 프로세서를 지연 로드하여 캐싱한다."""
     global _clip_model, _clip_processor
     if _clip_model is None:
         _clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -22,6 +23,7 @@ def _load_clip():
 
 
 def _clip_score(image, text: str) -> float:
+    """이미지와 텍스트 간 CLIP 코사인 유사도 점수를 계산한다."""
     model, processor = _load_clip()
     inputs = processor(text=[text], images=image, return_tensors="pt", padding=True)
     with torch.no_grad():
@@ -34,6 +36,8 @@ def _clip_score(image, text: str) -> float:
 
 
 def image_review_node(state: BasicState) -> dict:
+    """생성된 이미지를 디코딩해 CLIP 적합도 점수로 검수한다. 디코딩 실패나
+    기준 점수 미달 항목은 반려 처리하고, 모든 항목이 실패하면 재생성을 요청한다."""
     reviewed = []
     has_copy_count = 0
     image_fail_count = 0

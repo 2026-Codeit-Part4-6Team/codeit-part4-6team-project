@@ -34,6 +34,8 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 
 
 def question_analysis_node(state: BasicState) -> dict:
+    """LLM으로 질문과 가게 정보를 분석해 카피 생성에 쓸 질문을 재작성하고,
+    정보가 부족하면 되묻기(reask) 상태로 전환한다."""
     context = {
         "question": state["question"],
         "store": state["store"],

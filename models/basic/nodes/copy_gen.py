@@ -23,6 +23,9 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 
 
 def copy_gen_node(state: BasicState) -> dict:
+    """수집된 컨텍스트(상권/트렌드/벤치마크)와 규제 검수 결과를 바탕으로
+    LLM을 호출해 톤이 다른 광고 카피 3안을 생성한다. 파싱에 실패한 후보는
+    개별 에러로 표시하고, 전체 실패 시 재시도 카운트를 올린다."""
     context_data = state.get("context") or {}
     payload = {
         "question": state["question"],

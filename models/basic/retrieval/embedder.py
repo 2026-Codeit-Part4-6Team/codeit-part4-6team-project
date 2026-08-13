@@ -11,6 +11,7 @@ def _get_client():
 
 
 def embed(text: str) -> list[float]:
+    """OpenAI 임베딩 모델(text-embedding-3-small)로 텍스트를 벡터로 변환한다."""
     client = _get_client()
     response = client.embeddings.create(
         model="text-embedding-3-small",

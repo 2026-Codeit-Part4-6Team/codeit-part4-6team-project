@@ -2,6 +2,8 @@ from ..graph.state import BasicState
 
 
 def channel_format_node(state: BasicState) -> dict:
+    """랭킹된 카피/이미지 결과를 최종 응답 형식(proposals)으로 정리하고,
+    사용된 컨텍스트 출처(sources)와 임시 제목을 함께 구성한다."""
     proposals = []
     for c in state["ranked_copies"]:
         item = {"copy": c.get("copy"), "image_b64": c.get("image_b64")}

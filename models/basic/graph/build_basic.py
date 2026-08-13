@@ -1,3 +1,11 @@
+"""D3 기본 카피/이미지 생성 파이프라인의 LangGraph 그래프 정의.
+
+security_input → question_analysis → (channel/market/trend/benchmark 컨텍스트 수집)
+→ copy_gen → ranking → regulation → image_gen → image_review → channel_format
+→ security_output → self_check 순으로 노드를 연결하며, 각 단계 실패 시
+재시도(MAX_RETRY) 또는 조기 종료(end_blocked)로 분기한다.
+"""
+
 from langgraph.graph import END, START, StateGraph
 
 from ..nodes.benchmark_node import benchmark_node
@@ -22,15 +30,19 @@ MAX_RETRY = 2
 
 
 def route_after_security_input(state: BasicState) -> str:
+    """입력 보안 검사 결과가 차단이면 종료, 아니면 질문 분석으로 진행한다."""
     result = (state.get("validation") or {}).get("input") or {}
     return "end_blocked" if result.get("action") == "block" else "question_analysis"
 
 
 def route_after_question_analysis(state: BasicState) -> str:
+    """질문 분석 결과 상태가 blocked면 종료, 아니면 채널 노드로 진행한다."""
     return "end_blocked" if state.get("status") == "blocked" else "channel"
 
 
 def route_after_copy_gen(state: BasicState) -> str:
+    """카피 후보가 전부 생성 실패면 재시도 한도 내에서 copy_gen을 반복하고,
+    한도를 넘기면 종료한다. 하나라도 성공하면 ranking으로 진행한다."""
     candidates = state.get("copy_candidates") or []
     all_failed = bool(candidates) and all(c.get("copy") is None for c in candidates)
     if all_failed:
@@ -41,6 +53,8 @@ def route_after_copy_gen(state: BasicState) -> str:
 
 
 def route_after_regulation(state: BasicState) -> str:
+    """규제 검수가 차단이면 재시도 한도 내에서 copy_gen으로 되돌리고,
+    한도를 넘기면 종료한다. 통과하면 image_gen으로 진행한다."""
     result = (state.get("validation") or {}).get("regulation") or {}
     if result.get("action") == "block":
         if state.get("retry_count", 0) >= MAX_RETRY:
@@ -50,6 +64,8 @@ def route_after_regulation(state: BasicState) -> str:
 
 
 def route_after_image_review(state: BasicState) -> str:
+    """이미지 검수가 반려면 재시도 한도 내에서 image_gen을 반복하고,
+    한도를 넘기거나 통과하면 channel_format으로 진행한다."""
     result = state.get("image_review_result") or {}
     if result.get("action") == "reject":
         if state.get("retry_count", 0) >= MAX_RETRY:
@@ -59,11 +75,13 @@ def route_after_image_review(state: BasicState) -> str:
 
 
 def route_after_self_check(state: BasicState) -> str:
+    """자가 점검 결과가 반려면 종료(blocked), 아니면 정상 종료한다."""
     result = (state.get("validation") or {}).get("self_check") or {}
     return "end_blocked" if result.get("action") == "reject" else "__end__"
 
 
 def build_basic_graph():
+    """D3 파이프라인의 모든 노드와 조건부 라우팅을 연결한 StateGraph를 컴파일해 반환한다."""
     graph = StateGraph(BasicState)
 
     graph.add_node("benchmark", benchmark_node)

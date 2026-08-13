@@ -5,6 +5,7 @@ from ..graph.state import BasicState
 
 
 def _classify_error(exc: Exception) -> str:
+    """OpenAI 예외 타입을 rate_limit/timeout/content_policy/unknown 사유로 분류한다."""
     if isinstance(exc, openai.RateLimitError):
         return "rate_limit"
     if isinstance(exc, openai.APITimeoutError):
@@ -15,6 +16,8 @@ def _classify_error(exc: Exception) -> str:
 
 
 def image_gen_node(state: BasicState) -> dict:
+    """랭킹된 카피마다 이미지를 생성해 붙인다. 카피가 없는 항목은 건너뛰고,
+    생성 실패 항목은 사유와 함께 image_b64를 None으로 기록한다."""
     store = state["store"]
     updated = []
     images = []

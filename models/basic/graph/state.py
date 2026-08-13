@@ -4,6 +4,11 @@ from models.shared.state_common import CommonState
 
 
 class BasicState(CommonState):
+    """D3 기본 카피/이미지 생성 파이프라인 전용 상태.
+
+    공통 상태(CommonState)에 카피 후보·랭킹·이미지 생성/검수 결과와
+    재시도 루프에 필요한 필드를 추가한다.
+    """
 
     copy_candidates: NotRequired[list]  # 3안 후보, [{"copy": "..."}]
     ranked_copies: NotRequired[
