@@ -1132,3 +1132,51 @@ def test_failed_error_same_key_replay_never_calls_model_again(tmp_path):
 
         assert caught.value.reason == "rate_limit"
         assert client.calls == 0
+
+
+def test_model_timeout_compensates_committed_paid_credit(tmp_path, monkeypatch):
+    """async model timeout은 commit된 유료 예약을 보상하고 timeout 의미를 보존합니다."""
+    from asyncio import run
+
+    import backend.services.generation_service as generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    key = "00000000-0000-0000-0000-000000000036"
+
+    async def force_timeout(awaitable, timeout):
+        assert timeout == 60
+        awaitable.close()
+        raise TimeoutError
+
+    monkeypatch.setattr(generation_service.asyncio, "wait_for", force_timeout)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generation_service.generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=50),
+                    key,
+                    RecordingClient(basic_result_payload()),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.refresh(user)
+        row = db.query(Generation).filter_by(idempotency_key=key).one()
+        assert caught.value.reason == "timeout"
+        assert user.credits == 50
+        assert row.status == "failed"
+        assert row.credits_used == 0
+        assert json.loads(row.result_json)["reason"] == "timeout"

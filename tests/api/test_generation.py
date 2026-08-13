@@ -170,6 +170,26 @@ def test_generate_maps_missing_source_to_404(client: TestClient, db_session: Ses
     assert db_session.query(Generation).count() == 0
 
 
+def test_generate_maps_source_conflict_to_409(client: TestClient, db_session: Session):
+    user = add_generation_user(db_session, username="source-conflict")
+    auth_as(client, user)
+
+    response = client.post(
+        "/generate",
+        headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000106"},
+        json={
+            "chatbot_type": "consultant",
+            "question": "기존 컨설팅을 다시 사용하고 싶어요",
+            "platform": None,
+            "source_gen_id": 1,
+            "max_accepted_credits": 0,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {"reason": "source_generation_conflict"}
+
+
 def test_generate_maps_model_error_reasons_to_http_status(
     client: TestClient, db_session: Session
 ):
