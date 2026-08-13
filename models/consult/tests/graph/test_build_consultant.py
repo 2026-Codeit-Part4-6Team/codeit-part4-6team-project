@@ -41,6 +41,7 @@ def test_graph_runs_start_to_end_without_error(
             {
                 "summary": "시즌 한정 메뉴로 신규 고객을 유입하세요.",
                 "actions": [{"type": "menu", "content": "시즌 한정 메뉴 도입"}],
+                "reasons": ["반경 내 동일 업종이 12곳으로 밀도 등급이 '높음'입니다"],
             }
         ),
         100,

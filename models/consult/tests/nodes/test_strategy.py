@@ -1,4 +1,4 @@
-# models/consult/nodes/strategy.py 테스트 (D4 섹션 1~4: 전략 생성 + 상권 데이터 주입 + actions 구조화)
+# models/consult/nodes/strategy.py 테스트 (D4 섹션 1~5: 전략 생성 + 상권 데이터 주입 + actions 구조화 + 근거 재생성)
 import json
 from unittest.mock import patch
 
@@ -7,6 +7,7 @@ import openai
 import pytest
 
 from models.consult.nodes.strategy import strategy
+from models.consult.prompts.strategy import RETRY_REASONS_HINT
 
 _STORE = {
     "name": "카페 코드잇",
@@ -28,6 +29,11 @@ _MARKET = {
 _ACTIONS = [
     {"type": "promotion", "content": "선착순 20명 할인으로 신규 유입을 만드세요"},
     {"type": "menu", "content": "대표 메뉴를 시즌 한정 구성으로 앞세우세요"},
+]
+
+_REASONS = [
+    "반경 내 동일 업종이 12곳으로 밀도 등급이 '높음'입니다",
+    "선착순 할인은 즉각적인 신규 유입 효과가 있습니다",
 ]
 
 
@@ -55,8 +61,12 @@ def _state_without_context(question: str = "우리 카페 어떻게 홍보하면
     }
 
 
-def _payload(summary: str = "전략 요약", actions=None) -> dict:
-    return {"summary": summary, "actions": _ACTIONS if actions is None else actions}
+def _payload(summary: str = "전략 요약", actions=None, reasons=None) -> dict:
+    return {
+        "summary": summary,
+        "actions": _ACTIONS if actions is None else actions,
+        "reasons": _REASONS if reasons is None else reasons,
+    }
 
 
 def _response(payload, tokens: int = 100) -> tuple[str, int]:
@@ -65,14 +75,19 @@ def _response(payload, tokens: int = 100) -> tuple[str, int]:
 
 
 @patch("models.consult.nodes.strategy.call_llm")
-def test_returns_summary_and_actions_from_llm(mock_call_llm) -> None:
+def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
     mock_call_llm.return_value = _response(_payload("시즌 한정 메뉴로 신규 고객을 유입하세요."))
 
     result = strategy(_state())
 
     assert result == {
-        "result": {"summary": "시즌 한정 메뉴로 신규 고객을 유입하세요.", "actions": _ACTIONS},
+        "result": {
+            "summary": "시즌 한정 메뉴로 신규 고객을 유입하세요.",
+            "actions": _ACTIONS,
+            "reasons": _REASONS,
+        },
         "tokens_used": 100,
+        "retry_count": 0,
     }
 
 
@@ -112,6 +127,15 @@ def test_strips_whitespace_from_action_content(mock_call_llm) -> None:
     result = strategy(_state())
 
     assert result["result"]["actions"] == [{"type": "menu", "content": "공백 포함 항목"}]
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_strips_whitespace_from_reasons(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload(reasons=["  공백 포함 근거\n"]))
+
+    result = strategy(_state())
+
+    assert result["result"]["reasons"] == ["공백 포함 근거"]
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -208,6 +232,13 @@ def test_system_prompt_includes_good_bad_example() -> None:
     assert "좋은" in SYSTEM_PROMPT
 
 
+def test_system_prompt_requests_reasons() -> None:
+    """reasons 필드와 "막연한 근거 불인정" 지시가 시스템 프롬프트에 포함돼 있다."""
+    from models.consult.prompts.strategy import SYSTEM_PROMPT
+
+    assert "reasons" in SYSTEM_PROMPT
+
+
 @patch("models.consult.nodes.strategy.call_llm")
 def test_propagates_call_llm_failure(mock_call_llm) -> None:
     """call_llm()이 재시도 끝에 예외를 던지면(완전 실패) 그대로 전파한다 — 질문 분석 노드와 동일 원칙."""
@@ -239,7 +270,7 @@ def test_raises_when_summary_is_blank(mock_call_llm, blank_summary) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_when_summary_field_missing(mock_call_llm) -> None:
-    mock_call_llm.return_value = _response({"actions": _ACTIONS})
+    mock_call_llm.return_value = _response({"actions": _ACTIONS, "reasons": _REASONS})
 
     with pytest.raises(ValueError):
         strategy(_state())
@@ -272,8 +303,8 @@ def test_raises_on_invalid_actions(mock_call_llm, invalid_actions) -> None:
 @pytest.mark.parametrize(
     "payload",
     [
-        {"summary": "전략 요약", "actions": None},  # actions가 명시적으로 None
-        {"summary": "전략 요약"},  # actions 필드 자체가 없음
+        {"summary": "전략 요약", "actions": None, "reasons": _REASONS},  # actions가 명시적으로 None
+        {"summary": "전략 요약", "reasons": _REASONS},  # actions 필드 자체가 없음
     ],
 )
 @patch("models.consult.nodes.strategy.call_llm")
@@ -294,3 +325,140 @@ def test_accepts_actions_at_boundary_counts(mock_call_llm, count) -> None:
     result = strategy(_state())
 
     assert result["result"]["actions"] == actions
+
+
+# ── 섹션 5: 근거(reasons) 필수화 + 재생성 ─────────────────────────
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retries_once_when_reasons_missing_then_succeeds(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음
+        _response(_payload(reasons=_REASONS)),  # 2차: 근거 있음
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["reasons"] == _REASONS
+    assert result["retry_count"] == 1
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retry_prompt_includes_correction_hint(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),
+        _response(_payload(reasons=_REASONS)),
+    ]
+
+    strategy(_state())
+
+    first_call_user_prompt = mock_call_llm.call_args_list[0].args[1]
+    second_call_user_prompt = mock_call_llm.call_args_list[1].args[1]
+    assert RETRY_REASONS_HINT not in first_call_user_prompt
+    assert RETRY_REASONS_HINT in second_call_user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_accumulates_tokens_across_retries(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[]), tokens=100),
+        _response(_payload(reasons=_REASONS), tokens=120),
+    ]
+
+    result = strategy(_state(tokens_used=10))
+
+    assert result["tokens_used"] == 10 + 100 + 120
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_succeeds_on_second_retry_at_max_boundary(mock_call_llm) -> None:
+    """1·2차 모두 근거 없음, 3차(2번째 재생성)에서 성공 — 재생성 상한 경계에서의 성공 케이스."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[]), tokens=100),
+        _response(_payload(reasons=[]), tokens=110),
+        _response(_payload(reasons=_REASONS), tokens=120),
+    ]
+
+    result = strategy(_state(tokens_used=10))
+
+    assert mock_call_llm.call_count == 3
+    assert result["retry_count"] == 2
+    assert result["result"]["reasons"] == _REASONS
+    assert result["tokens_used"] == 10 + 100 + 110 + 120
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_after_exhausting_reasons_retries(mock_call_llm) -> None:
+    """근거 없는 응답이 3회(최초 1회+재생성 2회) 연속되면 예외를 던진다."""
+    mock_call_llm.return_value = _response(_payload(reasons=[]))
+
+    with pytest.raises(ValueError):
+        strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+
+
+@pytest.mark.parametrize(
+    "invalid_reasons",
+    [
+        [],  # 빈 배열
+        "reasons 아님",  # 리스트가 아님
+        [""],  # 빈 문자열
+        ["   "],  # 공백뿐
+        [123],  # 문자열이 아닌 항목
+    ],
+)
+@patch("models.consult.nodes.strategy.call_llm")
+def test_treats_invalid_reasons_as_missing_and_retries(mock_call_llm, invalid_reasons) -> None:
+    """형식이 안 맞는 reasons도 '근거 없음'과 동일하게 재생성 대상이다(예외가 아니라 재시도)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=invalid_reasons)),
+        _response(_payload(reasons=_REASONS)),
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["reasons"] == _REASONS
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_treats_null_reasons_as_missing_and_retries(mock_call_llm) -> None:
+    """reasons 필드가 명시적으로 null이어도 '근거 없음'과 동일하게 재시도한다."""
+    mock_call_llm.side_effect = [
+        _response({"summary": "전략 요약", "actions": _ACTIONS, "reasons": None}),
+        _response(_payload(reasons=_REASONS)),
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["reasons"] == _REASONS
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_reasons_field_missing_entirely_triggers_retry(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response({"summary": "전략 요약", "actions": _ACTIONS}),  # reasons 필드 자체가 없음
+        _response(_payload()),
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["reasons"] == _REASONS
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_immediately_on_malformed_actions_even_on_retry_attempt(mock_call_llm) -> None:
+    """actions 형식 오류는 재생성 대상이 아니라 즉시 실패 — 근거 재생성 중이라도 예외로 처리한다."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도 유발
+        _response(_payload(actions=[])),  # 2차: actions 자체가 잘못됨 → 즉시 실패
+    ]
+
+    with pytest.raises(ValueError):
+        strategy(_state())
+
+    assert mock_call_llm.call_count == 2
