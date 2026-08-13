@@ -47,7 +47,8 @@ def copy_gen_node(state: BasicState) -> dict:
             user=json.dumps(payload, ensure_ascii=False),
             json_mode=True,
         )
-    except Exception as exc:
+    # BLE001 억제 사유: call_llm의 모든 실패(429/timeout/기타 API 오류)를 잡아 status=error로 안전하게 전환하기 위해 의도적으로 넓게 잡음
+    except Exception as exc:  # noqa: BLE001
         return {
             "status": "error",
             "issues": state.get("issues", [])
