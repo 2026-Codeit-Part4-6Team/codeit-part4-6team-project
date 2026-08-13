@@ -322,6 +322,7 @@ class ErrorResult(StrictModel):
 
 
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
+PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -367,5 +368,5 @@ class GenerationResponse(StrictModel):
     generation_id: int = Field(gt=0)
     status: GenerationStatus
     chatbot_type: ChatbotType
-    result: ModelResult | None = None
+    result: PublicGenerationResult | None = None
     usage: GenerationUsage

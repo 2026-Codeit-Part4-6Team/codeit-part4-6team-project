@@ -208,3 +208,30 @@ def test_openapi_generate_uses_generate_request_not_preview(client: TestClient):
 
     assert request_schema["$ref"].endswith("/GenerateRequest")
     assert "/preview/generate" not in schema["paths"]
+
+
+def test_generate_maps_model_timeout_to_504(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    """Service timeout은 Public HTTP 504 경계로 변환합니다."""
+    from backend.services.generation_service import ModelExecutionError
+
+    user = add_generation_user(db_session, username="error-timeout")
+    auth_as(client, user)
+
+    async def raise_timeout(*_args, **_kwargs):
+        raise ModelExecutionError(reason="timeout", message="provider timeout")
+
+    monkeypatch.setattr(
+        "backend.routers.generate_router.generate_generation",
+        raise_timeout,
+    )
+
+    response = client.post(
+        "/generate",
+        headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000209"},
+        json=basic_payload(),
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == {"reason": "timeout"}
