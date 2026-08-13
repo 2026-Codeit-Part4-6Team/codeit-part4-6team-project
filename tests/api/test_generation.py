@@ -190,6 +190,60 @@ def test_generate_maps_source_conflict_to_409(client: TestClient, db_session: Se
     assert response.json()["detail"] == {"reason": "source_generation_conflict"}
 
 
+def test_generate_maps_store_context_invariant_to_422(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    """서버가 StoreContext를 구성하지 못하면 정책상 422를 반환합니다."""
+    from backend.services.generation_service import StoreContextValidationError
+
+    user = add_generation_user(db_session, username="invalid-store-context")
+    auth_as(client, user)
+
+    async def raise_invariant(*_args, **_kwargs):
+        raise StoreContextValidationError("store context is invalid")
+
+    monkeypatch.setattr(
+        "backend.routers.generate_router.generate_generation",
+        raise_invariant,
+    )
+
+    response = client.post(
+        "/generate",
+        headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000208"},
+        json=basic_payload(),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {"reason": "generation_data_invariant"}
+
+
+def test_generate_keeps_storage_invariant_as_500(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    """DB 저장 불변조건 파손은 클라이언트 입력 오류가 아니므로 500을 유지합니다."""
+    from backend.services.generation_service import GenerationDataInvariantError
+
+    user = add_generation_user(db_session, username="broken-storage-invariant")
+    auth_as(client, user)
+
+    async def raise_invariant(*_args, **_kwargs):
+        raise GenerationDataInvariantError("stored result is corrupt")
+
+    monkeypatch.setattr(
+        "backend.routers.generate_router.generate_generation",
+        raise_invariant,
+    )
+
+    response = client.post(
+        "/generate",
+        headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000207"},
+        json=basic_payload(),
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == {"reason": "generation_data_invariant"}
+
+
 def test_generate_maps_model_error_reasons_to_http_status(
     client: TestClient, db_session: Session
 ):

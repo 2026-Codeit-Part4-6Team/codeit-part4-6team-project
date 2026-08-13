@@ -14,6 +14,7 @@ from backend.services.generation_service import (
     ModelExecutionError,
     SourceGenerationConflict,
     SourceGenerationNotFound,
+    StoreContextValidationError,
     build_model_request,
     hash_generate_request,
     replay_existing_generation,
@@ -195,7 +196,7 @@ def test_build_model_request_rejects_invalid_store_before_reservation(tmp_path):
     with Session(engine) as db:
         user = add_user(db, business_name="   ")
 
-        with pytest.raises(GenerationDataInvariantError):
+        with pytest.raises(StoreContextValidationError):
             build_model_request(db, user, basic_request())
 
 
@@ -513,7 +514,8 @@ def test_generate_insufficient_credits_does_not_insert(tmp_path):
         assert db.query(Generation).count() == 0
 
 
-def test_generate_blocked_result_compensates_committed_free_usage(tmp_path):
+@pytest.mark.parametrize("action", ["block", "reask", "warn"])
+def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, action):
     from asyncio import run
 
     from backend.services.generation_service import generate
@@ -524,7 +526,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path):
         user = add_user(db, used=0, reset_at=now + timedelta(hours=12))
         blocked = {
             "status": "blocked",
-            "action": "reask",
+            "action": action,
             "reason": "insufficient_info",
             "message": "추가 정보를 입력해 주세요.",
         }
@@ -547,12 +549,15 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path):
         assert response.status == "failed"
         assert response.result is not None
         assert response.result.status == "blocked"
+        assert response.result.action == action
         assert response.usage.credits_used == 0
         assert user.daily_free_used == 0
         assert row is not None
         assert row.status == "failed"
         assert row.credits_used == 0
-        assert json.loads(row.result_json)["status"] == "blocked"
+        stored_result = json.loads(row.result_json)
+        assert stored_result["status"] == "blocked"
+        assert stored_result["action"] == action
 
 
 def test_generate_error_result_compensates_paid_credit_and_raises(tmp_path):

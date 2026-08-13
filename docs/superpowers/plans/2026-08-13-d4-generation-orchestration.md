@@ -43,7 +43,7 @@
 - Test: `tests/services/test_generation.py`
 
 **Interfaces:**
-- Produces: `IdempotencyConflict`, `SourceGenerationNotFound`, `SourceGenerationConflict`, `GenerationDataInvariantError`, `ModelExecutionError`.
+- Produces: `IdempotencyConflict`, `SourceGenerationNotFound`, `SourceGenerationConflict`, `StoreContextValidationError`, `GenerationDataInvariantError`, `ModelExecutionError`.
 - Produces helpers for request hash, Store/ModelRequest assembly, stored ModelResult restore, and replay response.
 
 - [x] Replace Preview-only service tests with focused tests for deterministic request hash, Store validation, source ownership/type/status/schema validation, and same-key hash conflict without DB mutation.
@@ -115,7 +115,7 @@
 - Consumes: `GenerateRequest`, required `Idempotency-Key`, authenticated `User`, DB dependency, `app.state.chatbot_client`, async generation service.
 - Produces: `POST /generate -> GenerationResponse` and contract HTTP mappings.
 
-- [x] Rewrite API tests to authenticate a user in the isolated test DB and exercise: missing/invalid key 422, success 200, same-key same-body replay, different-body 409, insufficient 402, billing confirmation 409, source 404/409, technical 429/500/502/504 mapping, and OpenAPI request schema == `GenerateRequest`.
+- [x] Rewrite API tests to authenticate a user in the isolated test DB and exercise: missing/invalid key 422, StoreContext construction failure 422, success 200, same-key same-body replay, different-body 409, insufficient 402, billing confirmation 409, source 404/409, storage invariant 500, technical 429/500/502/504 mapping, and OpenAPI request schema == `GenerateRequest`.
 - [x] Implement async router endpoint with `Header(..., alias="Idempotency-Key")`, DB/current-user dependencies and injected app client.
 - [x] Map only the contract domain exceptions; keep policy blocked as HTTP 200 response.
 - [x] Remove or move the Preview `/generate`; do not leave duplicate path ownership.

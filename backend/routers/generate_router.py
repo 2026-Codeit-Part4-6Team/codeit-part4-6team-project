@@ -27,6 +27,7 @@ from backend.services.generation_service import (
     ModelExecutionError,
     SourceGenerationConflict,
     SourceGenerationNotFound,
+    StoreContextValidationError,
     generate as generate_generation,
 )
 
@@ -81,6 +82,11 @@ async def generate(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"reason": "source_generation_conflict"},
+        ) from error
+    except StoreContextValidationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"reason": "generation_data_invariant"},
         ) from error
     except GenerationDataInvariantError as error:
         raise HTTPException(

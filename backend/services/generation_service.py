@@ -49,7 +49,11 @@ class SourceGenerationConflict(Exception):
 
 
 class GenerationDataInvariantError(Exception):
-    """DB에 저장된 생성/사용자 데이터가 서비스 불변조건을 위반합니다."""
+    """DB에 저장된 생성 데이터가 서비스 불변조건을 위반합니다."""
+
+
+class StoreContextValidationError(Exception):
+    """서버 소유 사용자/가게 정보로 StoreContext를 구성할 수 없습니다."""
 
 
 class ModelExecutionError(Exception):
@@ -89,7 +93,7 @@ def hash_generate_request(request: GenerateRequest) -> str:
 
 def _required_non_blank(value: str | None, field_name: str) -> str:
     if value is None or not value.strip():
-        raise GenerationDataInvariantError(f"{field_name} 값이 필요합니다.")
+        raise StoreContextValidationError(f"{field_name} 값이 필요합니다.")
     return value
 
 
@@ -150,7 +154,7 @@ def build_model_request(
     )
     address = _required_non_blank(address, "address")
     if user.lat is None or user.lng is None:
-        raise GenerationDataInvariantError("가게 좌표가 필요합니다.")
+        raise StoreContextValidationError("가게 좌표가 필요합니다.")
 
     try:
         store = StoreContext(
@@ -171,7 +175,7 @@ def build_model_request(
             source_context=source_context,
         )
     except ValidationError as error:
-        raise GenerationDataInvariantError(
+        raise StoreContextValidationError(
             "서버 소유 사용자/가게 정보가 ModelRequest 계약을 위반합니다."
         ) from error
 
