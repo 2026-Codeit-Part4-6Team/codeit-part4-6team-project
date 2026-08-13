@@ -671,3 +671,154 @@ def test_same_key_done_replay_does_not_call_model_or_charge_again(tmp_path):
         assert first.generation_id == second.generation_id
         assert client.calls == 1
         assert user.daily_free_used == 1
+
+
+def test_same_key_generating_before_stale_threshold_returns_current_without_recall(tmp_path):
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=50, used=10, reset_at=created_at + timedelta(hours=12))
+        request = basic_request(max_accepted_credits=50)
+        row = add_generation(
+            db,
+            user,
+            key="00000000-0000-0000-0000-000000000021",
+            request=request,
+            status="generating",
+            plan="paid",
+            credits_used=50,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        user.credits = 0
+        db.commit()
+        client = RecordingClient(basic_result_payload())
+
+        response = run(
+            generate(
+                db,
+                user,
+                request,
+                row.idempotency_key,
+                client,
+                now=created_at + timedelta(seconds=119),
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        db.refresh(user)
+        assert response.status == "generating"
+        assert client.calls == 0
+        assert user.credits == 0
+
+
+def test_stale_paid_generation_refunds_once_and_becomes_failed(tmp_path):
+    from backend.services.generation_service import recover_stale_generating
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=0, used=10, reset_at=created_at + timedelta(hours=12))
+        request = basic_request(max_accepted_credits=50)
+        row = add_generation(
+            db,
+            user,
+            request=request,
+            status="generating",
+            plan="paid",
+            credits_used=50,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        db.commit()
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=120),
+            model_timeout_seconds=60,
+        ) is True
+        db.refresh(user)
+        db.refresh(row)
+        assert user.credits == 50
+        assert row.status == "failed"
+        assert row.credits_used == 0
+        assert json.loads(row.result_json)["message"] == "stale_generation_recovered"
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=180),
+            model_timeout_seconds=60,
+        ) is False
+        db.refresh(user)
+        assert user.credits == 50
+
+
+def test_stale_free_generation_decrements_only_same_usage_period(tmp_path):
+    from backend.services.generation_service import recover_stale_generating
+    from backend.services.usage_service import next_seoul_midnight_utc
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    same_period = next_seoul_midnight_utc(created_at)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, used=1, reset_at=same_period)
+        request = basic_request()
+        row = add_generation(
+            db,
+            user,
+            request=request,
+            status="generating",
+            plan="free",
+            credits_used=0,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        db.commit()
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=120),
+            model_timeout_seconds=60,
+        ) is True
+        db.refresh(user)
+        assert user.daily_free_used == 0
+
+
+def test_stale_free_generation_does_not_touch_new_usage_period(tmp_path):
+    from backend.services.generation_service import recover_stale_generating
+    from backend.services.usage_service import next_seoul_midnight_utc
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    old_period = next_seoul_midnight_utc(created_at)
+    new_period = old_period + timedelta(days=1)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, used=3, reset_at=new_period)
+        row = add_generation(
+            db,
+            user,
+            request=basic_request(),
+            status="generating",
+            plan="free",
+            credits_used=0,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        db.commit()
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=120),
+            model_timeout_seconds=60,
+        ) is True
+        db.refresh(user)
+        assert user.daily_free_used == 3

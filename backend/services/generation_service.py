@@ -1,11 +1,12 @@
 import asyncio
 import hashlib
 import json
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,7 @@ from backend.services.credit_service import (
     reset_generation_usage_rollback,
     settle_generation_usage,
 )
+from backend.services.usage_service import as_utc, next_seoul_midnight_utc
 from backend.schemas import (
     MODEL_RESULT_ADAPTER,
     BasicModelResult,
@@ -329,6 +331,92 @@ def _handle_failed_result(
     )
 
 
+def recover_stale_generating(
+    db: Session,
+    generation: Generation,
+    user: User,
+    *,
+    now: datetime,
+    model_timeout_seconds: int,
+) -> bool:
+    """same-key retry에서 stale generating reservation을 정확히 한 번 복구합니다."""
+    if model_timeout_seconds <= 0:
+        raise ValueError("model_timeout_seconds는 양수여야 합니다.")
+    if generation.status != "generating":
+        return False
+    if generation.created_at is None:
+        raise GenerationDataInvariantError("generation.created_at이 필요합니다.")
+
+    normalized_now = as_utc(now)
+    started_at = as_utc(generation.created_at)
+    stale_at = started_at + timedelta(seconds=2 * model_timeout_seconds)
+    if normalized_now < stale_at:
+        return False
+
+    reserved_credits = generation.credits_used
+    plan = generation.plan
+    safe_error = _failed_error_result("unknown", "stale_generation_recovered")
+    claim = db.execute(
+        update(Generation)
+        .where(
+            Generation.id == generation.id,
+            Generation.user_id == user.id,
+            Generation.status == "generating",
+        )
+        .values(
+            status="failed",
+            credits_used=0,
+            tokens_used=0,
+            result_json=serialize_model_result_for_storage(safe_error),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if claim.rowcount != 1:
+        db.rollback()
+        return False
+
+    if plan == "paid":
+        db.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values(credits=User.credits + reserved_credits)
+            .execution_options(synchronize_session=False)
+        )
+    elif plan == "free":
+        reserved_period_reset_at = next_seoul_midnight_utc(started_at)
+        current_reset_at = db.scalar(
+            select(User.daily_free_reset_at).where(User.id == user.id)
+        )
+        if (
+            current_reset_at is not None
+            and as_utc(current_reset_at) == reserved_period_reset_at
+        ):
+            db.execute(
+                update(User)
+                .where(
+                    User.id == user.id,
+                    User.daily_free_reset_at == current_reset_at,
+                )
+                .values(
+                    daily_free_used=case(
+                        (User.daily_free_used > 0, User.daily_free_used - 1),
+                        else_=0,
+                    )
+                )
+                .execution_options(synchronize_session=False)
+            )
+    else:
+        db.rollback()
+        raise GenerationDataInvariantError("generation plan이 올바르지 않습니다.")
+
+    try:
+        db.commit()
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise _internal_error("stale_generation_recovery_failed") from error
+    return True
+
+
 async def generate(
     db: Session,
     user: User,
@@ -346,6 +434,25 @@ async def generate(
 
     existing = _find_existing_generation(db, user.id, normalized_key)
     if existing is not None:
+        if existing.request_hash != request_hash:
+            raise IdempotencyConflict(
+                "같은 Idempotency-Key가 다른 요청에 사용되었습니다."
+            )
+        if existing.status == "generating":
+            recovered = recover_stale_generating(
+                db,
+                existing,
+                user,
+                now=now,
+                model_timeout_seconds=model_timeout_seconds,
+            )
+            if recovered:
+                raise _internal_error("stale_generation_recovered")
+            existing = _find_existing_generation(db, user.id, normalized_key)
+            if existing is None:
+                raise GenerationDataInvariantError(
+                    "idempotent generation row가 사라졌습니다."
+                )
         return replay_existing_generation(existing, request)
 
     model_request = build_model_request(db, user, request)
