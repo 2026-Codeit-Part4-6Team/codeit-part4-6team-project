@@ -26,14 +26,17 @@ def test_graph_runs_start_to_end_without_error(
     mock_question_call_llm, mock_strategy_call_llm
 ) -> None:
     """실제 로직이 채워진 노드(question_analysis, strategy)를 포함해도 START→END까지 끊김 없이 실행된다."""
-    mock_question_call_llm.return_value = json.dumps(
-        {
-            "rewritten_question": "우리 카페 어떻게 홍보하면 좋을까요?",
-            "is_sufficient": True,
-            "missing_info": [],
-        }
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 어떻게 홍보하면 좋을까요?",
+                "is_sufficient": True,
+                "missing_info": [],
+            }
+        ),
+        100,
     )
-    mock_strategy_call_llm.return_value = "시즌 한정 메뉴로 신규 고객을 유입하세요."
+    mock_strategy_call_llm.return_value = ("시즌 한정 메뉴로 신규 고객을 유입하세요.", 100)
     graph = build_consultant()
 
     result = graph.invoke(_initial_state())

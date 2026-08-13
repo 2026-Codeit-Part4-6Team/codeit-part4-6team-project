@@ -25,13 +25,18 @@ _MARKET = {
 }
 
 
-def _state(question: str = "우리 카페 어떻게 홍보하면 좋을까요?", market: dict | None = None) -> dict:
+def _state(
+    question: str = "우리 카페 어떻게 홍보하면 좋을까요?",
+    market: dict | None = None,
+    tokens_used: int = 0,
+) -> dict:
     return {
         "chatbot_type": "consultant",
         "user_id": 1,
         "question": question,
         "store": _STORE,
         "context": {"market": market},
+        "tokens_used": tokens_used,
     }
 
 
@@ -44,27 +49,43 @@ def _state_without_context(question: str = "우리 카페 어떻게 홍보하면
     }
 
 
+def _response(text: str, tokens: int = 100) -> tuple[str, int]:
+    return text, tokens
+
+
 @patch("models.consult.nodes.strategy.call_llm")
 def test_returns_summary_from_llm(mock_call_llm) -> None:
-    mock_call_llm.return_value = "시즌 한정 메뉴로 신규 고객을 유입하세요."
+    mock_call_llm.return_value = _response("시즌 한정 메뉴로 신규 고객을 유입하세요.")
 
     result = strategy(_state())
 
-    assert result == {"result": {"summary": "시즌 한정 메뉴로 신규 고객을 유입하세요."}}
+    assert result == {
+        "result": {"summary": "시즌 한정 메뉴로 신규 고객을 유입하세요."},
+        "tokens_used": 100,
+    }
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_accumulates_tokens_used(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response("전략", tokens=150)
+
+    result = strategy(_state(tokens_used=50))
+
+    assert result["tokens_used"] == 200
 
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_strips_leading_and_trailing_whitespace_from_summary(mock_call_llm) -> None:
-    mock_call_llm.return_value = "  전략 내용\n"
+    mock_call_llm.return_value = _response("  전략 내용\n")
 
     result = strategy(_state())
 
-    assert result == {"result": {"summary": "전략 내용"}}
+    assert result["result"] == {"summary": "전략 내용"}
 
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_passes_question_and_store_info_to_prompt(mock_call_llm) -> None:
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
 
     strategy(_state("우리 카페 어떻게 홍보하면 좋을까요?"))
 
@@ -77,7 +98,7 @@ def test_passes_question_and_store_info_to_prompt(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_includes_market_data_when_available(mock_call_llm) -> None:
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
 
     strategy(_state(market=_MARKET))
 
@@ -91,7 +112,7 @@ def test_includes_market_data_when_available(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_omits_market_section_when_market_is_none(mock_call_llm) -> None:
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
 
     strategy(_state(market=None))
 
@@ -102,7 +123,7 @@ def test_omits_market_section_when_market_is_none(mock_call_llm) -> None:
 @patch("models.consult.nodes.strategy.call_llm")
 def test_omits_market_section_when_context_missing_entirely(mock_call_llm) -> None:
     """market_for_consult가 아직 안 돈 상태(그래프 조기 실행 등)에서도 죽지 않는다."""
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
 
     strategy(_state_without_context())
 
@@ -113,7 +134,7 @@ def test_omits_market_section_when_context_missing_entirely(mock_call_llm) -> No
 @patch("models.consult.nodes.strategy.call_llm")
 def test_handles_none_nearest_distance_gracefully(mock_call_llm) -> None:
     """동일 업종이 0곳이면 nearest_distance_m이 None인데, 이 경우도 죽지 않고 포맷된다."""
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
     market = {**_MARKET, "same_industry_count": 0, "nearest_distance_m": None, "density_tier": "경쟁 없음"}
 
     strategy(_state(market=market))
@@ -125,7 +146,7 @@ def test_handles_none_nearest_distance_gracefully(mock_call_llm) -> None:
 @patch("models.consult.nodes.strategy.call_llm")
 def test_handles_missing_market_fields_gracefully(mock_call_llm) -> None:
     """total_count/same_industry_count/density_tier가 누락돼도 KeyError 없이 '정보 없음'/'판단 불가'로 정규화한다."""
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
 
     strategy(_state(market={"nearest_distance_m": 55}))
 
@@ -138,7 +159,7 @@ def test_handles_missing_market_fields_gracefully(mock_call_llm) -> None:
 @patch("models.consult.nodes.strategy.call_llm")
 def test_formats_none_same_industry_count_as_no_info(mock_call_llm) -> None:
     """same_industry_count가 None이면 'None곳'이 아니라 '정보 없음'으로 표기한다."""
-    mock_call_llm.return_value = "전략"
+    mock_call_llm.return_value = _response("전략")
     market = {**_MARKET, "same_industry_count": None}
 
     strategy(_state(market=market))
@@ -171,7 +192,7 @@ def test_propagates_call_llm_failure(mock_call_llm) -> None:
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_when_summary_is_blank(mock_call_llm, blank_summary) -> None:
     """빈 문자열·공백뿐인 요약은 계약(title/summary 빈 문자열 불가)을 어기므로 명시적으로 실패시킨다."""
-    mock_call_llm.return_value = blank_summary
+    mock_call_llm.return_value = _response(blank_summary)
 
     with pytest.raises(ValueError):
         strategy(_state())
