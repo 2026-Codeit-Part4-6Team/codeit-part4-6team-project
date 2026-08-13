@@ -218,6 +218,12 @@ def test_source_generation_enforces_owner_type_and_status(tmp_path):
         with pytest.raises(SourceGenerationConflict):
             build_model_request(db, owner, consultant_request(source_gen_id=source.id))
 
+        source.chatbot_type = "basic"
+        db.commit()
+        with pytest.raises(SourceGenerationConflict):
+            build_model_request(db, owner, basic_request(source_gen_id=source.id))
+
+        source.chatbot_type = "consultant"
         source.status = "failed"
         db.commit()
         with pytest.raises(SourceGenerationConflict):
@@ -822,3 +828,307 @@ def test_stale_free_generation_does_not_touch_new_usage_period(tmp_path):
         ) is True
         db.refresh(user)
         assert user.daily_free_used == 3
+
+
+def test_unique_race_rolls_back_db_reservation_without_double_compensation(
+    tmp_path, monkeypatch
+):
+    """UNIQUE race는 DB rollback만 수행해 이미 확정된 Credit을 이중 환불하지 않습니다."""
+    from asyncio import run
+
+    import backend.services.generation_service as generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    key = "00000000-0000-0000-0000-000000000031"
+    request = basic_request(max_accepted_credits=50)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=100,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        existing = add_generation(
+            db,
+            user,
+            key=key,
+            request=request,
+            status="done",
+            plan="paid",
+            credits_used=50,
+            result_json=json.dumps(basic_result_payload(), ensure_ascii=False),
+        )
+        user.credits = 50
+        db.commit()
+
+        original_find = generation_service._find_existing_generation
+        find_calls = 0
+
+        def hide_existing_on_initial_select(session, user_id, idempotency_key):
+            nonlocal find_calls
+            find_calls += 1
+            if find_calls == 1:
+                return None
+            return original_find(session, user_id, idempotency_key)
+
+        monkeypatch.setattr(
+            generation_service,
+            "_find_existing_generation",
+            hide_existing_on_initial_select,
+        )
+        client = RecordingClient(basic_result_payload())
+
+        response = run(
+            generation_service.generate(
+                db,
+                user,
+                request,
+                key,
+                client,
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        db.refresh(user)
+        assert response.generation_id == existing.id
+        assert user.credits == 50
+        assert db.query(Generation).count() == 1
+        assert client.calls == 0
+
+
+def test_success_settles_reservation_only_after_transaction2_commit(tmp_path, monkeypatch):
+    """성공 결과의 Reservation은 transaction 2 commit 뒤 pending→settled 됩니다."""
+    from asyncio import run
+
+    import backend.services.generation_service as generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    observed_states = []
+    original_settle = generation_service.settle_generation_usage
+
+    def record_settle(reservation):
+        observed_states.append(reservation.state)
+        original_settle(reservation)
+        observed_states.append(reservation.state)
+
+    monkeypatch.setattr(generation_service, "settle_generation_usage", record_settle)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        response = run(
+            generation_service.generate(
+                db,
+                user,
+                basic_request(max_accepted_credits=50),
+                "00000000-0000-0000-0000-000000000032",
+                RecordingClient(basic_result_payload()),
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        assert response.status == "done"
+        assert observed_states == ["pending", "settled"]
+
+
+def test_success_transaction2_commit_failure_keeps_generating_charge(
+    tmp_path, monkeypatch
+):
+    """성공 결과 저장 commit 실패 시 settled 처리 없이 durable generating+charge를 유지합니다."""
+    from asyncio import run
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    import backend.services.generation_service as generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        real_commit = db.commit
+        commit_calls = 0
+        settled = []
+
+        def fail_transaction2_commit():
+            nonlocal commit_calls
+            commit_calls += 1
+            if commit_calls == 2:
+                raise SQLAlchemyError("forced transaction2 failure")
+            real_commit()
+
+        def record_settle(reservation):
+            settled.append(reservation.state)
+
+        monkeypatch.setattr(db, "commit", fail_transaction2_commit)
+        monkeypatch.setattr(generation_service, "settle_generation_usage", record_settle)
+
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generation_service.generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=50),
+                    "00000000-0000-0000-0000-000000000033",
+                    RecordingClient(basic_result_payload()),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.expire_all()
+        row = db.query(Generation).filter_by(
+            idempotency_key="00000000-0000-0000-0000-000000000033"
+        ).one()
+        db.refresh(user)
+        assert caught.value.reason == "unknown"
+        assert row.status == "generating"
+        assert row.credits_used == 50
+        assert user.credits == 0
+        assert settled == []
+
+
+def test_compensation_commit_failure_resets_marker_and_keeps_durable_charge(
+    tmp_path, monkeypatch
+):
+    """보상 commit 실패는 marker를 reset하고 transaction1의 generating+charge를 남깁니다."""
+    from asyncio import run
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    import backend.services.generation_service as generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        real_commit = db.commit
+        commit_calls = 0
+        reset_states = []
+        original_reset = generation_service.reset_generation_usage_rollback
+
+        def fail_compensation_commit():
+            nonlocal commit_calls
+            commit_calls += 1
+            if commit_calls == 2:
+                raise SQLAlchemyError("forced compensation failure")
+            real_commit()
+
+        def record_reset(reservation):
+            original_reset(reservation)
+            reset_states.append((reservation.state, reservation.compensation_applied))
+
+        monkeypatch.setattr(db, "commit", fail_compensation_commit)
+        monkeypatch.setattr(
+            generation_service,
+            "reset_generation_usage_rollback",
+            record_reset,
+        )
+
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generation_service.generate(
+                    db,
+                    user,
+                    basic_request(max_accepted_credits=50),
+                    "00000000-0000-0000-0000-000000000034",
+                    RecordingClient(
+                        {
+                            "status": "error",
+                            "reason": "provider_error",
+                            "message": "provider failed",
+                        }
+                    ),
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        db.expire_all()
+        row = db.query(Generation).filter_by(
+            idempotency_key="00000000-0000-0000-0000-000000000034"
+        ).one()
+        db.refresh(user)
+        assert caught.value.reason == "unknown"
+        assert row.status == "generating"
+        assert row.credits_used == 50
+        assert user.credits == 0
+        assert reset_states == [("pending", False)]
+
+
+def test_failed_error_same_key_replay_never_calls_model_again(tmp_path):
+    """failed ErrorResult replay는 원래 오류 의미만 복원하고 모델을 다시 호출하지 않습니다."""
+    from asyncio import run
+
+    from backend.services.generation_service import generate
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    key = "00000000-0000-0000-0000-000000000035"
+    request = basic_request(max_accepted_credits=50)
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=50,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+        add_generation(
+            db,
+            user,
+            key=key,
+            request=request,
+            status="failed",
+            plan="paid",
+            credits_used=0,
+            result_json=json.dumps(
+                {
+                    "status": "error",
+                    "reason": "rate_limit",
+                    "message": "rate limited",
+                }
+            ),
+        )
+        client = RecordingClient(basic_result_payload())
+
+        with pytest.raises(ModelExecutionError) as caught:
+            run(
+                generate(
+                    db,
+                    user,
+                    request,
+                    key,
+                    client,
+                    now=now,
+                    free_limit=10,
+                    model_timeout_seconds=60,
+                )
+            )
+
+        assert caught.value.reason == "rate_limit"
+        assert client.calls == 0
