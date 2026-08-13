@@ -36,7 +36,15 @@ def test_graph_runs_start_to_end_without_error(
         ),
         100,
     )
-    mock_strategy_call_llm.return_value = ("시즌 한정 메뉴로 신규 고객을 유입하세요.", 100)
+    mock_strategy_call_llm.return_value = (
+        json.dumps(
+            {
+                "summary": "시즌 한정 메뉴로 신규 고객을 유입하세요.",
+                "actions": [{"type": "menu", "content": "시즌 한정 메뉴 도입"}],
+            }
+        ),
+        100,
+    )
     graph = build_consultant()
 
     result = graph.invoke(_initial_state())
