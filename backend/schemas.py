@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ChatbotType = Literal["basic", "consultant"]
 Platform = Literal["instagram", "banner"]
@@ -215,7 +215,43 @@ class ErrorResult(StrictModel):
 
 
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
-MODEL_RESULT_ADAPTER: TypeAdapter[ModelResult] = TypeAdapter(ModelResult)
+
+
+class _ModelResultEnvelope(BaseModel):
+    """명시적 ModelResult 분기에 필요한 최상위 status만 검증합니다."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    status: Literal["ok", "blocked", "error"]
+
+
+class ModelResultAdapter:
+    """status와 이미 알고 있는 chatbot_type으로 ModelResult를 명시적으로 검증합니다."""
+
+    def validate_python(
+        self, value: object, *, chatbot_type: ChatbotType
+    ) -> ModelResult:
+        """성공 결과는 요청 chatbot_type의 Schema 하나만 검증합니다."""
+        if chatbot_type not in ("basic", "consultant"):
+            raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
+
+        payload = (
+            value.model_dump(mode="python", by_alias=True)
+            if isinstance(value, BaseModel)
+            else value
+        )
+        status = _ModelResultEnvelope.model_validate(payload).status
+
+        if status == "blocked":
+            return BlockedResult.model_validate(payload)
+        if status == "error":
+            return ErrorResult.model_validate(payload)
+        if chatbot_type == "basic":
+            return BasicModelResult.model_validate(payload)
+        return ConsultantModelResult.model_validate(payload)
+
+
+MODEL_RESULT_ADAPTER = ModelResultAdapter()
 
 
 class GenerationResponse(StrictModel):
