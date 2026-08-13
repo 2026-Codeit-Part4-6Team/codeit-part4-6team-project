@@ -214,8 +214,8 @@ def test_e2e_scenario_c_form_prefilled():
             "extra": {
                 "purpose": "신메뉴 출시",
                 "price_range": "5000-8000",
-                "target_customer": "20~30대 직장인",
-                "selling_point": "당일 로스팅 원두",
+                "target_age": "20~30대 직장인",
+                "strength": "당일 로스팅 원두",
             },
         }
     )

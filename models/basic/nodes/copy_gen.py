@@ -1,7 +1,7 @@
 import json
 
 from ..graph.state import BasicState
-from ..llm import call_llm
+from ..llm import call_llm, classify_llm_error
 
 MAX_RETRY = 2
 
@@ -41,11 +41,24 @@ def copy_gen_node(state: BasicState) -> dict:
     if regulation_result and regulation_result.get("action") == "block":
         payload["avoid"] = regulation_result.get("message")
 
-    raw, tokens = call_llm(
-        system=SYSTEM_PROMPT,
-        user=json.dumps(payload, ensure_ascii=False),
-        json_mode=True,
-    )
+    try:
+        raw, tokens = call_llm(
+            system=SYSTEM_PROMPT,
+            user=json.dumps(payload, ensure_ascii=False),
+            json_mode=True,
+        )
+    except Exception as exc:
+        return {
+            "status": "error",
+            "issues": state.get("issues", [])
+            + [
+                {
+                    "source": "copy_gen",
+                    "reason": classify_llm_error(exc),
+                    "message": "카피 생성 중 오류가 발생했습니다.",
+                }
+            ],
+        }
     parsed = json.loads(raw)
     raw_candidates = parsed.get("candidates", [])
 

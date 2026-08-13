@@ -14,7 +14,7 @@ def regulation_node(state: BasicState) -> dict:
 
     checked = [{**c, "regulation": check_regulation(c["copy"])} for c in valid]
 
-    passed = [c for c in checked if c["regulation"]["action"] not in ("block")]
+    passed = [c for c in checked if c["regulation"]["action"] != "block"]
     validation = {**state.get("validation", {})}
 
     if not passed:
@@ -39,8 +39,22 @@ def regulation_node(state: BasicState) -> dict:
             ]
         return updates
 
+    blocked_slots = [
+        {
+            "copy": None,
+            "image_b64": None,
+            "error": {
+                "field": "copy",
+                "reason": "content_policy",
+                "message": c["regulation"].get("message", ""),
+            },
+        }
+        for c in checked
+        if c["regulation"]["action"] == "block"
+    ]
+
     validation["regulation"] = {"action": "pass", "reason": "pass", "message": ""}
     return {
-        "ranked_copies": passed + failed,
+        "ranked_copies": passed + blocked_slots + failed,
         "validation": validation,
     }

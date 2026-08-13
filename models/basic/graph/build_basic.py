@@ -37,12 +37,14 @@ def route_after_security_input(state: BasicState) -> str:
 
 def route_after_question_analysis(state: BasicState) -> str:
     """질문 분석 결과 상태가 blocked면 종료, 아니면 채널 노드로 진행한다."""
-    return "end_blocked" if state.get("status") == "blocked" else "channel"
+    return "end_blocked" if state.get("status") in ("blocked", "error") else "channel"
 
 
 def route_after_copy_gen(state: BasicState) -> str:
     """카피 후보가 전부 생성 실패면 재시도 한도 내에서 copy_gen을 반복하고,
     한도를 넘기면 종료한다. 하나라도 성공하면 ranking으로 진행한다."""
+    if state.get("status") == "error":
+        return "end_blocked"
     candidates = state.get("copy_candidates") or []
     all_failed = bool(candidates) and all(c.get("copy") is None for c in candidates)
     if all_failed:
@@ -50,6 +52,11 @@ def route_after_copy_gen(state: BasicState) -> str:
             return "end_blocked"
         return "copy_gen"
     return "ranking"
+
+
+def route_after_ranking(state: BasicState) -> str:
+    """랭킹이 LLM 호출 오류로 실패하면 종료, 아니면 regulation으로 진행한다."""
+    return "end_blocked" if state.get("status") == "error" else "regulation"
 
 
 def route_after_regulation(state: BasicState) -> str:
@@ -127,7 +134,12 @@ def build_basic_graph():
         route_after_copy_gen,
         {"copy_gen": "copy_gen", "ranking": "ranking", "end_blocked": END},
     )
-    graph.add_edge("ranking", "regulation")
+
+    graph.add_conditional_edges(
+        "ranking",
+        route_after_ranking,
+        {"regulation": "regulation", "end_blocked": END},
+    )
 
     graph.add_conditional_edges(
         "regulation",

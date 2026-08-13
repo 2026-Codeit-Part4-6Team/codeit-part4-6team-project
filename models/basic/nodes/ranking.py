@@ -1,14 +1,15 @@
 import json
 
 from ..graph.state import BasicState
-from ..llm import call_llm
+from ..llm import call_llm, classify_llm_error
 
 SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 아래 후보 카피들을 요청 반영도·구체성·규제 안전성 기준으로 1~5점씩 평가하고,
-총점이 높은 순으로 정렬한다. 후보 개수는 그대로 유지한다(줄이지 않는다).
+총점이 높은 순으로 정렬한다. 후보는 0부터 시작하는 index로 참조하며, 개수는
+그대로 유지한다(줄이거나 늘리지 않는다).
 
 다음 JSON 형식으로만 답한다:
-{"ranked": [{"copy": "...", "score": 4.3}, ...]}
+{"ranked": [{"index": 0, "score": 4.3}, ...]}
 """
 
 
@@ -27,14 +28,40 @@ def ranking_node(state: BasicState) -> dict:
         "candidate": [c["copy"] for c in valid],
     }
 
-    raw, tokens = call_llm(
-        system=SYSTEM_PROMPT,
-        user=json.dumps(context, ensure_ascii=False),
-        json_mode=True,
-    )
+    try:
+        raw, tokens = call_llm(
+            system=SYSTEM_PROMPT,
+            user=json.dumps(context, ensure_ascii=False),
+            json_mode=True,
+        )
+    except Exception as exc:
+        return {
+            "status": "error",
+            "issues": state.get("issues", [])
+            + [
+                {
+                    "source": "ranking",
+                    "reason": classify_llm_error(exc),
+                    "message": "카피 랭킹 중 오류가 발생했습니다.",
+                }
+            ],
+        }
     parsed = json.loads(raw)
 
+    ranked = []
+    seen = set()
+    for item in parsed.get("ranked", []):
+        idx = item.get("index")
+        if not isinstance(idx, int) or not (0 <= idx < len(valid)) or idx in seen:
+            continue
+        seen.add(idx)
+        ranked.append({"copy": valid[idx]["copy"], "score": item.get("score")})
+
+    for i, c in enumerate(valid):
+        if i not in seen:
+            ranked.append({"copy": c["copy"], "score": None})
+
     return {
-        "ranked_copies": parsed["ranked"] + failed,
+        "ranked_copies": ranked + failed,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }

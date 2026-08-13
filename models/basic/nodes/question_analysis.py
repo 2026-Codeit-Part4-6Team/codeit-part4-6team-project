@@ -1,7 +1,7 @@
 import json
 
 from ..graph.state import BasicState
-from ..llm import call_llm
+from ..llm import call_llm, classify_llm_error
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어시스턴트다.
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
@@ -42,11 +42,24 @@ def question_analysis_node(state: BasicState) -> dict:
         "extra": state.get("extra") or {},
     }
 
-    raw, tokens = call_llm(
-        system=SYSTEM_PROMPT,
-        user=json.dumps(context, ensure_ascii=False),
-        json_mode=True,
-    )
+    try:
+        raw, tokens = call_llm(
+            system=SYSTEM_PROMPT,
+            user=json.dumps(context, ensure_ascii=False),
+            json_mode=True,
+        )
+    except Exception as exc:
+        return {
+            "status": "error",
+            "issues": state.get("issues", [])
+            + [
+                {
+                    "source": "question_analysis",
+                    "reason": classify_llm_error(exc),
+                    "message": "질문 분석 중 오류가 발생했습니다.",
+                }
+            ],
+        }
     parsed = json.loads(raw)
     tokens_used = state.get("tokens_used", 0) + tokens
 

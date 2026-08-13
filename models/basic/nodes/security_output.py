@@ -15,6 +15,7 @@ def security_output_node(state: BasicState) -> dict:
     updates = {"validation": validation}
     if checked.get("action") == "block":
         updates["status"] = "blocked"
+        updates["result"] = None
         updates["issues"] = state.get("issues", []) + [
             {
                 "source": "output",
