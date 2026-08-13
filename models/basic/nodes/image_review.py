@@ -7,7 +7,7 @@ from transformers import CLIPModel, CLIPProcessor
 
 from ..graph.state import BasicState
 
-MIN_CLIP_SCORE = 0.25  # 임시값 - 골든 데이터셋으로 튜닝 필요
+MIN_CLIP_SCORE = 0.25  # 참고용 임계값 — MVP에서는 미적용
 
 _clip_model = None
 _clip_processor = None
@@ -36,11 +36,15 @@ def _clip_score(image, text: str) -> float:
 
 
 def image_review_node(state: BasicState) -> dict:
-    """생성된 이미지를 디코딩해 CLIP 적합도 점수로 검수한다. 디코딩 실패나
-    기준 점수 미달 항목은 반려 처리하고, 모든 항목이 실패하면 재생성을 요청한다."""
+    """생성된 이미지를 디코딩해 CLIP 적합도 점수를 기록한다.
+
+    MVP 정책: 이미지가 없거나 CLIP 점수가 낮아도 차단하지 않는다(CLIP Score는
+    현재 개발용 평가 지표일 뿐 — FR-13b). 디코딩 자체가 전부 실패한 경우만
+    실제 처리 오류로 보고 재생성을 요청한다.
+    """
     reviewed = []
     has_copy_count = 0
-    image_fail_count = 0
+    decode_fail_count = 0
 
     for c in state["ranked_copies"]:
         if not c.get("copy"):
@@ -50,7 +54,6 @@ def image_review_node(state: BasicState) -> dict:
         has_copy_count += 1
 
         if not c.get("image_b64"):
-            image_fail_count += 1
             reviewed.append(c)
             continue
 
@@ -59,7 +62,7 @@ def image_review_node(state: BasicState) -> dict:
             score = _clip_score(image, c.get("image_prompt", c["copy"]))
         # BLE001 억제 사유: 디코딩/CLIP 추론 중 어떤 예외가 나든 해당 항목만 실패 처리
         except Exception:  # noqa: BLE001
-            image_fail_count += 1
+            decode_fail_count += 1
             reviewed.append(
                 {
                     **c,
@@ -73,30 +76,15 @@ def image_review_node(state: BasicState) -> dict:
             )
             continue
 
-        if score < MIN_CLIP_SCORE:
-            image_fail_count += 1
-            reviewed.append(
-                {
-                    **c,
-                    "image_b64": None,
-                    "error": {
-                        "field": "image",
-                        "reason": "low_clip_score",
-                        "message": f"이미지 적합도 점수가 낮습니다({score:.2f}).",
-                    },
-                }
-            )
-            continue
-
         reviewed.append({**c, "clip_score": score})
 
-    all_failed = has_copy_count > 0 and image_fail_count == has_copy_count
+    all_decode_failed = has_copy_count > 0 and decode_fail_count == has_copy_count
 
-    if all_failed:
+    if all_decode_failed:
         return {
             "ranked_copies": reviewed,
             "image_review_result": {"action": "reject"},
-            "retry_count": state.get("retry_count", 0) + 1,
+            "image_retry_count": state.get("image_retry_count", 0) + 1,
         }
 
     return {

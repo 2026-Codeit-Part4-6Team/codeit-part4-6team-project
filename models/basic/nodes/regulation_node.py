@@ -1,8 +1,7 @@
 from validation.regulation import check_regulation
 
+from ..config import COPY_MAX_RETRY
 from ..graph.state import BasicState
-
-MAX_RETRY = 2
 
 
 def regulation_node(state: BasicState) -> dict:
@@ -24,10 +23,10 @@ def regulation_node(state: BasicState) -> dict:
             else {"action": "block", "reason": "no_valid_copy", "message": ""}
         )
         validation["regulation"] = blocked
-        retry_count = state.get("retry_count", 0) + 1
+        retry_count = state.get("copy_retry_count", 0) + 1
 
-        updates = {"validation": validation, "retry_count": retry_count}
-        if retry_count >= MAX_RETRY:
+        updates = {"validation": validation, "copy_retry_count": retry_count}
+        if retry_count >= COPY_MAX_RETRY:
             updates["status"] = "blocked"
             updates["issues"] = state.get("issues", []) + [
                 {
