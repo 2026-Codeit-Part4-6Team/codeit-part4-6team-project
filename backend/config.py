@@ -26,8 +26,8 @@ def load_settings() -> Settings:
     return Settings(
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         daily_free_limit=_read_int("DAILY_FREE_LIMIT", 10),
-        basic_credit_cost=_read_int("BASIC_CREDIT_COST", 10),
-        consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 50),
+        basic_credit_cost=_read_int("BASIC_CREDIT_COST", 50),
+        consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 10),
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
         ),

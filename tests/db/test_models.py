@@ -134,8 +134,8 @@ def test_payment_and_waiting_copy_defaults(db_session):
 def test_runtime_policy_defaults():
     """초기 Sprint 정책값은 계약과 일치합니다."""
     assert settings.daily_free_limit == 10
-    assert settings.basic_credit_cost == 10
-    assert settings.consultant_credit_cost == 50
+    assert settings.basic_credit_cost == 50
+    assert settings.consultant_credit_cost == 10
     assert settings.model_request_timeout_seconds == 60
 
 
