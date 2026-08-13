@@ -702,8 +702,11 @@ sales-booster/
 │   │
 │   ├── shared/                       # ★ 전민재 PM 관리 — 두 챗봇 담당자는 import만
 │   │   │                             #   ※ 완전히 동일한 코드만 여기로 올린다
-│   │   ├── llm.py                    # OpenAI 호출 래퍼(+429 백오프)
+│   │   ├── llm.py                    # OpenAI 호출 래퍼(+429 백오프·데드라인)
 │   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
+|   |   |
+|   |   ├── config.py                 # ★ 모델명·온도·재시도·타임아웃 — 두 챗봇 공통 단일 소스
+|   |   |
 │   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
 │   │   │                             #   chatbot_type·user_id·question·store
 │   │   │                             #   context·result·sources·tokens_used
@@ -711,6 +714,7 @@ sales-booster/
 │   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
 │   │   │                             #   security_input · regulation · security_output · self_check
 │   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸
+|   |   #   ※ retry.py 는 llm.py 에 흡수 — 별도 파일로 만들지 않는다
 │   │
 │   ├── basic/                        # ★★ 기본 챗봇(게시물 생성) 담당 작업 영역
 │   │   ├── main.py                   # 챗봇 진입점 (서비스 개발 담당자가 호출)
