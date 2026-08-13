@@ -147,15 +147,17 @@ def test_register_uses_configured_fallback_only_for_provider_failure(
         fallback_lng=127.0276,
     )
 
+    payload = registration_payload()
+    payload["address"] = "  서울 강남구 테헤란로 1  "
     with caplog.at_level(logging.WARNING), TestClient(app) as client:
-        response = client.post("/auth/register", json=registration_payload())
+        response = client.post("/auth/register", json=payload)
 
     assert response.status_code == 201
     assert "fallback" in caplog.text.lower()
     with testing_session() as session:
         user = session.scalar(select(User).where(User.username == "owner"))
         assert user is not None
-        assert user.road_address == registration_payload()["address"]
+        assert user.road_address == "서울 강남구 테헤란로 1"
         assert user.lat == pytest.approx(37.4979)
         assert user.lng == pytest.approx(127.0276)
 

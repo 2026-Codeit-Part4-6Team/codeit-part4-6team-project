@@ -97,6 +97,7 @@ class UserResponse(StrictModel):
     credits: int = Field(ge=0)
     daily_free_used: int = Field(ge=0)
     daily_free_reset_at: datetime | None
+    daily_free_remaining: int = Field(ge=0)
 
     @field_validator("daily_free_reset_at", mode="before")
     @classmethod

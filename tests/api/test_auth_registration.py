@@ -57,6 +57,7 @@ def test_register_stores_normalized_username_and_bcrypt_hash(registration_contex
     assert response.json()["username"] == "codeit_owner"
     assert response.json()["daily_free_reset_at"] is not None
     assert response.json()["daily_free_reset_at"].endswith(("Z", "+00:00"))
+    assert response.json()["daily_free_remaining"] == 10
     assert "password" not in response.json()
     with testing_session() as session:
         user = session.scalar(select(User).where(User.username == "codeit_owner"))

@@ -15,7 +15,7 @@ from backend.clients.geocoding_client import (
     GeocodingResult,
 )
 from backend.models import User
-from backend.schemas import RegisterRequest
+from backend.schemas import RegisterRequest, UserResponse
 
 logger = logging.getLogger(__name__)
 SEOUL_TIMEZONE = ZoneInfo("Asia/Seoul")
@@ -38,12 +38,59 @@ class DuplicateEmailError(Exception):
     """이미 사용 중인 이메일 오류."""
 
 
+def as_utc(value: datetime) -> datetime:
+    """aware 시각은 UTC로 변환하고 SQLite naive 시각은 UTC로 간주합니다."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def next_daily_free_reset_at(now: datetime | None = None) -> datetime:
     """다음 한국 시각 자정을 UTC 시각으로 반환합니다."""
-    current = now or datetime.now(UTC)
+    current = as_utc(now or datetime.now(UTC))
     local_date = current.astimezone(SEOUL_TIMEZONE).date() + timedelta(days=1)
     local_midnight = datetime.combine(local_date, time.min, tzinfo=SEOUL_TIMEZONE)
     return local_midnight.astimezone(UTC)
+
+
+def build_user_response(
+    user: User,
+    *,
+    now: datetime,
+    daily_free_limit: int,
+) -> UserResponse:
+    """DB를 변경하지 않고 현재 시각 기준 무료 사용량 snapshot을 구성합니다."""
+    if daily_free_limit < 0:
+        raise ValueError("daily_free_limit은 0 이상이어야 합니다.")
+
+    normalized_now = as_utc(now)
+    normalized_reset_at = (
+        None if user.daily_free_reset_at is None else as_utc(user.daily_free_reset_at)
+    )
+    if normalized_reset_at is None or normalized_now >= normalized_reset_at:
+        daily_free_used = 0
+        daily_free_reset_at = next_daily_free_reset_at(normalized_now)
+    else:
+        daily_free_used = user.daily_free_used
+        daily_free_reset_at = normalized_reset_at
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        name=user.name,
+        email=user.email,
+        business_name=user.business_name,
+        business_type=user.business_type,
+        address=user.address,
+        address_detail=user.address_detail,
+        road_address=user.road_address,
+        lat=user.lat,
+        lng=user.lng,
+        credits=user.credits,
+        daily_free_used=daily_free_used,
+        daily_free_reset_at=daily_free_reset_at,
+        daily_free_remaining=max(0, daily_free_limit - daily_free_used),
+    )
 
 
 async def register_user(
@@ -51,8 +98,13 @@ async def register_user(
     request: RegisterRequest,
     geocoder: GeocodingClient,
     policy: GeocodingPolicy,
+    *,
+    now: datetime,
+    daily_free_limit: int,
 ) -> User:
     """중복을 확인하고 사용자를 생성합니다."""
+    if daily_free_limit < 0:
+        raise ValueError("daily_free_limit은 0 이상이어야 합니다.")
     if db.scalar(select(User.id).where(User.username == request.username)) is not None:
         raise DuplicateUsernameError
     if request.email is not None:
@@ -74,7 +126,7 @@ async def register_user(
             raise
         logger.warning("Geocoding provider failed; registration fallback coordinates are used")
         geocoded = GeocodingResult(
-            road_address=request.address,
+            road_address=request.address.strip(),
             lat=policy.fallback_lat,
             lng=policy.fallback_lng,
         )
@@ -91,7 +143,9 @@ async def register_user(
         road_address=geocoded.road_address,
         lat=geocoded.lat,
         lng=geocoded.lng,
-        daily_free_reset_at=next_daily_free_reset_at(),
+        credits=0,
+        daily_free_used=0,
+        daily_free_reset_at=next_daily_free_reset_at(now),
     )
     db.add(user)
     try:

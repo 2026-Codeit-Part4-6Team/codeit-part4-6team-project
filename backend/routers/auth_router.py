@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -17,6 +18,7 @@ from backend.services.auth_service import (
     DuplicateUsernameError,
     GeocodingPolicy,
     authenticate_user,
+    build_user_response,
     register_user,
 )
 
@@ -41,8 +43,18 @@ async def register(
 ) -> UserResponse:
     """사용자명과 가게 정보로 회원가입합니다."""
     try:
-        user = await register_user(db, request, geocoder, policy)
-        return UserResponse.model_validate(user)
+        now = datetime.now(UTC)
+        user = await register_user(
+            db,
+            request,
+            geocoder,
+            policy,
+            now=now,
+            daily_free_limit=settings.daily_free_limit,
+        )
+        return build_user_response(
+            user, now=now, daily_free_limit=settings.daily_free_limit
+        )
     except DuplicateUsernameError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -85,7 +97,9 @@ def login(
         )
     request.session.clear()
     request.session["user_id"] = user.id
-    return UserResponse.model_validate(user)
+    return build_user_response(
+        user, now=datetime.now(UTC), daily_free_limit=settings.daily_free_limit
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
