@@ -36,10 +36,18 @@ _REASONS = [
     "선착순 할인은 즉각적인 신규 유입 효과가 있습니다",
 ]
 
+_TREND = {
+    "keyword": "아이스아메리카노",
+    "direction": "상승",
+    "related": ["냉커피", "여름음료"],
+    "weather": None,
+}
+
 
 def _state(
     question: str = "우리 카페 어떻게 홍보하면 좋을까요?",
     market: dict | None = None,
+    trend: dict | None = None,
     tokens_used: int = 0,
 ) -> dict:
     return {
@@ -47,7 +55,7 @@ def _state(
         "user_id": 1,
         "question": question,
         "store": _STORE,
-        "context": {"market": market},
+        "context": {"market": market, "trend": trend},
         "tokens_used": tokens_used,
     }
 
@@ -233,6 +241,76 @@ def test_omits_market_section_when_context_missing_entirely(mock_call_llm) -> No
 
     _, user_prompt = mock_call_llm.call_args.args
     assert "상권 데이터" not in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_includes_trend_data_when_available(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(trend=_TREND))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "트렌드 데이터" in user_prompt
+    assert "상승" in user_prompt
+    assert "냉커피" in user_prompt
+    assert "여름음료" in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_omits_trend_section_when_trend_is_none(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(trend=None))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "트렌드 데이터" not in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_omits_trend_section_when_context_missing_entirely(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state_without_context())
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "트렌드 데이터" not in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_trend_section_includes_keyword(mock_call_llm) -> None:
+    """direction만 있으면 "무엇의" 추이인지 LLM이 알 수 없다 — 조회 keyword 자체도
+    프롬프트에 노출해야 한다."""
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(trend=_TREND))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "아이스아메리카노" in user_prompt
+
+
+@pytest.mark.parametrize("malformed_keyword", ["", "   ", 123, None])
+@patch("models.consult.nodes.strategy.call_llm")
+def test_trend_section_formats_malformed_keyword_as_no_info(mock_call_llm, malformed_keyword) -> None:
+    """keyword가 빈 문자열·공백·숫자·None이면 그대로 프롬프트에 새지 않고 '정보 없음'으로
+    안전하게 정규화된다."""
+    mock_call_llm.return_value = _response(_payload())
+    trend = {**_TREND, "keyword": malformed_keyword}
+
+    strategy(_state(trend=trend))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "조회 검색어: 정보 없음" in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_includes_both_market_and_trend_data_when_both_available(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(market=_MARKET, trend=_TREND))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "상권 데이터" in user_prompt
+    assert "트렌드 데이터" in user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")
