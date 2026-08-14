@@ -88,10 +88,8 @@ import os
 
 from frontend.api_client import ApiClient
 
-result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
-    "배포 컨테이너 연결 테스트"
-)
-assert result["status"] == "completed"
+result = ApiClient(os.environ["BACKEND_URL"], timeout=10).health()
+assert result == {"status": "ok"}
 PY
 then
   "${compose[@]}" ps >&2 || true
