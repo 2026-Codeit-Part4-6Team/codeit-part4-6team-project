@@ -72,9 +72,8 @@ Windows와 Linux 모두 테스트 통과 후 `pytest` 프로세스가 정상 종
 | 2 | 백엔드·프론트엔드 이미지 빌드 및 실행 | 두 컨테이너가 healthy 상태 |
 | 3 | 백엔드 `/health` 호출 | HTTP 200 및 `{"status": "ok"}` 반환 |
 | 4 | 프론트엔드 `/_stcore/health` 호출 | HTTP 200 반환 |
-| 5 | 백엔드 `/generate` 목 요청 | HTTP 200 및 `completed` 상태 반환 |
-| 6 | 프론트엔드 컨테이너에서 `BACKEND_URL`로 `/generate` 호출 | Compose 내부 연결 및 `completed` 상태 확인 |
-| 7 | 테스트 스택 정리 | 성공·실패와 관계없이 컨테이너와 임시 볼륨 제거 |
+| 5 | 프론트엔드 컨테이너에서 `BACKEND_URL`로 `/health` 호출 | Compose 내부 연결 및 `{"status": "ok"}` 확인 |
+| 6 | 테스트 스택 정리 | 성공·실패와 관계없이 컨테이너와 임시 볼륨 제거 |
 
 세 Job이 모두 성공해야 CI 통과로 판단합니다. 실패 시 관련 Job의 로그를 확인하며, Compose 실패
 시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는 PR 병합만 차단하고 실행 중인 VM
