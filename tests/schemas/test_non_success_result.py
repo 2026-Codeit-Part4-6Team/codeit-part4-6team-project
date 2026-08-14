@@ -12,7 +12,8 @@ def test_reask_uses_blocked_status_and_action():
             "action": "reask",
             "reason": "insufficient_info",
             "message": "어떤 메뉴인지 알려주세요.",
-        }
+        },
+        chatbot_type="basic",
     )
     assert isinstance(result, BlockedResult)
     assert result.action == "reask"
