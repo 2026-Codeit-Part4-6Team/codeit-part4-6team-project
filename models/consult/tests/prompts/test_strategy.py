@@ -3,7 +3,7 @@
 # 프롬프트 내부 힌트로만 사용).
 import re
 
-from models.consult.prompts.strategy import SYSTEM_PROMPT
+from models.consult.prompts.strategy import RETRY_REASONS_HINT, SYSTEM_PROMPT
 
 _TIER_LABELS = ("높음", "보통", "낮음", "경쟁 없음", "판단 불가")
 
@@ -27,3 +27,18 @@ def test_system_prompt_good_example_reasons_uses_raw_numbers() -> None:
 
     assert reasons_match is not None
     assert re.search(r"\d+곳", reasons_match.group(1)) is not None
+
+
+def test_system_prompt_reasons_instruction_allows_trend_as_source() -> None:
+    """reasons 허용 근거를 설명하는 문장(트렌드 전용 문단이 아니라 이 문장 자체)이
+    "상권 데이터"만 언급하면, 트렌드만 있고 상권은 없는 요청에서 트렌드 근거를
+    지어낸 것처럼 오인해 거부할 위험이 있다."""
+    reasons_instruction = SYSTEM_PROMPT.split("예시:")[0].split("트렌드 데이터가 주어지면")[0]
+
+    assert "트렌드" in reasons_instruction
+
+
+def test_retry_hint_lists_trend_as_allowed_reasons_source() -> None:
+    """재시도 힌트도 "상권 데이터"만 언급하면, 재생성 시 이미 프롬프트에 반영된 트렌드
+    근거를 쓰지 말라는 상충 지시가 된다."""
+    assert "트렌드" in RETRY_REASONS_HINT
