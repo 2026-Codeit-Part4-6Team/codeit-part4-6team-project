@@ -16,8 +16,9 @@ def image_gen_node(state: BasicState) -> dict:
             continue
 
         prompt = (
-            f"{store.get('type', '가게')} 광고 이미지, "
-            f"소재: {c['copy']}, 밝고 따뜻한 느낌의 상업 사진 스타일"
+            f"{store.get('type', '가게')} 광고용 상업 사진. "
+            f"소재: {c['copy']}. "
+            f"밝고 따뜻한 느낌의 사진 스타일. "
         )
         try:
             image_b64 = generate_image(prompt)

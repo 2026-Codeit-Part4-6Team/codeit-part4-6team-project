@@ -7,7 +7,7 @@ from models.shared.config import LLM_BACKOFF_SECONDS, LLM_MAX_RETRIES
 
 _client = None
 
-IMAGE_MODEL = "gpt-image-1"
+IMAGE_MODEL = "gpt-image-2"
 IMAGE_SIZE = "1024x1024"
 IMAGE_QUALITY = "low"  # 팀 공용 $30 예산 고려 — 품질 필요하면 medium/high로 조정
 
@@ -22,7 +22,7 @@ def _get_client():
 def generate_image(prompt: str) -> str:
     """프롬프트를 받아 이미지를 생성하고 base64 인코딩된 이미지 문자열을 반환한다.
 
-    OpenAI gpt-image-1을 사용한다. RateLimitError(429)만 재시도 대상이며,
+    OpenAI gpt-image-2를 사용한다. RateLimitError(429)만 재시도 대상이며,
     최초 호출 포함 최대 4회 시도한다. SDK 자체 재시도(max_retries)는 0으로
     꺼서 수동 백오프와 중첩되지 않게 한다.
     """
