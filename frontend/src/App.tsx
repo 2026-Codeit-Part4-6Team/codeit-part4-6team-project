@@ -2,6 +2,12 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { ApiClient, ApiError, type GenerationResponse, type UserResponse } from "./api";
 import {
+  authErrorMessage,
+  registerAndLogin,
+  RegistrationCompletedLoginFailed,
+  type RegistrationFields,
+} from "./auth";
+import {
   buildEstimatePayload,
   type ChatbotType,
   type EstimateResponse,
@@ -21,21 +27,62 @@ function messageFrom(error: unknown): string {
   return "Backend에 연결할 수 없습니다.";
 }
 
-function Login({ api, onLogin }: { api: ApiClient; onLogin: (user: UserResponse) => void }) {
+const emptyRegistration: RegistrationFields = {
+  username: "",
+  password: "",
+  passwordConfirm: "",
+  name: "",
+  email: "",
+  businessName: "",
+  businessType: "",
+  address: "",
+  addressDetail: "",
+};
+
+function AuthScreen({ api, onAuthenticated }: { api: ApiClient; onAuthenticated: (user: UserResponse) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [registration, setRegistration] = useState<RegistrationFields>(emptyRegistration);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: FormEvent) {
+  function switchMode(nextMode: "login" | "register") {
+    setMode(nextMode);
+    setError(null);
+  }
+
+  function updateRegistration(key: keyof RegistrationFields, value: string) {
+    setRegistration((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submitLogin(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      onLogin(await api.login({ username, password }));
+      onAuthenticated(await api.login({ username, password }));
       setPassword("");
     } catch (caught) {
-      setError(messageFrom(caught));
+      setError(authErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitRegistration(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onAuthenticated(await registerAndLogin(api, registration));
+    } catch (caught) {
+      if (caught instanceof RegistrationCompletedLoginFailed) {
+        setUsername(caught.username);
+        setPassword("");
+        setMode("login");
+      }
+      setError(authErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -45,32 +92,63 @@ function Login({ api, onLogin }: { api: ApiClient; onLogin: (user: UserResponse)
     <main className="login-shell">
       <section className="login-copy">
         <p className="kicker">FIRST GENERATION POC</p>
-        <h1>동네 가게의 이야기를<br />광고로 바꿉니다.</h1>
-        <p>실제 Session Cookie와 생성 계약을 검증하는 React 실험입니다.</p>
+        <h1>가게를 등록하고<br />첫 광고를 만들어보세요.</h1>
+        <p>회원가입부터 Session Cookie, 사용량 견적과 생성까지 실제 백엔드 계약으로 연결합니다.</p>
       </section>
-      <form className="card login-card" onSubmit={submit}>
+      <section className="card auth-card">
         <div>
           <span className="brand-mark">⚡</span>
-          <h2>매출부스터 로그인</h2>
+          <h2>{mode === "login" ? "매출부스터 로그인" : "가게 회원가입"}</h2>
         </div>
-        <label>
-          사용자명
-          <input value={username} onChange={(event) => setUsername(event.target.value)} required />
-        </label>
-        <label>
-          비밀번호
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={8}
-            required
-          />
-        </label>
-        {error && <div className="error-banner">{error}</div>}
-        <button className="primary" disabled={busy}>{busy ? "확인 중…" : "로그인"}</button>
-      </form>
+        <div className="auth-tabs" role="group" aria-label="인증 방식">
+          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => switchMode("login")}>로그인</button>
+          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => switchMode("register")}>회원가입</button>
+        </div>
+
+        {mode === "login" ? (
+          <form className="auth-form" onSubmit={submitLogin}>
+            <label>사용자명<input value={username} onChange={(event) => setUsername(event.target.value)} minLength={3} required /></label>
+            <label>비밀번호<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></label>
+            {error && <div className="error-banner">{error}</div>}
+            <button className="primary" disabled={busy}>{busy ? "확인 중…" : "로그인"}</button>
+          </form>
+        ) : (
+          <form className="auth-form" onSubmit={submitRegistration}>
+            <div className="registration-grid">
+              <label>사용자명<input value={registration.username} onChange={(event) => updateRegistration("username", event.target.value)} minLength={3} required /></label>
+              <label>이름 <small>선택</small><input value={registration.name} onChange={(event) => updateRegistration("name", event.target.value)} /></label>
+              <label>비밀번호<input type="password" value={registration.password} onChange={(event) => updateRegistration("password", event.target.value)} minLength={8} required /></label>
+              <label>비밀번호 확인<input type="password" value={registration.passwordConfirm} onChange={(event) => updateRegistration("passwordConfirm", event.target.value)} minLength={8} required /></label>
+              <label>가게명<input value={registration.businessName} onChange={(event) => updateRegistration("businessName", event.target.value)} required /></label>
+              <label>업종<input value={registration.businessType} onChange={(event) => updateRegistration("businessType", event.target.value)} placeholder="예: 카페" required /></label>
+              <label className="full">주소<input value={registration.address} onChange={(event) => updateRegistration("address", event.target.value)} placeholder="예: 서울 강남구 테헤란로 1" required /></label>
+              <label>상세주소 <small>선택</small><input value={registration.addressDetail} onChange={(event) => updateRegistration("addressDetail", event.target.value)} /></label>
+              <label>이메일 <small>선택</small><input type="email" value={registration.email} onChange={(event) => updateRegistration("email", event.target.value)} /></label>
+            </div>
+            {error && <div className="error-banner">{error}</div>}
+            <button className="primary" disabled={busy}>{busy ? "가게 등록 중…" : "가입하고 시작하기"}</button>
+          </form>
+        )}
+      </section>
     </main>
+  );
+}
+
+function AccountSummary({ user, onLogout }: { user: UserResponse; onLogout: () => void }) {
+  const address = [user.road_address ?? user.address, user.address_detail].filter(Boolean).join(" ");
+  return (
+    <section className="card account-summary">
+      <div className="account-identity">
+        <p className="kicker">MY STORE</p>
+        <h3>{user.business_name ?? user.username}</h3>
+        <span>@{user.username}{user.business_type ? ` · ${user.business_type}` : ""}</span>
+        {address && <p>{address}</p>}
+      </div>
+      <div className="account-actions">
+        <div className="account-badges"><span>{user.credits} Credit</span><span>무료 {user.daily_free_remaining}회</span></div>
+        <button type="button" className="secondary" onClick={onLogout}>로그아웃</button>
+      </div>
+    </section>
   );
 }
 
@@ -111,7 +189,7 @@ function ResultCards({ response }: { response: GenerationResponse }) {
   );
 }
 
-function GenerationLab({ api, user }: { api: ApiClient; user: UserResponse }) {
+function GenerationLab({ api, user, onLogout }: { api: ApiClient; user: UserResponse; onLogout: () => void }) {
   const [chatbotType, setChatbotType] = useState<ChatbotType>("basic");
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [question, setQuestion] = useState("");
@@ -149,15 +227,17 @@ function GenerationLab({ api, user }: { api: ApiClient; user: UserResponse }) {
     }
   }
 
+  async function logout() {
+    try {
+      await api.logout();
+    } finally {
+      onLogout();
+    }
+  }
+
   return (
     <main className="app-shell">
-      <header>
-        <div><p className="kicker">GENERATION LAB</p><h1>{user.business_name ?? user.username}</h1></div>
-        <div className="account-badges">
-          <span>{user.credits ?? 0} Credit</span>
-          <span>무료 {user.daily_free_remaining ?? 0}회</span>
-        </div>
-      </header>
+      <AccountSummary user={user} onLogout={logout} />
 
       <section className="hero-grid">
         <div className="hero-copy">
@@ -220,6 +300,6 @@ export function App() {
   }, [api]);
 
   if (!authChecked) return <main className="loading">세션 확인 중…</main>;
-  if (!user) return <Login api={api} onLogin={setUser} />;
-  return <GenerationLab api={api} user={user} />;
+  if (!user) return <AuthScreen api={api} onAuthenticated={setUser} />;
+  return <GenerationLab api={api} user={user} onLogout={() => setUser(null)} />;
 }
