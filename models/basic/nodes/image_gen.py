@@ -1,18 +1,6 @@
-import openai
-
 from ..clients.image_client import generate_image
 from ..graph.state import BasicState
-
-
-def _classify_error(exc: Exception) -> str:
-    """OpenAI 예외 타입을 rate_limit/timeout/content_policy/unknown 사유로 분류한다."""
-    if isinstance(exc, openai.RateLimitError):
-        return "rate_limit"
-    if isinstance(exc, openai.APITimeoutError):
-        return "timeout"
-    if isinstance(exc, openai.BadRequestError):
-        return "content_policy"
-    return "unknown"
+from ..llm_errors import classify_image_error
 
 
 def image_gen_node(state: BasicState) -> dict:
@@ -33,11 +21,11 @@ def image_gen_node(state: BasicState) -> dict:
         )
         try:
             image_b64 = generate_image(prompt)
-            updated.append({**c, "image_b64": image_b64})
+            updated.append({**c, "image_b64": image_b64, "image_prompt": prompt})
             images.append(image_b64)
         # BLE001 억제 사유: 항목 하나 실패가 배치 전체를 죽이지 않도록 모든 예외를 잡아 개별 에러로 기록
         except Exception as exc:  # noqa: BLE001
-            reason = _classify_error(exc)
+            reason = classify_image_error(exc)
             updated.append(
                 {
                     **c,

@@ -25,7 +25,14 @@ def _load_clip():
 def _clip_score(image, text: str) -> float:
     """이미지와 텍스트 간 CLIP 코사인 유사도 점수를 계산한다."""
     model, processor = _load_clip()
-    inputs = processor(text=[text], images=image, return_tensors="pt", padding=True)
+    inputs = processor(
+        text=[text],
+        images=image,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=77,
+    )
     with torch.no_grad():
         outputs = model(**inputs)
     image_embeds = outputs.image_embeds / outputs.image_embeds.norm(
