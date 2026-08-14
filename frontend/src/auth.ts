@@ -95,7 +95,7 @@ export function authErrorMessage(error: unknown): string {
   if (code === "duplicate_email") return "이미 사용 중인 이메일입니다.";
   if (code === "address_not_found") return "주소를 더 구체적으로 입력해주세요.";
   if (code === "geocoding_unavailable") return "주소 확인 서비스가 불안정합니다. 잠시 후 다시 시도해주세요.";
-  if (error.statusCode === 401) return "사용자명 또는 비밀번호를 확인해주세요.";
+  if (error.statusCode === 401) return "사용자명 또는 비밀번호를 확인해 주세요.";
   if (error.statusCode === 422) return "입력값을 다시 확인해주세요.";
   return "요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.";
 }

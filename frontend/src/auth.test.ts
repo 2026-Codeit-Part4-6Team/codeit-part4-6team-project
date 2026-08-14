@@ -106,4 +106,10 @@ describe("authErrorMessage", () => {
       ),
     ).toBe("이미 사용 중인 사용자명입니다.");
   });
+
+  it("uses the D5 login guidance for invalid credentials", () => {
+    expect(authErrorMessage(new ApiError(401, {}))).toBe(
+      "사용자명 또는 비밀번호를 확인해 주세요.",
+    );
+  });
 });
