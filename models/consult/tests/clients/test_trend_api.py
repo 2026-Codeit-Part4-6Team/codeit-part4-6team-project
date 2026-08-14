@@ -168,6 +168,22 @@ def test_fetch_returns_none_when_results_missing_or_empty(mock_post: MagicMock, 
 
 
 @patch("models.consult.clients.trend_api.httpx.post")
+def test_fetch_returns_none_when_response_is_valid_json_but_not_an_object(
+    mock_post: MagicMock, monkeypatch
+) -> None:
+    """HTTP 200 + 유효한 JSON이어도 최상위가 dict가 아니면(예: 배열) 예외 없이 None을 반환한다."""
+    monkeypatch.setenv("NAVER_CLIENT_ID", "test-id")
+    monkeypatch.setenv("NAVER_CLIENT_SECRET", "test-secret")
+    mock_response = MagicMock()
+    mock_response.json.return_value = []
+    mock_post.return_value = mock_response
+
+    result = fetch("아이스아메리카노")
+
+    assert result is None
+
+
+@patch("models.consult.clients.trend_api.httpx.post")
 def test_fetch_returns_none_when_response_is_not_json(mock_post: MagicMock, monkeypatch) -> None:
     """HTTP 200이어도 본문이 JSON이 아니면(오류 응답 등) None을 반환한다."""
     monkeypatch.setenv("NAVER_CLIENT_ID", "test-id")

@@ -3,7 +3,7 @@ import importlib
 from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import create_engine, inspect, text
 
 import cache.db as cache_db
 
@@ -43,6 +43,46 @@ def test_creates_cache_tables_even_when_database_url_is_set(tmp_path) -> None:
 
         assert "market_cache" in table_names
         assert "trend_cache" in table_names
+
+
+def test_adds_industry_code_column_to_pre_existing_market_cache_table(tmp_path) -> None:
+    """create_all()은 이미 존재하는 테이블에 새 컬럼을 추가하지 않는다 — market_cache에
+    industry_code 컬럼이 나중에(D-041/D-042) 추가됐으므로, 구버전 스키마로 이미
+    만들어진 DB를 그대로 열면 'no such column: market_cache.industry_code' 오류로
+    캐시 조회·적재가 전부 실패한다(Codex 리뷰에서 실제 재현). cache.db가 직접
+    컬럼 존재를 확인해 보정해야 한다."""
+    db_path = tmp_path / "legacy.db"
+    old_engine = create_engine(f"sqlite:///{db_path}")
+    with old_engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE market_cache ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "lat FLOAT NOT NULL, lng FLOAT NOT NULL, radius INTEGER NOT NULL, "
+                "result_json TEXT NOT NULL, "
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            )
+        )
+    old_engine.dispose()
+
+    with _database_url_set_to(f"sqlite:///{db_path}") as reloaded:
+        columns = {col["name"] for col in inspect(reloaded._engine).get_columns("market_cache")}
+        assert "industry_code" in columns
+
+
+def test_sqlite_uses_wal_and_30s_busy_timeout(tmp_path) -> None:
+    """D-062: 서비스(generations)와 컨설턴트(market_cache)가 같은 SQLite 파일에
+    동시에 쓸 때 'database is locked'가 나지 않으려면 WAL 모드 + 30초 대기가
+    필요하다."""
+    db_path = tmp_path / "test_wal.db"
+
+    with _database_url_set_to(f"sqlite:///{db_path}") as reloaded:
+        with reloaded._engine.connect() as conn:
+            journal_mode = conn.exec_driver_sql("PRAGMA journal_mode").scalar()
+            busy_timeout = conn.exec_driver_sql("PRAGMA busy_timeout").scalar()
+
+        assert journal_mode == "wal"
+        assert busy_timeout == 30000
 
 
 def test_import_succeeds_when_db_unreachable() -> None:

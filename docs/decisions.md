@@ -92,6 +92,7 @@
 | D-082 | 8/13 | 모델·provider 교체 시 PR "실험 결과" 섹션 + docs/prompt_tuning_log.md 전후 비교표 작성 필수 | 평가항목 "모델 선택 이유"·"성능 개선 시도"에 직결. 이번 Groq→OpenAI 교체가 미기록 | 구두 공유로 갈음 |
 | D-083 | 8/13 | platform = instagram·banner 2종 확정, blog 제외 (D-027 변경) | Contract v0.3 및 서비스 Literal이 2종, 코드도 2종. D-027만 낡은 상태로 남아 충돌 | blog 복원 |
 | D-084 | 8/13 | title은 question_analysis 반환값 사용(30자 자르기 폐기) | 마이페이지 생성 이력(FR-30)에 잘린 제목이 그대로 노출. 기존 LLM 호출에 필드 추가라 비용 0 | 요약 전용 LLM 호출 추가 |
+<<<<<<< HEAD
 | D-085 | 8/13 | models/shared/llm.py 를 골든 데이터셋 문항 작성보다 우선 착수 | 두 담당자가 각자 우회 파일로 진행 중(중복 2벌), 호출 지점이 매일 증가해 이관 비용이 복리. 골든 데이터셋은 기준 문서 완료 + PM 몫(R- 15문항) 마감이 D9 | 골든 데이터셋 우선 |
 | D-086 | 8/13 | shared/llm.py = 컨설턴트 뼈대 + 기본의 (text, tokens)·json_mode 합집합 (D-035 수정) | 컨설턴트 버전은 -> str 이라 tokens_used를 못 채움. Contract v0.3에서 tokens_used는 Basic·Consultant 양쪽 필수 필드 | 컨설턴트본 그대로 / 기본본 그대로 |
 | D-087 | 8/13 | call_llm 반환은 tuple[str, int] 단일 시그니처, json_mode 기본값 False | 기본값 False면 컨설턴트 기존 호출 동작이 불변이라 D4 작업 중단 없이 이관 가능 | str 반환 + 별도 함수 추가 |
@@ -187,6 +188,8 @@
 | D-177 | 8/18 | expected.action ↔ 모델 응답 매핑표 신설(§4.6), must_have_fields에 title 추가 | 모델은 성공 시 status="ok"를 반환하고 action은 blocked일 때만 존재 — 평가기가 무엇과 비교할지 정의되지 않았음. title은 계약상 빈 문자열 불가 필수 | 평가기 구현자 재량 |
 | D-178 | 8/18 | R- 문항은 measured_at="function" — 서비스 응답이 아니라 검증 함수 반환 dict를 직접 검사 | alternative·law가 서비스 BlockedResult에 실리지 않음(D-160). 응답 계층에서 측정하면 대안 제시율이 항상 0이 됨. alternative_in_message로 D-160 이행도 함께 확인 | 서비스 응답 기준 측정 |
 | D-179 | 8/14 | get_trend()의 related(연관 검색어)는 네이버 검색광고 API로 채움(SDP 외 자체 확장) | SDP mock에 related 값 형태(예: ["여름음료", "냉커피"])만 있고 어떤 API로 채우라는 지시가 없음. 별도 계정·키 발급까지 완료해 실제 데이터로 채우기로 판단 | related를 None/빈 값으로 고정 |
+| D-180 | 8/14 | P-007 확정: 상권 API는 신 2302 분류 사용(예: 카페=I21201). D-041/D-042/D-043 구현 완료 — market_api.py가 industry_code_for()로 코드가 있는 업종은 indsSclsCd 필터 2회 호출, 없으면 텍스트 매칭 폴백. market_cache는 (좌표, industry_code) 단위로 확장 캐싱 | smallUpjongList 오퍼레이션으로 실제 응답을 조회해 신 2302(I21201=카페) 확인, 구 I20102 계열이 아님. 텍스트 매칭 오탐(R10202 스터디카페) 실측으로 재확인 | 구 분류로 가정 / 텍스트 매칭 유지 |
+| D-181 | 8/14 | D-042 문구 보정: 호출 ①(전체 totalCount 확인)도 numOfRows=1이 아니라 1000으로 통일 | fetch_raw()가 total_count뿐 아니라 industry_breakdown 집계·업종코드 매핑이 없는 업종의 텍스트 매칭 폴백에도 쓰는 원본 매장 목록을 함께 반환해야 해서, numOfRows=1로 줄이면 그 두 기능이 깨짐. total_count는 body.totalCount 필드 자체가 페이지 크기와 무관하게 정확해 numOfRows를 늘려도 손해가 없음(Codex 리뷰로 지적 — 값 자체엔 문제 없고 D-042 문구와 구현이 어긋난 것만 수정) | numOfRows=1로 구현 변경 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -217,11 +220,11 @@
 | P-004 | 재생성 시 동의창 재노출 | 재노출함 | 전민재 PM | 8/19 |
 | P-005 | `self_check` 사실성 검증(B) | SHOULD, 예산 여유 시 | 전민재 PM | 8/21 |
 | P-006 | 캐시 TTL 최종 확정 | → **종료(D-053)** | — | 8/12 완료 |
-| P-007 | 상권 API 업종코드 체계 확인(신 2302 `I21201` vs 구 `I20102` 계열) | 응답 1건의 indsSclsCd 육안 확인 | 컨설턴트 담당 | 8/13 |
+| P-007 | 상권 API 업종코드 체계 확인(신 2302 `I21201` vs 구 `I20102` 계열) | → **종료(D-086)**: 신 2302 확인, 카페=I21201 | 컨설턴트 담당 | 8/14 완료 |
 | P-008 | 밀도 등급 경계값 샘플링 재조정(20개 지역) | D-038 교정 후 실시 [SHOULD] | 컨설턴트 담당 | 8/20 (D9) |
 | P-009 | LLM 모델 최종 확정(gpt-4o-mini vs GPT-5.4 Mini/Nano) | 3문항 A/B 후 결정 | 전민재 PM | 8/14 |
 | P-010 | Basic 응답의 suggested_chips 허용 여부 | 현행 빈 배열 고정(max_length=0) | 기본 챗봇 담당 | 8/14 |
-| P-011 | market_cache UNIQUE(lat,lng,radius) 추가 시점 | D7 통합 시 서비스 담당이 DDL 추가(그전까지 upsert로 방어, D-050) | 서비스 담당 | 8/18 |
+| P-011 | market_cache UNIQUE 인덱스 추가 시점·설계(8/14 industry_code 컬럼 추가로 갱신). 단순 UNIQUE(lat,lng,radius,industry_code)는 SQLite·PostgreSQL 모두 NULL을 서로 다른 값으로 취급해 원본 캐시(industry_code=NULL) 중복을 막지 못함(Codex 리뷰에서 실제 재현) — 부분 인덱스 2개로: UNIQUE(lat,lng,radius) WHERE industry_code IS NULL(원본용) + UNIQUE(lat,lng,radius,industry_code) WHERE industry_code IS NOT NULL(업종별용) | D7 통합 시 서비스 담당이 DDL 추가(그전까지 upsert로 방어, D-053) | 서비스 담당 | 8/18 |
 | P-012 | payments package·status enum 확정 | 임시안 유지, 결제 API 구현 전 확정 | 서비스 담당 | 8/19 |
 | P-013 | 이미지 생성 장수·병렬화(3장 직렬 / 상위 1안만 / 3장 병렬) | D6에 1장 실측 후 결정 | 기본 챗봇 담당 | 8/18 |
 | P-014 | 벤치마크 RAG 착수 시점 — 미착수 시 Hit Rate@5·MRR 산출 불가 | SDP상 D8, 지연 시 검색 지표를 보고서에서 제외할지 결정 | 전민재 PM | 8/18 |

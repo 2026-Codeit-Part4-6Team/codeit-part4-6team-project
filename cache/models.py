@@ -16,9 +16,12 @@ class Base(DeclarativeBase):
 class MarketCache(Base):
     """상권 조회 결과 캐시 — market_repo.get_market()의 Cache-Aside 저장소 (서비스 계약 §4.7).
 
-    TODO(섹션 5, market_repo 실구현 시): (lat, lng, radius) 조합에 UNIQUE 제약이
-    없으면 같은 좌표로 여러 번 적재될 수 있다. 조회 시 created_at 기준 최신 행을
-    선택하도록 구현할 것 — 서비스 담당자에게 UNIQUE/index 존재 여부 확인 필요.
+    (lat, lng, radius)에 UNIQUE 제약은 아직 없다(D7에 서비스 담당이 DDL로 추가 예정,
+    P-011) — 그전까지는 market_repo._write_cache()가 upsert로 중복 삽입을 막는다(D-053).
+
+    industry_code가 NULL인 행은 원본(업종 무관, 반경 내 최대 1000곳) 캐시이고,
+    값이 있는 행은 그 업종코드(indsSclsCd)로 필터링된 조회 결과 캐시다(D-041/D-042).
+    같은 좌표라도 원본과 업종별 필터 결과는 서로 다른 캐시 항목으로 관리된다.
     """
 
     __tablename__ = "market_cache"
@@ -27,8 +30,11 @@ class MarketCache(Base):
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
     radius: Mapped[int] = mapped_column(Integer, nullable=False)
+    industry_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     result_json: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class TrendCache(Base):

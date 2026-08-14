@@ -77,6 +77,10 @@ def fetch_raw(keyword: str) -> dict | None:
         # ValueError: HTTP 200이어도 인증 실패 등으로 JSON이 아닌 본문이 올 수 있음
         return None
 
+    if not isinstance(payload, dict):
+        # 유효한 JSON이어도 최상위가 dict가 아니면(예: 배열) 정상 응답으로 취급하지 않는다
+        return None
+
     results = payload.get("results")
     if not isinstance(results, list) or not results:
         return None

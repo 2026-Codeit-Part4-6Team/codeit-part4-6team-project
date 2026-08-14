@@ -158,6 +158,21 @@ def test_fetch_returns_none_when_keyword_list_missing(mock_get: MagicMock, monke
 
 
 @patch("models.consult.clients.search_ad_api.httpx.get")
+def test_fetch_returns_none_when_response_is_valid_json_but_not_an_object(
+    mock_get: MagicMock, monkeypatch
+) -> None:
+    """HTTP 200 + 유효한 JSON이어도 최상위가 dict가 아니면(예: 배열) 예외 없이 None을 반환한다."""
+    _set_credentials(monkeypatch)
+    mock_response = MagicMock()
+    mock_response.json.return_value = []
+    mock_get.return_value = mock_response
+
+    result = fetch_related_keywords("아이스아메리카노")
+
+    assert result is None
+
+
+@patch("models.consult.clients.search_ad_api.httpx.get")
 def test_fetch_returns_none_when_response_is_not_json(mock_get: MagicMock, monkeypatch) -> None:
     _set_credentials(monkeypatch)
     mock_response = MagicMock()
