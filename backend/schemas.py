@@ -1,6 +1,15 @@
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 
 ChatbotType = Literal["basic", "consultant"]
 Platform = Literal["instagram", "banner"]
@@ -17,6 +26,86 @@ class PreviewGenerateRequest(StrictModel):
     """초기 컨테이너 연결 검증용 생성 요청."""
 
     prompt: str = Field(min_length=1, max_length=2_000)
+
+
+class RegisterRequest(StrictModel):
+    """서비스 회원가입 요청."""
+
+    username: str = Field(min_length=3, max_length=100)
+    password: SecretStr
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    email: EmailStr | None = None
+    business_name: str = Field(min_length=1, max_length=200)
+    business_type: str = Field(min_length=1, max_length=100)
+    address: str = Field(min_length=1, max_length=500)
+    address_detail: str | None = Field(default=None, max_length=500)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        """사용자명의 공백과 대소문자를 정규화합니다."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
+
+
+class LoginRequest(StrictModel):
+    """서비스 로그인 요청."""
+
+    username: str = Field(min_length=3, max_length=100)
+    password: SecretStr
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        """로그인 사용자명을 회원가입과 같은 방식으로 정규화합니다."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
+
+
+class UserResponse(StrictModel):
+    """민감정보를 제외한 사용자 응답."""
+
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+
+    id: int
+    username: str
+    name: str | None
+    email: EmailStr | None
+    business_name: str | None
+    business_type: str | None
+    address: str | None
+    address_detail: str | None
+    road_address: str | None
+    lat: float | None
+    lng: float | None
+    credits: int = Field(ge=0)
+    daily_free_used: int = Field(ge=0)
+    daily_free_reset_at: datetime | None
+    daily_free_remaining: int = Field(ge=0)
+
+    @field_validator("daily_free_reset_at", mode="before")
+    @classmethod
+    def normalize_reset_at_to_utc(cls, value: object) -> object:
+        """SQLite가 timezone을 제거한 UTC 시각을 API offset으로 복원합니다."""
+        if isinstance(value, datetime) and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
 
 
 class PreviewGenerationResult(StrictModel):
