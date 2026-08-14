@@ -153,6 +153,8 @@ class BasicProposal(StrictModel):
 class BasicModelResult(StrictModel):
     """기본 챗봇의 성공 또는 부분 성공 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["ok"]
     title: str = Field(min_length=1)
     proposals: list[BasicProposal] = Field(min_length=3, max_length=3)
@@ -178,6 +180,8 @@ class ConsultantStrategy(StrictModel):
 class ConsultantModelResult(StrictModel):
     """컨설턴트 챗봇의 성공 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["ok"]
     title: str = Field(min_length=1)
     strategy: ConsultantStrategy
@@ -192,6 +196,8 @@ class ConsultantModelResult(StrictModel):
 class BlockedResult(StrictModel):
     """정책 검증으로 생성이 중단된 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["blocked"]
     action: Literal["block", "reask", "warn"]
     reason: str = Field(min_length=1)
@@ -200,6 +206,8 @@ class BlockedResult(StrictModel):
 
 class ErrorResult(StrictModel):
     """모델 또는 외부 제공자 실행 실패 결과."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["error"]
     reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
