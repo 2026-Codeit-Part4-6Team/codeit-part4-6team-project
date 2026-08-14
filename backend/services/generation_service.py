@@ -12,14 +12,6 @@ from sqlalchemy.orm import Session
 
 from backend.clients.chatbot_client import ChatbotClient
 from backend.models import Generation, User
-from backend.services.credit_service import (
-    apply_generation_usage_rollback,
-    finalize_generation_usage_rollback,
-    reserve_generation_usage,
-    reset_generation_usage_rollback,
-    settle_generation_usage,
-)
-from backend.services.usage_service import as_utc, next_seoul_midnight_utc
 from backend.schemas import (
     MODEL_RESULT_ADAPTER,
     BasicModelResult,
@@ -34,6 +26,14 @@ from backend.schemas import (
     ModelResult,
     StoreContext,
 )
+from backend.services.credit_service import (
+    apply_generation_usage_rollback,
+    finalize_generation_usage_rollback,
+    reserve_generation_usage,
+    reset_generation_usage_rollback,
+    settle_generation_usage,
+)
+from backend.services.usage_service import as_utc, next_seoul_midnight_utc
 
 
 class IdempotencyConflict(Exception):
@@ -524,7 +524,9 @@ async def generate(
             _failed_error_result("unknown", "model_result_validation_failed"),
             now=now,
         )
-    except Exception:
+    # The model client is an external trust boundary. Any unexpected provider
+    # failure must follow the same reservation-compensation path.
+    except Exception:  # noqa: BLE001
         return _handle_failed_result(
             db,
             user,
