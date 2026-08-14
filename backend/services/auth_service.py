@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -109,7 +110,12 @@ async def register_user(
         db.rollback()
         if not policy.fallback_enabled:
             raise
-        logger.warning("Geocoding provider failed; registration fallback coordinates are used")
+        registration_id = hashlib.sha256(request.username.encode("utf-8")).hexdigest()[:12]
+        logger.warning(
+            "Geocoding provider failed; registration fallback coordinates are used "
+            "registration_id=%s",
+            registration_id,
+        )
         geocoded = GeocodingResult(
             road_address=request.address.strip(),
             lat=policy.fallback_lat,
