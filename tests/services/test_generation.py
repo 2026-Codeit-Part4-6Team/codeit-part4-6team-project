@@ -841,7 +841,7 @@ def test_unique_race_rolls_back_db_reservation_without_double_compensation(
     """UNIQUE race는 DB rollback만 수행해 이미 확정된 Credit을 이중 환불하지 않습니다."""
     from asyncio import run
 
-    import backend.services.generation_service as generation_service
+    from backend.services import generation_service
 
     engine = make_engine(tmp_path)
     now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
@@ -909,7 +909,7 @@ def test_success_settles_reservation_only_after_transaction2_commit(tmp_path, mo
     """성공 결과의 Reservation은 transaction 2 commit 뒤 pending→settled 됩니다."""
     from asyncio import run
 
-    import backend.services.generation_service as generation_service
+    from backend.services import generation_service
 
     engine = make_engine(tmp_path)
     now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
@@ -955,7 +955,7 @@ def test_success_transaction2_commit_failure_keeps_generating_charge(
 
     from sqlalchemy.exc import SQLAlchemyError
 
-    import backend.services.generation_service as generation_service
+    from backend.services import generation_service
 
     engine = make_engine(tmp_path)
     now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
@@ -1018,7 +1018,7 @@ def test_compensation_commit_failure_resets_marker_and_keeps_durable_charge(
 
     from sqlalchemy.exc import SQLAlchemyError
 
-    import backend.services.generation_service as generation_service
+    from backend.services import generation_service
 
     engine = make_engine(tmp_path)
     now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
@@ -1143,7 +1143,7 @@ def test_model_timeout_compensates_committed_paid_credit(tmp_path, monkeypatch):
     """async model timeout은 commit된 유료 예약을 보상하고 timeout 의미를 보존합니다."""
     from asyncio import run
 
-    import backend.services.generation_service as generation_service
+    from backend.services import generation_service
 
     engine = make_engine(tmp_path)
     now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
