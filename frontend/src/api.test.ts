@@ -3,6 +3,25 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiClient, ApiError } from "./api";
 
 describe("ApiClient", () => {
+  it("uses the default browser fetch without changing its receiver", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(function (this: typeof globalThis) {
+      if (this !== globalThis) {
+        throw new TypeError("Illegal invocation");
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1, username: "owner" }), { status: 200 }),
+      );
+    }) as typeof fetch;
+
+    try {
+      const api = new ApiClient();
+      await expect(api.me()).resolves.toMatchObject({ username: "owner" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("uses browser credentials for login and estimate", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
