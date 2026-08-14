@@ -1,4 +1,5 @@
 import type { EstimatePayload, EstimateResponse, GeneratePayload } from "./contract";
+import type { RegisterPayload } from "./auth";
 
 export class ApiError extends Error {
   constructor(
@@ -13,9 +14,19 @@ export class ApiError extends Error {
 export type UserResponse = {
   id: number;
   username: string;
-  business_name?: string | null;
-  credits?: number;
-  daily_free_remaining?: number;
+  name: string | null;
+  email: string | null;
+  business_name: string | null;
+  business_type: string | null;
+  address: string | null;
+  address_detail: string | null;
+  road_address: string | null;
+  lat: number | null;
+  lng: number | null;
+  credits: number;
+  daily_free_used: number;
+  daily_free_reset_at: string | null;
+  daily_free_remaining: number;
 };
 
 export type GenerationResponse = {
@@ -65,6 +76,17 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  }
+
+  register(payload: RegisterPayload): Promise<UserResponse> {
+    return this.request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  logout(): Promise<Record<string, never>> {
+    return this.request("/auth/logout", { method: "POST" });
   }
 
   me(): Promise<UserResponse> {
