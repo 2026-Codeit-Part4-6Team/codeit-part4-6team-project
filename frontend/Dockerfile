@@ -1,22 +1,13 @@
-FROM ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c AS uv
+FROM node:24-alpine
 
-FROM python:3.11-slim@sha256:90744cff8f32887f075c47d747a173ff333e9e98801667af93c357fa9f5e28ff
+WORKDIR /app/frontend
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
 
-WORKDIR /app
-
-COPY --from=uv /uv /uvx /bin/
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project --only-group frontend
-
-COPY frontend ./frontend
-RUN /app/.venv/bin/python -c "from frontend.api_client import ApiClient"
+COPY frontend ./
+RUN pnpm build
 
 EXPOSE 8501
 
-CMD ["/app/.venv/bin/streamlit", "run", "frontend/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+CMD ["pnpm", "start"]
