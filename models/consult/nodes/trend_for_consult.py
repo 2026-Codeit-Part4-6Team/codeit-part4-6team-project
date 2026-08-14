@@ -12,6 +12,10 @@ def trend_for_consult(state: ConsultState) -> dict:
     부르지 않고 바로 None을 반환한다. get_trend()가 실패(None)해도 마찬가지로
     None을 반환한다 — 트렌드 데이터 없이도 다른 데이터로 상담을 이어갈 수 있게
     하는 부분 성공 허용 원칙(market_for_consult와 동일).
+
+    성공했을 때만 sources에 "트렌드"를 추가한다(SDP §6.2 응답 예시) — state["sources"]는
+    operator.add reducer라 market_for_consult가 채운 값과 합쳐진다. 실패 시 sources
+    키 자체를 반환하지 않아, 실제로 쓰이지 않은 데이터를 근거 출처로 잘못 표기하지 않는다.
     """
     keyword = state.get("context", {}).get("question_analysis", {}).get("keyword")
     if keyword is None:
@@ -20,4 +24,7 @@ def trend_for_consult(state: ConsultState) -> dict:
     store = state["store"]
     trend = get_trend(keyword, industry=store["type"])
 
-    return {"context": {"trend": trend}}
+    if trend is None:
+        return {"context": {"trend": None}}
+
+    return {"context": {"trend": trend}, "sources": ["트렌드"]}

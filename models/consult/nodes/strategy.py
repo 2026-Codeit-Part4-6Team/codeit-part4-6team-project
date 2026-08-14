@@ -69,12 +69,20 @@ def strategy(state: ConsultState) -> dict:
             raise ValueError("LLM이 재생성 후에도 근거(reasons)를 반환하지 않았습니다.")
         retry_count += 1
 
+    # market_for_consult/trend_for_consult가 둘 다 실패(또는 조기 실행)하면 sources가
+    # 비어 있는 채로 넘어온다 — 서비스 계약(ConsultantModelResult.sources, min_length=1)이
+    # 깨지므로, 최소한 가게 정보는 항상 근거로 쓰이니 "가게정보"를 기본 출처로 채운다.
+    # 이미 다른 노드가 채워둔 sources가 있으면(operator.add reducer로 합산되므로)
+    # 여기서는 아무것도 반환하지 않아 중복으로 늘어나지 않게 한다.
+    sources_update = {} if state.get("sources") else {"sources": ["가게정보"]}
+
     return {
         "result": {"summary": summary.strip(), "actions": actions, "reasons": reasons},
         "tokens_used": state.get("tokens_used", 0) + total_tokens,
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).
         "retry_count": state.get("retry_count", 0) + retry_count,
+        **sources_update,
     }
 
 
