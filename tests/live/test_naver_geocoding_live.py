@@ -19,7 +19,7 @@ def test_naver_geocoding_contract_against_real_provider():
 
     result = asyncio.run(
         NaverGeocodingClient(api_key_id=api_key_id, api_key=api_key).geocode(
-            "서울 강남구 테헤란로 1"
+            "분당구 불정로 6"
         )
     )
 
