@@ -67,7 +67,31 @@ def test_passes_through_trend_result_unchanged(mock_get_trend) -> None:
 
     result = trend_for_consult(_state(keyword="아이스아메리카노"))
 
-    assert result == {"context": {"trend": _trend_result()}}
+    assert result["context"] == {"trend": _trend_result()}
+
+
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+def test_adds_trend_to_sources_when_successful(mock_get_trend) -> None:
+    mock_get_trend.return_value = _trend_result()
+
+    result = trend_for_consult(_state(keyword="아이스아메리카노"))
+
+    assert result["sources"] == ["트렌드"]
+
+
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+def test_omits_sources_when_get_trend_fails(mock_get_trend) -> None:
+    mock_get_trend.return_value = None
+
+    result = trend_for_consult(_state(keyword="아이스아메리카노"))
+
+    assert "sources" not in result
+
+
+def test_omits_sources_when_keyword_is_missing() -> None:
+    result = trend_for_consult(_state(keyword=None))
+
+    assert "sources" not in result
 
 
 def test_returns_none_trend_when_context_missing() -> None:
