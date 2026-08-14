@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -11,6 +12,8 @@ from pydantic import (
     model_validator,
 )
 
+logger = logging.getLogger(__name__)
+
 ChatbotType = Literal["basic", "consultant"]
 Platform = Literal["instagram", "banner"]
 GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
@@ -20,6 +23,29 @@ class StrictModel(BaseModel):
     """정의되지 않은 필드를 거부하는 계약 모델."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class InboundModel(BaseModel):
+    """모델이 추가한 최상위 필드를 관측하며 무시하는 입력 계약 모델."""
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _log_ignored_fields(cls, data: object) -> object:
+        if isinstance(data, dict):
+            known = set(cls.model_fields)
+            known.update(
+                field.alias for field in cls.model_fields.values() if field.alias
+            )
+            ignored = set(data) - known
+            if ignored:
+                logger.info(
+                    "%s: 모델 응답의 미정의 필드를 무시했습니다: %s",
+                    cls.__name__,
+                    sorted(ignored),
+                )
+        return data
 
 
 class PreviewGenerateRequest(StrictModel):
@@ -246,10 +272,8 @@ class BasicProposal(StrictModel):
         return self
 
 
-class BasicModelResult(StrictModel):
+class BasicModelResult(InboundModel):
     """기본 챗봇의 성공 또는 부분 성공 결과."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["ok"]
     title: str = Field(min_length=1)
@@ -284,10 +308,8 @@ class ConsultantSourceContext(StrictModel):
     sources: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
 
 
-class ConsultantModelResult(StrictModel):
+class ConsultantModelResult(InboundModel):
     """컨설턴트 챗봇의 성공 결과."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["ok"]
     title: str = Field(min_length=1)
@@ -300,10 +322,8 @@ class ConsultantModelResult(StrictModel):
     )
 
 
-class BlockedResult(StrictModel):
+class BlockedResult(InboundModel):
     """정책 검증으로 생성이 중단된 결과."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["blocked"]
     action: Literal["block", "reask", "warn"]
@@ -311,10 +331,8 @@ class BlockedResult(StrictModel):
     message: str = Field(min_length=1)
 
 
-class ErrorResult(StrictModel):
+class ErrorResult(InboundModel):
     """모델 또는 외부 제공자 실행 실패 결과."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     status: Literal["error"]
     reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
