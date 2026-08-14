@@ -11,6 +11,7 @@ from backend.schemas import RegisterRequest
 from backend.services.auth_service import (
     DuplicateUsernameError,
     GeocodingPolicy,
+    authenticate_user,
     build_user_response,
     register_user,
 )
@@ -45,6 +46,18 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
         )
 
     assert db.rollback.call_count == 2
+
+
+def test_authenticate_unknown_user_still_verifies_a_password_hash(monkeypatch):
+    """존재하지 않는 계정도 bcrypt 검증을 수행해 계정 존재 여부를 숨깁니다."""
+    db = Mock()
+    db.scalar.return_value = None
+    verify = Mock(return_value=False)
+    monkeypatch.setattr("backend.services.auth_service.verify_password", verify)
+
+    assert authenticate_user(db, "unknown", "wrong-password") is None
+
+    verify.assert_called_once()
 
 
 def test_build_user_response_virtual_reset_is_non_mutating():

@@ -41,8 +41,12 @@ basic = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not live'"
 pythonpath = ["."]
 testpaths = ["tests", "models"]
+markers = [
+    "live: 실제 외부 API 자격증명과 네트워크가 필요한 수동 검증",
+]
 
 [tool.ruff]
 line-length = 100

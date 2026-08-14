@@ -22,6 +22,9 @@ from backend.services.usage_service import (
 
 logger = logging.getLogger(__name__)
 
+# 존재하지 않는 사용자도 실제 계정과 같은 bcrypt 비용을 지불해 계정 열거를 막습니다.
+_DUMMY_PASSWORD_HASH = "$2b$12$/52SmX1dcVwt9j2y1ihQCON4OfIi0y0mWn0yYIiUNsf4Djl04T0w6"
+
 @dataclass(frozen=True)
 class GeocodingPolicy:
     """회원가입 시 지오코딩 장애 fallback 정책입니다."""
@@ -147,6 +150,8 @@ def authenticate_user(db: Session, username: str, password: str) -> User | None:
     """사용자명과 비밀번호가 일치하는 사용자를 반환합니다."""
     normalized = username.strip().lower()
     user = db.scalar(select(User).where(User.username == normalized))
-    if user is None or not verify_password(password, user.password_hash):
+    password_hash = user.password_hash if user is not None else _DUMMY_PASSWORD_HASH
+    password_matches = verify_password(password, password_hash)
+    if user is None or not password_matches:
         return None
     return user
