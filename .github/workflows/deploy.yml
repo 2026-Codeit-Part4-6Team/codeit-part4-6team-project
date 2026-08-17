@@ -1,0 +1,180 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: "main 브랜치를 GCP VM에 배포합니다."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+  IMAGE_BASE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  VM_HOST: ${{ vars.VM_HOST }}
+  VM_SSH_USER: ${{ vars.VM_SSH_USER }}
+  VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
+  COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
+  PUBLIC_HEALTHCHECK_URL: ${{ vars.PUBLIC_HEALTHCHECK_URL }}
+
+jobs:
+  preflight:
+    name: Deployment preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CONFIRM_DEPLOY: ${{ inputs.confirm_deploy }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Validate manual deployment request
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "CD는 main 브랜치에서만 실행할 수 있습니다: $GITHUB_REF" >&2
+            exit 1
+          fi
+          if [[ "$CONFIRM_DEPLOY" != "true" ]]; then
+            echo "수동 배포 확인이 선택되지 않았습니다." >&2
+            exit 1
+          fi
+
+      - name: Validate deployment configuration
+        run: |
+          : "${GCP_PROJECT_ID:?Repository variable GCP_PROJECT_ID is required}"
+          : "${GCP_REGION:?Repository variable GCP_REGION is required}"
+          : "${ARTIFACT_REGISTRY_REPOSITORY:?Repository variable ARTIFACT_REGISTRY_REPOSITORY is required}"
+          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Repository variable GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
+          : "${GCP_SERVICE_ACCOUNT:?Repository variable GCP_SERVICE_ACCOUNT is required}"
+          : "${VM_HOST:?Repository variable VM_HOST is required}"
+          : "${VM_SSH_USER:?Repository variable VM_SSH_USER is required}"
+          : "${VM_DEPLOY_PATH:?Repository variable VM_DEPLOY_PATH is required}"
+          : "${PUBLIC_HEALTHCHECK_URL:?Repository variable PUBLIC_HEALTHCHECK_URL is required}"
+          python scripts/validate_deploy_config.py
+          cp .env.example .env
+          docker compose -f compose.deploy.yaml config --quiet
+
+  build-and-push:
+    name: Build and push ${{ matrix.service }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - backend
+          - frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          create_credentials_file: false
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Deploy to GCP VM
+    needs:
+      - preflight
+      - build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Revalidate deployment configuration
+        run: python scripts/validate_deploy_config.py
+
+      - name: Configure SSH
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          : "${VM_SSH_PRIVATE_KEY:?Production secret VM_SSH_PRIVATE_KEY is required}"
+          : "${VM_SSH_KNOWN_HOSTS:?Production secret VM_SSH_KNOWN_HOSTS is required}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VM_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VM_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload deployment files
+        run: |
+          # shellcheck disable=SC2029 # 검증된 Repository Variable을 원격 명령에 전달합니다.
+          ssh "$VM_SSH_USER@$VM_HOST" "mkdir -p '$VM_DEPLOY_PATH/scripts'"
+          scp compose.deploy.yaml .env.example "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/"
+          scp scripts/deploy.sh scripts/prune_deploy_images.py \
+            "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/scripts/"
+
+      - name: Deploy application containers
+        run: |
+          # shellcheck disable=SC2029 # 배포 경로와 이미지 태그를 원격 셸 환경에 전달합니다.
+          ssh "$VM_SSH_USER@$VM_HOST" \
+            "cd '$VM_DEPLOY_PATH' && \
+            IMAGE_BASE='$IMAGE_BASE' \
+            IMAGE_TAG='$IMAGE_TAG' \
+            COMPOSE_PROJECT_NAME='${COMPOSE_PROJECT_NAME:-team6-app}' \
+            bash scripts/deploy.sh"
+
+      - name: Verify public frontend health
+        run: |
+          curl --fail --show-error --silent \
+            --retry 10 --retry-delay 3 --retry-all-errors \
+            "$PUBLIC_HEALTHCHECK_URL"
+
+      - name: Prune old deployment images
+        run: |
+          # shellcheck disable=SC2029 # 사전 검증된 이미지 경로와 SHA를 전달합니다.
+          ssh "$VM_SSH_USER@$VM_HOST" \
+            "cd '$VM_DEPLOY_PATH' && \
+            IMAGE_BASE='$IMAGE_BASE' \
+            IMAGE_TAG='$IMAGE_TAG' \
+            python3 scripts/prune_deploy_images.py"

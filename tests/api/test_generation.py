@@ -2,12 +2,8 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
 
-client = TestClient(app)
-
-
-def test_generate() -> None:
+def test_generate(client: TestClient) -> None:
     response = client.post("/generate", json={"prompt": "신메뉴 광고"})
 
     assert response.status_code == 200
@@ -17,7 +13,7 @@ def test_generate() -> None:
     assert "신메뉴 광고" in body["result"]["text"]
 
 
-def test_generate_rejects_empty_prompt() -> None:
+def test_generate_rejects_empty_prompt(client: TestClient) -> None:
     response = client.post("/generate", json={"prompt": ""})
 
     assert response.status_code == 422
