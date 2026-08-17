@@ -174,6 +174,18 @@
 | D-164 | 8/14 | reask는 왕복 시 크레딧 관련 과금 구조임을 §7에 명시 — 후속 요청은 새 Idempotency-Key로 재차감 | v0.3 "과금 미완료"와 계약서 "롤백"이 같은 말인데 표현이 달라 혼동. reask 남발이 곧 사용자 크레딧 소모(기본 챗봇 D3 과잉 reask 사례) | 표현 차이 방치 |
 | D-165 | 8/14 | 스모크 테스트에 masked_text 반환·alternative의 message 포함 검사 추가 | "대안이 조용히 사라지는" 유형은 런타임에 무음이라 CI로만 잡힌다 | 육안 확인 |
 | D-166 | 8/14 | v0.3 문서의 크레딧 반전 잔재 4곳(§4.6·§6.3·§12.1·§13.1) 정정 요청 | 코드·§4.5·§10.4·§11.1·S-18은 D-057로 정정됐으나 문서 잔재가 남음. §12.1은 D1 완료 판정 기준이라 코드 역행 위험 | 방치 |
+| D-167 | 8/18 | 골든 문항의 input은 부분 입력 — question·user_id·store는 평가기가 주입(models/shared/eval_fixtures.py) | v1.0은 전 문항에 필수 user_id가 없고 R-는 store도 없어 ModelRequest 검증 실패 → 평가기가 사용 불가. 완전 저장 방식은 공통값을 60회 반복해 유지보수 불가 | 문항마다 완전한 ModelRequest 저장 |
+| D-168 | 8/18 | tests/eval/test_golden_dataset_schema.py를 CI에 추가(조립·개수·중복·fixture 검사) | 형식 오류를 60문항 완성 후 발견하면 전부 재작성. 문항 작성 중 매 PR마다 잡히게 함 | 검수 시 육안 확인 |
+| D-169 | 8/18 | 컨설턴트 문항에 market_fixture 고정, 평가 중 외부 API 호출 금지 | 실시간 상권 데이터 의존 시 데이터 변동·API 장애로 점수가 흔들려 튜닝 효과 증명 불가. 업종코드 교정(D-041) 후 이전 측정과 비교 불가 문제도 해소 | 실시간 API 호출 유지 |
+| D-170 | 8/18 | 환각 검증 = reasons 내 숫자의 allowed_numbers 화이트리스트 대조(규칙 기반), rubric의 환각_여부 항목 삭제 | must_contain_number는 숫자 1개만 있으면 통과해 근거 없는 수치를 못 잡음. LLM Judge는 상권 실제값을 몰라 환각 판단 근거가 없음. 규칙 기반이면 LLM 0회·재현 100% | LLM Judge에 위임 |
+| D-171 | 8/18 | Hit Rate@5·MRR은 shared_data/retrieval_eval.json 별도 평가셋으로 분리, [SHOULD] 강등 | 정답 문서 ID·기준 컨텍스트가 스키마에 없어 계산 불가. 벤치마크 RAG 자체가 미착수(P-014). 8/18까지 문서 ID 미부여 시 보고서에서 제외 | golden_dataset에 필드 추가 / 지표 유지 |
+| D-172 | 8/18 | Faithfulness 기준 컨텍스트는 문항에 기재하지 않고 런타임 state["context"]를 캡처해 결과 파일에 저장 | 파이프라인 변경 시 60문항을 고쳐야 함. 컨설턴트는 market_fixture가 곧 기준 컨텍스트 | 문항에 reference_context 기재 |
+| D-173 | 8/18 | §10에 스크립트 구현 상태 표기 + DoD 4종(문항 수 검증·결과 파일 생성·원본 응답 저장·외부 API 미호출) | 동작하지 않는 명령이 문서에 있으면 담당자가 자기 환경 문제로 오인해 시간을 버림 | 명령만 기재 |
+| D-174 | 8/18 | 거부 정확도는 test_contract.py가 아니라 models/shared/eval/eval_refusal.py로 측정 | test_contract.py는 반환 형식만 보는 스모크 테스트이고 골든 데이터셋을 읽지 않음 | 기존 명령 유지 |
+| D-175 | 8/18 | B-004를 blog → banner 문항으로 교체 | platform이 instagram·banner 2종 확정(D-083). blog 문항은 요청 자체가 422라 실행 불가 | blog 복원 |
+| D-176 | 8/18 | 일정표 요일 정정(8/19 수·8/20 목·8/21 금) + 0단계(배선) 신설, 파일럿 8/14 → 8/18 | 파일럿 마감이 이미 경과. 조립 규칙 없이 문항을 쓰면 평가기가 못 쓰므로 그릇을 먼저 만든다 | 기존 일정 유지 |
+| D-177 | 8/18 | expected.action ↔ 모델 응답 매핑표 신설(§4.6), must_have_fields에 title 추가 | 모델은 성공 시 status="ok"를 반환하고 action은 blocked일 때만 존재 — 평가기가 무엇과 비교할지 정의되지 않았음. title은 계약상 빈 문자열 불가 필수 | 평가기 구현자 재량 |
+| D-178 | 8/18 | R- 문항은 measured_at="function" — 서비스 응답이 아니라 검증 함수 반환 dict를 직접 검사 | alternative·law가 서비스 BlockedResult에 실리지 않음(D-160). 응답 계층에서 측정하면 대안 제시율이 항상 0이 됨. alternative_in_message로 D-160 이행도 함께 확인 | 서비스 응답 기준 측정 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -210,10 +222,10 @@
 | P-010 | Basic 응답의 suggested_chips 허용 여부 | 현행 빈 배열 고정(max_length=0) | 기본 챗봇 담당 | 8/14 |
 | P-011 | market_cache UNIQUE(lat,lng,radius) 추가 시점 | D7 통합 시 서비스 담당이 DDL 추가(그전까지 upsert로 방어, D-050) | 서비스 담당 | 8/18 |
 | P-012 | payments package·status enum 확정 | 임시안 유지, 결제 API 구현 전 확정 | 서비스 담당 | 8/19 |
-| P-013 | 이미지 생성 장수·병렬화(3장 직렬 / 상위 1안만 / 3장 병렬) | D6에 1장 실측 후 결정 | 기본 챗봇 담당 | 8/17 |
-| P-014 | 벤치마크 RAG 착수 시점 — 미착수 시 Hit Rate@5·MRR 산출 불가 | SDP상 D8, 지연 시 검색 지표를 보고서에서 제외할지 결정 | 전민재 PM | 8/17 |
+| P-013 | 이미지 생성 장수·병렬화(3장 직렬 / 상위 1안만 / 3장 병렬) | D6에 1장 실측 후 결정 | 기본 챗봇 담당 | 8/18 |
+| P-014 | 벤치마크 RAG 착수 시점 — 미착수 시 Hit Rate@5·MRR 산출 불가 | SDP상 D8, 지연 시 검색 지표를 보고서에서 제외할지 결정 | 전민재 PM | 8/18 |
 | P-015 | CLIP 한국어 대응(다국어 CLIP 교체 vs 영문 이미지 프롬프트로 채점) | 영문 프롬프트 안이 비용상 유리 | 기본 챗봇 담당 | 8/19 |
-| P-016 | shared 임베딩 래퍼(embed_texts) 제공 시점 | 벤치마크 인덱싱 착수(P-014) 전까지 제공 | 전민재 PM | 8/17 |
+| P-016 | shared 임베딩 래퍼(embed_texts) 제공 시점 | 벤치마크 인덱싱 착수(P-014) 전까지 제공 | 전민재 PM | 8/18 |
 | P-017 | models/consult/config.py 재노출 제거 + 각 노드가 shared 직접 import | D7 통합 정리 시 | 컨설턴트 담당 | 8/18 |
 | P-018 | 중첩 구조(BasicProposal·ProposalError·ConsultantStrategy·ConsultantAction) extra 정책 | ignore 통일 + 로깅 권고. 현행 strict는 channel_format 화이트리스트에 의존 — clip_score 노출 시 502 | 서비스 담당 | 8/15 |
 | P-019 | GenerationResponse.result의 ModelResult union 잔존 처리 | 현행 유지 + 챗봇별 직렬화 확인 테스트 1개 추가 | 서비스 담당 | 8/15 |
@@ -224,3 +236,6 @@
 | P-024 | datetime 저장 경로 통일(register_user aware 직접 저장 → _bind_utc 경유) | SQLite에선 결과 동일, 규칙만 통일 | 서비스 담당 | 8/18 |
 | P-025 | market_cache upsert 적용(D-053 미이행) — 현재 INSERT만이라 동일 좌표 행 누적 | 읽기는 최신 행 기준이라 동작은 정상 | 컨설턴트 담당 | 8/18 |
 | P-026 | `alternative`·`law` 를 서비스 응답 별도 필드로 노출 여부 논의 | 기본안: **message 문장에 포함**(§5.2). 별도 필드는 v0.3 계약 변경 필요(D-046) | 전민재 PM | 8/18 |
+| P-027 | market_fixture 값의 출처(업종코드 교정 전/후) | 교정 후 실측값 사용, 미교정 시 현재값으로 파일럿 후 재측정 | 컨설턴트 담당 | 8/18 |
+| P-028 | 검색 평가셋 진행 여부 — 벤치마크 KB 문서 ID(bm_###) 부여 | 미부여 시 Hit Rate@5·MRR을 보고서에서 제외 | 기본 챗봇 담당 | 8/18 |
+| P-029 | allowed_numbers 반올림 허용 범위(정확 일치 vs ±5%) | 정확 일치로 시작, 파일럿 결과 보고 완화 검토 | 컨설턴트 담당 | 8/19 |
