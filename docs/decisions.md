@@ -92,6 +92,88 @@
 | D-082 | 8/13 | 모델·provider 교체 시 PR "실험 결과" 섹션 + docs/prompt_tuning_log.md 전후 비교표 작성 필수 | 평가항목 "모델 선택 이유"·"성능 개선 시도"에 직결. 이번 Groq→OpenAI 교체가 미기록 | 구두 공유로 갈음 |
 | D-083 | 8/13 | platform = instagram·banner 2종 확정, blog 제외 (D-027 변경) | Contract v0.3 및 서비스 Literal이 2종, 코드도 2종. D-027만 낡은 상태로 남아 충돌 | blog 복원 |
 | D-084 | 8/13 | title은 question_analysis 반환값 사용(30자 자르기 폐기) | 마이페이지 생성 이력(FR-30)에 잘린 제목이 그대로 노출. 기존 LLM 호출에 필드 추가라 비용 0 | 요약 전용 LLM 호출 추가 |
+| D-085 | 8/13 | models/shared/llm.py 를 골든 데이터셋 문항 작성보다 우선 착수 | 두 담당자가 각자 우회 파일로 진행 중(중복 2벌), 호출 지점이 매일 증가해 이관 비용이 복리. 골든 데이터셋은 기준 문서 완료 + PM 몫(R- 15문항) 마감이 D9 | 골든 데이터셋 우선 |
+| D-086 | 8/13 | shared/llm.py = 컨설턴트 뼈대 + 기본의 (text, tokens)·json_mode 합집합 (D-035 수정) | 컨설턴트 버전은 -> str 이라 tokens_used를 못 채움. Contract v0.3에서 tokens_used는 Basic·Consultant 양쪽 필수 필드 | 컨설턴트본 그대로 / 기본본 그대로 |
+| D-087 | 8/13 | call_llm 반환은 tuple[str, int] 단일 시그니처, json_mode 기본값 False | 기본값 False면 컨설턴트 기존 호출 동작이 불변이라 D4 작업 중단 없이 이관 가능 | str 반환 + 별도 함수 추가 |
+| D-088 | 8/13 | OpenAI 클라이언트는 모듈 싱글턴(_get_client) + 테스트용 reset_client | 호출마다 생성 시 httpx 커넥션 풀이 매번 새로 생성 — 골든 데이터셋 100문항 평가 루프에서 소켓 누수 | 호출마다 생성 |
+| D-089 | 8/13 | LLM_TIMEOUT_SECONDS(20) 단일 호출 상한 + LLM_DEADLINE_SECONDS(50) 요청 예산 (D-052 구현) | 백오프 14초 + 4회 호출이 서비스 60초 타임아웃을 잠식. 남은 예산 < 다음 대기시간이면 재시도 포기 | 재시도 횟수 축소 |
+| D-090 | 8/13 | 백오프 인덱스는 min(attempt, len-1), 루프 종료 시 RuntimeError 명시 | 원본은 MAX_RETRIES를 늘리면 IndexError, 루프 이탈 시 암묵적 None 반환 | 원본 유지 |
+| D-091 | 8/13 | OPENAI_BASE_URL 을 env로 노출 (provider 교체 지점 일원화) | D-081(로컬 실험용 대체 provider 허용)을 코드로 실행. OpenAI 호환 엔드포인트면 env 한 줄로 교체 | 코드 수정으로 교체 |
+| D-092 | 8/13 | get_total_tokens() 누적 카운터 제공 | PM의 $30 예산 관리(sdp_pm §5.4)와 !usage 교차 확인, 발표용 "평균 토큰/요청" 수치 확보 | 노드별 개별 집계 |
+| D-093 | 8/13 | models/consult/config.py 는 shared/config 재노출로 무중단 이관, D7에 재노출 삭제 | 컨설턴트가 D4 전략 노드 작업 중이라 import 경로를 깨면 당일 작업이 멈춤 | 즉시 전면 교체 |
+| D-094 | 8/13 | 파일 관리권 준수 — PM은 models/shared/ 만 PR, 호출부 import 변경은 각 담당자 PR | sdp_consult §5.3 파일 관리권. PM이 남의 노드까지 고치면 머지 충돌 | PM이 일괄 수정 |
+| D-095 | 8/13 | models/shared/config.py 는 신설이 아니라 문서 누락 보완으로 처리 | directory_structure §7.3이 "config.py 공통값=shared/"로 이미 판정했고 basic·consult 트리 주석도 "공통값은 models/shared/ 참조"라 표기 — §7.2 그림에만 빠져 있었음 | 신규 결정으로 취급 / 각자 config 유지 |
+| D-096 | 8/13 | models/shared/retry.py 는 만들지 않고 llm.py에 흡수, 문서에서 제거 | 컨설턴트 구현본 채택(D-035)이 백오프를 llm.py 인라인으로 구현했고 사용처가 llm.py 하나뿐. 분리 시 통과한 테스트 5개 재작성 + 파일 3개 얽힘. config.py 추가와 상쇄되어 shared/ 파일 수 순증 0 | retry.py 별도 생성 |
+| D-097 | 8/13 | directory_structure.md 트리에 상태 마커 표기([완료]/[날짜]/[미정]) | 문서에 그려졌으나 실재하지 않는 파일 3종(llm·retry·base_nodes) 때문에 두 담당자가 각각 우회 파일을 만듦 — 계획과 현실이 구분되지 않는 게 원인 | 현행 유지 |
+| D-098 | 8/13 | 설정값 단일 소유 원칙: LLM 설정=models/shared/config.py, 챗봇 전용=각자 config.py, 서비스 정책값=backend/config.py, 비밀값=.env. 타 영역 값 복사 금지 | D-057(크레딧 단가 반전)가 같은 값이 두 곳에 존재해 생긴 사고. 모델 쪽은 서비스 타임아웃을 복사하지 않고 더 짧은 자체 데드라인(50초)만 둔다 | 필요 시 복사 허용 |
+| D-099 | 8/13 | models/shared/base_nodes.py 통합은 D7로 이월, 문서에 [D7] 표기 | 두 담당자가 이미 검증 노드 래퍼를 각자 구현 중이라 지금 통합하면 양쪽 작업 파일을 동시에 건드려 충돌. 계약이 안정된 D7이 적기 | 즉시 통합 / 문서에서 삭제 |
+| D-100 | 8/13 | shared 테스트는 이관(5종)+추가(3종) 8개를 한 파일에 완결 구성, 헬퍼 포함 | 추가분만 붙여 넣어 _rate_limit_error 헬퍼 누락 → CI NameError. 테스트 모듈은 독립이라 타 파일 헬퍼를 공유하지 않음 | 헬퍼를 conftest로 분리 |
+| D-101 | 8/13 | models/consult/llm.py·test_llm.py 삭제는 컨설턴트 노드 import 전환 확인 후(D5) | 컨설턴트 D4 전략 노드가 아직 해당 모듈을 사용 중 — 선삭제 시 당일 작업 중단 | 이번 PR에서 즉시 삭제 |
+| D-102 | 8/13 | 로컬 검증 명령을 CI와 동일 문자열로 고정(uv run --locked --all-groups pytest) | 파일 단위 실행은 모듈 간 문제를 못 잡음. 전체 134개가 2.26초라 비용 사유 없음. D-037 재발(PM 본인) | 파일 단위 실행 허용 |
+| D-103 | 8/13 | 인바운드 정책은 InboundModel 베이스 클래스로 표현(StrictModel 상속 후 override 금지) | 선언 줄이 StrictModel인데 실제는 non-strict라 리뷰어 오해 소지, model_config 4중 중복. 방향(모델→서비스)을 타입 이름에 인코딩 | 현행 override 유지 |
+| D-104 | 8/13 | 무시한 미정의 필드를 INFO 로그로 남긴다 | extra=ignore로 기본값 있는 선택 필드(sources·suggested_chips)가 오타 시 조용히 빈 배열이 됨 — 추천 칩·근거가 에러 없이 사라짐 | 무음 무시 |
+| D-105 | 8/13 | D-060(chatbot_type 명시 분기) 우선순위 상향, D-104 로깅과 동일 PR로 묶음 | 완화로 Basic/Consultant 구분 근거가 '필수 필드 부재' 하나만 남음. union 파싱 중에는 실패 브랜치에서도 무시 로그가 찍혀 노이즈 | 각각 별도 진행 |
+| D-106 | 8/13 | 계약 구분 테스트는 실패 사유(missing 필드)까지 assert | dict 키 중복 시 파이썬이 조용히 뒤엣값 채택 → 테스트가 엉뚱한 이유로 통과. 완화 후 구분 근거가 하나뿐이라 사유 고정이 필수 | ValidationError 발생만 확인 |
+| D-107 | 8/14 | 리뷰 항목·PR 제목은 순번 대신 결정 ID(D-###)로 지칭 | PR마다 번호가 리셋돼 같은 항목이 2번/3번으로 갈려 담당자 확인 왕복 발생. git log --grep="D-060"로 결정↔커밋 추적 가능 | PR별 순번 유지 |
+| D-108 | 8/14 | ModelResult 분기는 status 봉투(_ModelResultEnvelope) 선검증 후 chatbot_type 분기 (D-060 구현안 상향) | PM 예시안의 raw.get("status")는 status 누락 시 성공 브랜치로 떨어져 엉뚱한 필드 에러 발생. Literal 선검증이 "알 수 없는 status"를 명확한 실패로 만듦 | PM 예시안 그대로 |
+| D-109 | 8/14 | 어댑터는 dict와 Pydantic 객체를 모두 수용(model_dump(by_alias=True)) | Mock은 Pydantic 객체, 실제 모델은 dict 반환 — D7 교체 시 호출부 수정 불필요. alias(copy_text→copy) 보존 필수 | dict만 수용 |
+| D-110 | 8/14 | D-104(무시 키 로깅) 단독 PR 진행 허용 — D-060 완료로 선행 제약 해소 | union 파싱 중 실패 브랜치 로그 노이즈가 근본 이유였고 #89로 union 제거됨 | 묶음 PR 유지 |
+| D-111 | 8/14 | 모델 응답 검증 실패 시 payload를 로그에 기록, 단 image_b64 제외·길이 제한 | ValidationError만으로는 D7에 모델이 실제로 보낸 내용을 알 수 없음. base64 3장(약 6MB)이 로그에 들어가면 D-024와 같은 문제가 로그에서 재현 | 예외만 전파 |
+| D-112 | 8/14 | test_consultant_result.py 중복 키 정리는 D5로 이월 | #89의 어댑터 테스트가 동일 검증을 더 강하게 수행해 커버리지는 확보됨 — 거짓 초록불 제거는 정리 작업 | 즉시 수정 |
+| D-113 | 8/14 | 로깅 표준: 파이썬 logging 모듈, logger=getLogger(__name__), %s 지연 포맷, 정상 흐름=INFO / 복구 가능한 실패=WARNING | 컨설턴트 cache/market_repo.py 관례(히트=info, DB실패=warning)를 서비스로 확장. 프로젝트 가이드 "서비스 완성도" 평가항목에 로깅·모니터링 포함 | print / 담당자별 자유 |
+| D-114 | 8/14 | 로그 마스킹 유틸(backend/logging_utils.py) — image_b64·키·비밀번호는 값 대신 표시, 문자열 300자·payload 2000자 상한 | base64 3장 약 6MB(D-024). GitHub Actions 로그는 저장소 접근자 전원에게 노출 | 원본 그대로 기록 |
+| D-115 | 8/14 | 로그도 테스트로 잠근다(caplog로 레벨·마스킹 검증) | "남긴다"가 아니라 "안전하게 남긴다"가 요건. 컨설턴트가 이미 로그 테스트 3종 선례 보유 | 육안 확인 |
+| D-116 | 8/14 | LOG_LEVEL 환경변수 + create_app()에서 basicConfig(force=True) | uvicorn이 자기 로거만 설정해 앱 로그가 출력되지 않음. 시연 시 WARNING으로 상향 가능 | 하드코딩 |
+| D-117 | 8/14 | 외부 API 클라이언트는 실제 키 실호출 1회 결과를 PR에 첨부해야 승인 | mock은 우리가 가정한 응답이라 엔드포인트·헤더·필드명 오류를 못 잡음. 지오코딩 실패 시 users.lat/lng 부재 → StoreContext 필수 위반 → 컨설턴트 상권 파이프라인 전체 불능 | mock 검증만으로 승인 |
+| D-118 | 8/14 | 실호출 테스트는 @pytest.mark.live + addopts="-m 'not live'"로 CI 제외, 로컬 수동 실행 | CI에 키를 넣을 수 없고 testpaths에 tests가 포함돼 기본 수집됨. GitHub Actions 로그 노출 위험도 회피 | CI에 키 등록 / 테스트 미작성 |
+| D-119 | 8/14 | 로그인 실패 시 계정 부재에도 더미 해시로 verify_password 수행 | 응답 본문은 동일하나 bcrypt 미수행으로 1ms vs 250ms 차이 발생 — S-07(계정 존재 여부 비노출)이 절반만 충족. 검증은 호출 여부로(시간 assert는 CI 불안정) | 현행 유지 |
+| D-120 | 8/14 | 무료 사용량 리셋 판정을 resolve_daily_free()로 분리, 조회·차감이 공유 | D3 UsageService가 동일 규칙을 복사하면 화면 표시와 실제 차감이 어긋남(D-098 단일 소유 원칙의 로직 적용) | D3에서 별도 구현 |
+| D-121 | 8/14 | "await 앞에서 트랜잭션 종료" 를 팀 규칙으로 승격, D4 /generate에 적용 | 모델 호출 최대 60초(D-025) 동안 SQLite 잠금 보유 시 동시 요청이 database is locked. D2 register가 이미 올바른 선례 | 단일 트랜잭션 유지 |
+| D-122 | 8/14 | geocoding fallback 사용 시 응답·사용자 레코드에 표시를 남기고 화면 안내 | demo 환경에서 전 사용자가 강남역 좌표가 되는데 로그 경고만으론 시연 중 인지 불가 → 상권 분석이 무관한 결과를 냄 | 로그 경고만 유지 |
+| D-123 | 8/14 | 주소는 개인정보로 취급 — 로그 마스킹 대상(REDACT_KEYS)에 추가 | GeocodingNotFound(address)가 트레이스백에 원문을 남김. D-114 로그 마스킹 정책의 확장 | 현행 유지 |
+| D-124 | 8/14 | /generate 순서 확정: StoreContext → generation INSERT(idempotency) → reserve → commit → await 모델 → 새 트랜잭션 정산 | Reservation은 초과 사용만 막고 중복 과금은 못 막음. UNIQUE(user_id, idempotency_key)가 차감보다 먼저 터져야 재차감이 없음(D-023·S-04). commit이 await보다 앞이어야 SQLite 잠금 60초 보유를 피함(D-121) | reserve 먼저 / 단일 트랜잭션 유지 |
+| D-125 | 8/14 | 같은 Idempotency-Key 재요청은 request_hash 일치 시 기존 generation 반환, 불일치 시 409 | S-04 계약. 더블클릭·네트워크 재시도에서 재차감 방지 | 항상 새 generation |
+| D-126 | 8/14 | 좌표 없는 사용자(StoreContext 구성 실패)는 차감 이전에 422 | 차감 후 실패하면 롤백 경로를 타야 하고 사용자에겐 원인 불명 오류가 됨 | 모델 호출 직전 구성 |
+| D-127 | 8/14 | 서비스 오류 detail 형식 통일: {"code","message"} 필수, 부가 필드는 추가만 | 402만 {"required","current"} 형태라 D5 프론트가 예외 분기 필요. 크레딧 부족은 "충전하러 가기" 분기가 필요해 code가 있어야 함 | 402 현행 유지 |
+| D-128 | 8/14 | estimate의 크레딧 부족은 200이 아닌 402 | GenerateEstimateResponse.credits_after가 ge=0이라 음수 잔액을 표현 불가 — 200으로 바꾸려면 계약 변경 필요 | 200 + 음수 허용 |
+| D-129 | 8/14 | GenerateRequest에 max_accepted_credits 추가 (계약 변경, Contract §4.3 갱신) | estimate 시점과 차감 시점 사이 상태 변화로 동의 금액을 초과 차감하는 것을 방지. 스토리보드 동의창 문구의 정합성 확보 | 필드 미도입 |
+| D-130 | 8/14 | D5 프론트는 estimate의 estimated_credits를 그대로 max_accepted_credits로 전송 | 가드가 프론트 협조에 의존 — 임의값 전송 시 무력화. 미공지 시 그냥 안 쓰이는 필드가 됨 | 프론트 자유값 |
+| D-131 | 8/14 | D-062(WAL + timeout=30) 즉시 적용 | 동시 쓰기 코드·테스트가 실제로 생김. D4에 market_cache 쓰기가 같은 파일에 겹치면 경합 발생 | D7까지 보류 |
+| D-132 | 8/14 | CAS 차감 직후 db.refresh(user) 필수 | synchronize_session=False라 ORM 식별맵이 갱신되지 않아 라우터의 user.credits가 낡은 값 | 현행 유지 |
+| D-133 | 8/14 | 코드 리뷰는 GitHub Files changed 탭에서, PR 본문에는 요약만 | 3개 PR 연속으로 diff 붙여넣기 흔적과 실제 파일을 구분하는 왕복 발생. 라인 코멘트로 추적성도 확보 | PR 본문 코드 첨부 유지 |
+| D-134 | 8/14 | 테스트는 create_app() 사용, 전역 app 사용 금지 / 파일명에 버전 접미사 금지 | test_billing_v2.py가 전역 app을 override — 정리 실패 시 타 테스트로 누출. "v2"는 나중에 v1이 무엇이었는지 알 수 없게 함 | 현행 유지 |
+| D-135 | 8/14 | PR 템플릿에 검증 명령(uv run --locked --all-groups pytest / ruff)을 미리 채워 넣고 체크박스로 확인 | 동일 오타(pytes)가 3개 PR 연속 발생 — 개인 부주의가 아니라 원본 복사 문제. 템플릿에 고정하면 타이핑 자체가 사라지고 D-037 로컬 검증도 함께 강제됨 | 리뷰에서 매번 지적 |
+| D-136 | 8/14 | 코드·테스트 파일명에 버전 접미사(_v2, _new, _old, _final) 금지 — 이름은 "무엇을 하는가"로 | 버전 추적은 Git의 역할이고 파일명 버전과 이중화됨. test_billing_v2.py는 v1이 존재한 적 없어 추적 불가능한 질문만 남김. v3가 생기면 v2 삭제 여부가 또 미결 | 파일명 버전 허용 |
+| D-137 | 8/14 | 문서는 버전 표기 유지(요구사항 v10, Contract v0.3) — 코드와 기준을 다르게 적용 | 문서는 담당자별로 서로 다른 버전을 동시에 참조하며 번복 이력 자체가 협업 정보(v0.2→v0.3 컨설턴트 응답 구조). 코드는 항상 최신 하나만 실행 | 문서도 버전 제거 |
+| D-138 | 8/14 | tests/api/test_billing_v2.py → test_generate_estimate.py 로 rename (후속 정리 PR) | 내용이 /generate/estimate 전용이라 "billing"은 범위 과대. 같은 폴더 관례(test_auth_registration·test_auth_session·test_health_readiness)와 통일 | 현행 유지 |
+| D-139 | 8/14 | strategy 노드: 형식 오류(summary·actions)는 즉시 실패, 품질 부족(reasons)은 재생성 2회 | 형식 오류는 재시도해도 반복되고 계약(v0.3 §6.4) 위반이라 서비스가 거부. reasons는 JSON 구조가 유효한 내용 부족이라 재생성 가치 있음 | 전부 재시도 / 전부 즉시 실패 |
+| D-140 | 8/14 | 재생성 시 RETRY_REASONS_HINT 부가 + "수치 날조 금지" 방어 문구 포함 | 동일 프롬프트 반복은 동일 출력 확률이 높음. 재생성 압박 시 LLM이 없는 상권 수치를 만들어내는 것이 전형적 실패 모드 | 동일 프롬프트 반복 |
+| D-141 | 8/14 | json_mode는 엄격 노드(strategy)에만, 폴백 노드(question_analysis)에는 미적용 | 폴백 경로 테스트 11개가 실전에서 실행되지 않아 검증 의미 상실. json_mode는 형식만 보장하고 필드 타입은 보장하지 않아 폴백은 어차피 필요 | 전 노드 적용(폴백 테스트 정리 조건) |
+| D-142 | 8/14 | 검증 함수 4종 실구현을 P-002(8/19) 그대로 유지 → 필요 시 8/18로 상향 | 컨설턴트 보안 노드가 판정만 저장하고 차단하지 않는 상태. golden_dataset 거부 문항 15개(R-)가 라우팅을 전제 — 미구현 시 발표 안전성 섹션 공백 | 8/19 유지 |
+| D-143 | 8/14 | status·issues를 CommonState로 승격(현재 BasicState에만 존재) | 두 챗봇이 차단 결과를 다르게 표현하면 서비스가 두 벌의 처리 코드를 가짐. D-002(공통 필드 단일 관리) 취지 | ConsultState에 개별 추가 |
+| D-144 | 8/14 | 그래프 진입 시 state["deadline"] 설정, 모든 call_llm에 전달 | D-049 deadline은 개별 호출만 보호. strategy 최대 3회 + 429 백오프 14초 + D6/D9 노드 추가 시 60초 초과 가능 | 개별 호출 보호만 유지 |
+| D-145 | 8/14 | security_output 검증 대상 = summary + actions[].content + reasons[] | 셋 다 사용자에게 노출되는데 summary만 검증 중 — actions에 민감정보가 있으면 통과 | summary만 |
+| D-146 | 8/14 | retry_count는 누적(state.get + 1), 덮어쓰기 금지 | D9 strategy_check도 재생성 루프 예정이라 노드 간 카운터가 서로를 지움 | 노드별 덮어쓰기 |
+| D-147 | 8/14 | strategy few-shot 예시의 reasons를 원시 수치 중심으로 수정 | D-044(등급은 프롬프트 내부 힌트, 사용자 노출은 원시 수치)과 예시가 정반대 — LLM이 예시를 그대로 따라 등급을 근거로 출력 | 현행 예시 유지 |
+| D-148 | 8/14 | 검증 노드는 부분 업데이트 dict만 반환, state 제자리 수정·전체 반환 금지 | 전체 반환 시 리듀서가 붙은 필드(context·validation)에 중복 병합, 병렬 노드에서 상호 덮어쓰기. 두 챗봇 실제 구현이 이미 부분 반환 | 계약서 v1.0 예시 유지 |
+| D-149 | 8/14 | 차단 결과 표현은 state["blocked"] → issues 리스트 append로 통일 | 여러 노드가 각자 append 가능하고 assemble_response가 issues[-1]을 사용. 두 챗봇 구현이 모두 issues 사용 중 | blocked dict 유지 |
+| D-150 | 8/14 | validation은 반드시 기존 값과 병합해 반환({**state.get("validation",{}), ...}) | 컨설턴트가 통째 교체 방식이라 CommonState에 병합 리듀서가 없으면 앞 노드 판정이 소실. 명시 병합은 리듀서 유무와 무관하게 안전 | 리듀서에 의존 |
+| D-151 | 8/14 | 라우팅 신호로 새 키(_goto) 생성 금지 — status·validation·*_retry_count로 판단 | 상태 스키마에 없는 키는 LangGraph가 거부하거나 버려 라우팅이 조용히 깨짐 | _goto 방식 |
+| D-152 | 8/14 | add_conditional_edges에 path_map 필수, END는 langgraph.graph의 센티널 사용 | "END" 문자열 반환은 동작하지 않음. 계약서 v1.0 §8.3 예시가 런타임 오류 | 문자열 반환 |
+| D-153 | 8/14 | check_output 반환에 masked_text 추가 (V-02 확정) | §6.3이 마스킹을 요구하는데 반환값에 마스킹 텍스트가 없어 구현 불가능. 두 챗봇이 각자 정규식을 만들면 가리는 범위가 달라짐(§13-③ 동일 논리) | 노드가 직접 마스킹 / warn도 그냥 통과 |
+| D-154 | 8/14 | check_output은 텍스트 조각별로 호출(기본=카피 3안, 컨설턴트=summary+actions+reasons) | 키워드 매칭(LLM 모델 API 호출 횟수 0회)이라 다회 호출 비용 없음. 합쳤다 나누는 처리가 불필요해지고 D-145(검증 범위)도 함께 해결 | 전체 텍스트 1회 호출 |
+| D-155 | 8/14 | 법률 규제검증은 카피 3안 전부 판정, block 슬롯은 삭제 대신 error 슬롯 치환 | v1.0 예시가 proposals[0]만 검증 — 2·3안이 무검증 통과. 삭제 시 3안 고정 계약 위반(D-018·D-071) | 첫 안만 검증 |
+| D-156 | 8/14 | 재시도 카운터 분리: copy_retry_count / self_check_retry_count | 공유 시 규제 재생성이 카운터를 소진해 self_check 재생성 기회 소멸(D-146 연장) | 단일 retry_count |
+| D-157 | 8/14 | self_check reject 재시도 실패 시 issues.reason = "unknown" (ErrorResult enum 준수) | self_check_failed 등 enum 밖 값 사용 시 서비스 ErrorResult 검증 실패 → 502 (D-073 재발) | 내부 reason 그대로 |
+| D-158 | 8/14 | 컨설턴트 regulation_node 미구현 확정 + 근거를 계약서 §8.6에 명시 | check_regulation 대상이 "생성된 카피"이고 컨설턴트 산출물은 전략 조언. 광고화 경로는 link_to_ads → 기본 챗봇 파이프라인뿐이라 이미 커버. 근거 미기재로 동일 질문 반복 발생 | 컨설턴트에도 추가 |
+| D-159 | 8/14 | 컨설턴트 strategy 프롬프트에 최상급·효능 표현 금지 지침 1줄 추가 | 법률 규제 노드 없이 톤 문제를 LLM 모델 API 호출 0회·노드 0개로 방어. 기본 챗봇 copy_gen에 이미 있는 문장 재사용 | 노드 추가 / 미조치 |
+| D-160 | 8/14 | check_regulation 대안은 message 문장에 포함해 전달, law·alternative는 내부 상태·평가용으로만 유지 | 서비스 BlockedResult가 4개 필드만 정의 + extra="ignore"(D-059)라 별도 필드가 에러 없이 버려짐. 골든 "대안 제시율"은 모델 레벨 측정이라 통과해 문제가 안 드러남 | 서비스 계약에 필드 추가 / 현행 방치 |
+| D-161 | 8/14 | 규제 warn 상한 초과는 status="blocked" → 크레딧 전액 롤백 (§6.2 표 정정) | §6.2 "차감 유지"와 §7 "blocked면 롤백"이 정면 충돌. 사용자가 카피 0개를 받으므로 D-020 기준으로도 롤백 | 차감 유지 |
+| D-162 | 8/14 | 계약서에 reason 코드 7종 목록 신설(§12.3) — 값 목록은 검증 계약서가 관리 | v0.3은 BlockedResult.reason을 자유 문자열로 두어 프론트가 화면 분기 기준을 알 수 없음. content_policy는 최상위가 아니라 ProposalError.reason임을 함께 명시 | v0.3에 위임 / 자유 문자열 유지 |
+| D-163 | 8/14 | Model status(ok·blocked·error) / Generation status / HTTP status 3종 구분을 계약서 §12.1에 명시 | v0.3 §7에만 있어 모델 담당자가 혼동할 수 있음. 모델 노드는 Model status만 세팅 | v0.3 참조로 갈음 |
+| D-164 | 8/14 | reask는 왕복 시 크레딧 관련 과금 구조임을 §7에 명시 — 후속 요청은 새 Idempotency-Key로 재차감 | v0.3 "과금 미완료"와 계약서 "롤백"이 같은 말인데 표현이 달라 혼동. reask 남발이 곧 사용자 크레딧 소모(기본 챗봇 D3 과잉 reask 사례) | 표현 차이 방치 |
+| D-165 | 8/14 | 스모크 테스트에 masked_text 반환·alternative의 message 포함 검사 추가 | "대안이 조용히 사라지는" 유형은 런타임에 무음이라 CI로만 잡힌다 | 육안 확인 |
+| D-166 | 8/14 | v0.3 문서의 크레딧 반전 잔재 4곳(§4.6·§6.3·§12.1·§13.1) 정정 요청 | 코드·§4.5·§10.4·§11.1·S-18은 D-057로 정정됐으나 문서 잔재가 남음. §12.1은 D1 완료 판정 기준이라 코드 역행 위험 | 방치 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -110,13 +192,14 @@
 | 8/13 | ERD | source_gen_id "FK 없이 값만 저장" → 실제 self-FK | 구현이 더 안전하므로 문서를 코드에 맞춤 |
 | 8/13 | D-027 | platform 3종(blog 포함) → 2종(instagram·banner) | Contract v0.3·서비스 Literal·모델 코드 모두 2종으로 수렴 |
 | 8/13 | D-019 | 이미지 재생성 1회 원칙을 코드에 반영(MAX_RETRY 공유 해제) | 공유 카운터로 인해 실질 2회 실행되던 것을 정정 |
+| 8/13 | directory_structure.md §7.2 | shared/ 에 config.py 추가, retry.py 삭제, 상태 마커 도입 | §7.3 판정표와 트리 그림의 불일치 해소 |
 
 ## 보류 (Owner·Due 지정)
 
 | ID | 항목 | 현재 기본안 | Owner | Due |
 |----|------|-------------|-------|-----|
 | P-001 | Proposal 3안 저장 방식 | 3개 내보내고 1개 라도 오류 발생 시 메시지 출력 및 로그 기록(재생성 루프 로직 구현 여부 논의 필요) | 전민재 PM | 미정 |
-| P-002 | 규제검증 RAG 전환 | 1주차 키워드 → 2주차 RAG | 전민재 PM | 8/19 |
+| P-002 | 법률 규제검증 RAG 전환 | 1주차 키워드 → 2주차 RAG, 실구현 8/19 그대로 유지 → 필요 시 8/18로 상향 (D-142) | 전민재 PM | 8/19 |
 | P-003 | 데이터 보관기간·삭제 방식 | 미정 | 전민재 PM | 8/20 |
 | P-004 | 재생성 시 동의창 재노출 | 재노출함 | 전민재 PM | 8/19 |
 | P-005 | `self_check` 사실성 검증(B) | SHOULD, 예산 여유 시 | 전민재 PM | 8/21 |
@@ -130,3 +213,14 @@
 | P-013 | 이미지 생성 장수·병렬화(3장 직렬 / 상위 1안만 / 3장 병렬) | D6에 1장 실측 후 결정 | 기본 챗봇 담당 | 8/17 |
 | P-014 | 벤치마크 RAG 착수 시점 — 미착수 시 Hit Rate@5·MRR 산출 불가 | SDP상 D8, 지연 시 검색 지표를 보고서에서 제외할지 결정 | 전민재 PM | 8/17 |
 | P-015 | CLIP 한국어 대응(다국어 CLIP 교체 vs 영문 이미지 프롬프트로 채점) | 영문 프롬프트 안이 비용상 유리 | 기본 챗봇 담당 | 8/19 |
+| P-016 | shared 임베딩 래퍼(embed_texts) 제공 시점 | 벤치마크 인덱싱 착수(P-014) 전까지 제공 | 전민재 PM | 8/17 |
+| P-017 | models/consult/config.py 재노출 제거 + 각 노드가 shared 직접 import | D7 통합 정리 시 | 컨설턴트 담당 | 8/18 |
+| P-018 | 중첩 구조(BasicProposal·ProposalError·ConsultantStrategy·ConsultantAction) extra 정책 | ignore 통일 + 로깅 권고. 현행 strict는 channel_format 화이트리스트에 의존 — clip_score 노출 시 502 | 서비스 담당 | 8/15 |
+| P-019 | GenerationResponse.result의 ModelResult union 잔존 처리 | 현행 유지 + 챗봇별 직렬화 확인 테스트 1개 추가 | 서비스 담당 | 8/15 |
+| P-020 | 어댑터 배선 시 chatbot_type 단일 소스 확인(요청값 사용) | D4 /generate 구현 PR에서 확인 | 서비스 담당 | 8/15 |
+| P-021 | 가게 주소·위치 수정 수단(PATCH /users/me vs 사이드바 입력) | D5 사이드바에 표시만, 수정 API는 D8 | 서비스 담당 | 8/18 |
+| P-022 | production 필수 env 검증 범위 — validate_deploy_config가 SESSION_SECRET_KEY·SESSION_COOKIE_SECURE를 검사하는지 확인 | .env.example 그대로 배포 시 기동 실패(크래시 루프) | 서비스 담당 | 8/15 |
+| P-023 | status=generating 잔여 행 처리(프로세스 중단 시 크레딧만 차감된 행) | 자동 복구는 미구현, 시연 전 수동 확인 절차로 대체 | 서비스 담당 | 8/21 |
+| P-024 | datetime 저장 경로 통일(register_user aware 직접 저장 → _bind_utc 경유) | SQLite에선 결과 동일, 규칙만 통일 | 서비스 담당 | 8/18 |
+| P-025 | market_cache upsert 적용(D-053 미이행) — 현재 INSERT만이라 동일 좌표 행 누적 | 읽기는 최신 행 기준이라 동작은 정상 | 컨설턴트 담당 | 8/18 |
+| P-026 | `alternative`·`law` 를 서비스 응답 별도 필드로 노출 여부 논의 | 기본안: **message 문장에 포함**(§5.2). 별도 필드는 v0.3 계약 변경 필요(D-046) | 전민재 PM | 8/18 |
