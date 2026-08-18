@@ -101,7 +101,7 @@ def test_no_valid_copies_blocks_without_calling_check_regulation(mock_check_regu
     assert result["validation"]["regulation"] == {
         "action": "block",
         "reason": "no_valid_copy",
-        "message": "",
+        "message": "카피 생성에 실패해 규제 검사를 진행할 수 없습니다.",
     }
     assert result["status"] == "blocked"
 

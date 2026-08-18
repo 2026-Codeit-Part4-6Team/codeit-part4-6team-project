@@ -17,7 +17,7 @@ def regulation_node(state: BasicState) -> dict:
         blocked = next((r for r in results if r is not None), None) or {
             "action": "block",
             "reason": "no_valid_copy",
-            "message": "",
+            "message": "카피 생성에 실패해 규제 검사를 진행할 수 없습니다.",
         }
         validation["regulation"] = blocked
         retry_count = state.get("copy_retry_count", 0) + 1
