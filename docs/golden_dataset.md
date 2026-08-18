@@ -641,6 +641,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | **환각률(수치 기준)** | `C-` 전체 | `reasons` 숫자 중 `allowed_numbers` 밖 비율 | 컨설턴트 담당 | MUST |
 | **계약 준수율** | `B-`·`C-` | `must_have_fields`·`proposal_count` 충족 비율 | 각 담당 | MUST |
 | **생성 실패율 · 응답시간** | 전체 | `status != "ok"` 비율, p50/p95 | 각 담당 | MUST |
+| **RAGAS-Score** | `B-`·`C-` | 종합 지표(검색, 성능) | 각 담당 | SHOULD |
 | **Faithfulness** | `B-`·`C-` | 런타임 캡처 컨텍스트 기준(§6.2) | 각 담당 | SHOULD |
 | **Answer Relevance** | `B-`·`C-` | 질문에 맞는 답인가 (LLM Judge) | 각 담당 | SHOULD |
 | **Hit Rate@5 · MRR** | **`RT-` 별도셋**(§6.1) | 벤치마크 RAG 검색 정확도 | 기본 챗봇 담당 | **SHOULD** |
@@ -707,7 +708,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | --- | --- | --- |
 | 단위 | 질문 ↔ 정답/기준 | 카피(프롬프트) ↔ 생성 이미지 |
 | 파일 | `shared_data/golden_dataset.json` | `models/basic/eval/image_samples/` |
-| 지표 | LLM Judge · Faithfulness · 환각률 | **CLIP Score** · Aesthetic Score |
+| 지표 | LLM Judge · RAGAS-Score · Faithfulness · 환각률 | **CLIP Score** · Aesthetic Score |
 | 분량 | 60문항 | **20~30장**(샘플) |
 
 **이미지 평가 방식**
@@ -959,7 +960,7 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | G-01 | 총 문항 수(60 vs 55) | **60 확정**(과잉차단 가드 5 추가) | 전민재 PM | 종료 |
 | G-02 | LLM Judge 모델 선택 | GPT-5.4 Mini(비용) vs GPT-5.4(정확도) | 기본 챗봇 담당 | 8/19 |
 | G-03 | 이미지 평가 샘플 수(20 vs 30) | 20장 | 기본 챗봇 담당 | 8/19 |
-| G-04 | Faithfulness 측정 방식 | RAGAS vs 직접 구현. 런타임 컨텍스트 캡처는 확정(§6.2) | 각 담당 | 8/19 |
+| G-04 | Faithfulness 측정 방식 | RAGAS-Score vs 직접 구현. 런타임 컨텍스트 캡처는 확정(§6.2) | 각 담당 | 8/19 |
 | G-05 | 거부 문항 교차 검토 담당 | 두 챗봇 담당 각 5문항씩 | 전민재 PM | 8/19 |
 | **G-06** | **`market_fixture` 값의 출처** | 업종코드 교정(D-041) 후 실측값. 미교정 시 현재값 사용 후 재측정 | 컨설턴트 담당 | 8/18 |
 | **G-07** | **검색 평가셋 진행 여부** | 벤치마크 KB에 `bm_###` 문서 ID 부여 시에만. 미달 시 보고서 작성 대상 제외 | 기본 챗봇 담당 | 8/18 |
