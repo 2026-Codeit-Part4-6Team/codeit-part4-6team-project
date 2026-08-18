@@ -206,11 +206,25 @@
 | D-196 | 8/18 | regulation_node는 판정을 항목에 붙이지 않고 validation["regulation"]에만 기록 | {**c, "regulation": ...} 가 ranked_copies에 내부 키를 남김. image_review의 clip_score와 함께 누적되는 구조라, channel_format 화이트리스트가 유일한 방벽. 중첩 strict(P-018) 상태에서 화이트리스트 확장 시 502 | 화이트리스트 의존 유지 |
 | D-197 | 8/18 | 법률 규제 차단 슬롯은 제자리 치환 — passed+blocked+failed 방식 금지 | 차단 항목이 배열 뒤로 밀려 ranking_node의 점수순 정렬이 무너짐. 사용자 화면에서 2번 카드가 3번으로 이동. 현재 테스트가 2개짜리라 미검출 | 뒤에 붙이기 유지 |
 | D-198 | 8/18 | 이미지 검수 정책: 이미지 없음·CLIP 저점수는 pass, 디코딩 전부 실패만 reject (D-075 이행) | CLIP은 영어 전용이라 한국어 카피 점수가 무의미(P-015), FR-13b도 CLIP을 개발용 지표로 규정. 요청당 이미지 6장 → 3장으로 감소 | 저점수도 재생성 |
-| D-199 | 8/18 | classify_llm_error는 models/basic/llm_errors.py 소유(shared 아님) | shared는 전민재 PM 관리 영역이고 오류 분류는 챗봇별 응답 정책. 계약 enum 4종(timeout·rate_limit·provider_error·unknown) 준수는 유지(D-073) | shared에 편입 |
+| D-199 | 8/18 | classify_llm_error는 models/basic/llm_errors.py 관리(shared 아님) | shared는 전민재 PM 관리 영역이고 오류 분류는 챗봇별 응답 정책. 계약 enum 4종(timeout·rate_limit·provider_error·unknown) 준수는 유지(D-073) | shared에 편입 |
 | D-200 | 8/18 | route_after_ranking 추가 승인 — ranking LLM 오류 시 조기 종료 | error 상태로 regulation에 진입하면 ranked_copies 부재로 KeyError. 담당자 자체 판단 개선분 | 라우터 미추가 |
 | D-201 | 8/18 | trend_for_copy는 question 원문이 아닌 question_analysis의 keyword 사용 (D-079 기본 챗봇 이행) | 원문 사용 시 캐시 키가 매번 달라 적중률 0% → NAVER 월 5만 건 한도 직격. 문장 검색은 트렌드 결과 자체가 무의미. 컨설턴트는 D5에 이미 반영 | 원문 유지 |
 | D-202 | 8/18 | LLM 응답 json.loads 실패도 예외 처리 대상 — parse_failed 슬롯으로 전환 | call_llm 예외는 잡지만 파싱 실패는 무방비. json_mode로 확률은 낮으나 발생 시 그래프 전체 중단 | 현행 유지 |
 | D-203 | 8/18 | 노드 단위 테스트는 실제 조회 함수의 현재 반환값과 대조 후 mock 작성 (D-195 기본 챗봇 이행) | test_trend_for_copy가 weather에 값이 있는 mock을 사용 — 실제 get_trend는 항상 None이라 해당 분기가 운영에서 미실행 | 계약서 예시 기준 |
+| D-204 | 8/18 | 컨설턴트 응답 조립 레이어 신설 — models/consult/main.py::run()·assemble_response() | D1+D2에서 "응답 시 변환"으로 정하고 D4 구현 예정이었으나 전민재 PM 범위 설정 누락으로 미구현. state["result"]가 평면(summary·actions·reasons)인데 계약은 strategy 중첩이라 D7 교체 시 ValidationError→502 | 서비스가 state를 직접 조립 |
+| D-205 | 8/18 | 모델→서비스 경계는 dict in / dict out, 모델은 backend를 import하지 않는다 | Contract §2.2(Model은 ModelResult를 반환). 서비스가 state 내부 구조를 알면 파이프라인 변경 시마다 서비스 코드 수정 필요. backend import는 배포 단위 분리(D-031) 위반 | pydantic 객체 직접 전달 |
+| D-206 | 8/18 | 모델은 동기 run()을 제공하고 서비스가 asyncio.to_thread로 감싼다 | LangGraph 노드가 전부 동기 — async 안에서 직접 호출하면 최대 60초 이벤트 루프 정지. D-121(await 전 트랜잭션 종료)과 짝 | 모델을 async로 재작성 |
+| D-207 | 8/18 | 그래프 예외는 run() 진입점 1곳에서 잡아 ErrorResult로 변환 (컨설턴트) | strategy의 "형식 오류 즉시 실패" 원칙을 유지하면서 계약도 지킴. 노드마다 try/except를 넣는 기본 챗봇 방식(D-199)과 다르나 결과는 동일 | 노드별 예외 처리로 통일 |
+| D-208 | 8/18 | classify_llm_error 함수를 models/shared/llm_errors.py로 이관 (D-199 변경) | classify_llm_error 함수를 기존에는 기본 챗봇만 사용했으나 컨설턴트 챗봇 run()도 필요해 기본 챗봇, 컨설턴트 챗봇 2개 다 공통으로 사용함. 매핑 대상(ErrorResult.reason 4종)은 챗봇 정책이 아니라 서비스 계약 — directory_structure §7.3 통합 기준 해당 | basic 전용 유지 / 컨설턴트가 별도 복사 |
+| D-209 | 8/18 | title·sources·suggested_chips는 조립 단계에서 최종 폴백 (실패시키지 않음) | title은 이력 목록 라벨, sources·chips는 계약 최소 요건. 여기서 실패시키면 정상 생성된 전략을 부수적 필드 때문에 버리게 됨. summary·actions·reasons는 기존대로 엄격 유지 | 전 필드 엄격 검증 |
+| D-210 | 8/18 | 모델 응답 조립 결과를 서비스 스키마로 검증하는 계약 테스트를 각 챗봇에 필수 배치 | 노드 단위 테스트가 전부 초록불이어도 서비스에 붙이면 502가 나는 구조(3안 개수·title·중첩 구조). backend import는 테스트 파일에서만 허용 | D7 통합 시 수동 확인 |
+| D-211 | 8/18 | D7 계약 정합성 항목 재정의 — sources는 D6에서 완료, blocked은 "형식 확인"이 아니라 "레이어 신설" | 전민재 PM 지시 문구가 부정확해 담당자가 존재하지 않는 코드를 찾는 데 시간을 씀. 요청 시 "확인"과 "신설"을 구분해 표기 | 기존 표현 유지 |
+| D-212 | 8/18 | 기본 챗봇 계약 테스트는 컨설턴트 복사가 아닌 별도 작성 — proposals 3개 고정·슬롯 불변조건·내부 키 누출 3항목 추가 (P-037 이행) | 두 챗봇 계약이 다름(Basic은 proposals 3개 고정·suggested_chips 빈 배열 필수, Consultant는 strategy 중첩·chips 정확히 3개). BasicProposal.validate_slot_state가 copy·image_b64·error 조합을 검사하는데 channel_format은 그 정합성을 확인하지 않음 | 컨설턴트 테스트 복사 |
+| D-213 | 8/18 | channel_format의 title에 폴백 추가 — question이 공백이면 "{가게명} 광고 제안" | question_analysis가 rewritten_question을 빈 문자열로 반환하면 state["question"]이 ""가 되고 title[:30]도 "" → min_length=1 위반 502. parsed.get()은 키가 있으면 빈 문자열도 채택 | question[:30] 유지 |
+| D-214 | 8/18 | assemble_response는 issues의 reason을 ErrorResult enum 4종으로 매핑, 밖이면 unknown | copy_gen이 넣는 copy_generation_failed가 enum 밖이라 그대로 내보내면 502(D-073 미이행분). 내부 reason과 계약 reason을 분리 | 내부 reason 그대로 전달 |
+| D-215 | 8/18 | blocked 응답의 message는 빈 문자열 금지 — 폴백 문구 적용 | regulation_node가 blocked.get("message","")로 빈 문자열을 넣을 수 있는데 BlockedResult.message는 min_length=1 | 빈 문자열 허용 |
+| D-216 | 8/18 | proposals 항목의 허용 키는 copy·image_b64·error 3종으로 고정, 회귀 테스트로 잠금 | score·clip_score·regulation이 내부에서 누적되는 구조(D-196). 중첩 strict(P-018)에서 누출 시 즉시 502이며 화이트리스트가 유일한 방벽 | 화이트리스트 신뢰 |
+| D-217 | 8/18 | 계약 테스트에서 빨간불이 나오는 것을 정상 상태로 간주 — 프로덕션 수정 후 초록불 확인 | D7 통합 당일에 발견할 502를 사전 노출하는 것이 테스트 목적. 초록불을 맞추려 테스트를 완화하지 않는다 | 통과하도록 테스트 조정 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -270,3 +284,6 @@
 | P-033 | 기본 챗봇 로컬 mock 전반을 실제 get_market/get_trend 반환값과 대조 | weather 외 다른 필드에도 같은 불일치가 있는지 확인 | 기본 챗봇 담당 | 8/18 |
 | P-034 | image_gen이 image_prompt를 ranked_copies에 저장할지 | 현재 미저장이라 CLIP이 항상 copy로 폴백. 기록 전용 정책이라 우선순위 낮음 | 기본 챗봇 담당 | 8/20 |
 | P-035 | regulation_node 테스트의 구 필드명(retry_count) 정리 | copy_retry_count로 통일 — 현재 의도한 시나리오를 검증하지 않음 | 기본 챗봇 담당 | 8/18 |
+| P-036 | ConsultState에 status·issues 필드 추가 (D-143 이행) | assemble_response는 state.get("status","ok")로 동작하나, 보안 노드 라우팅 붙이려면 필수 | 전민재 PM | 8/18 |
+| P-037 | 기본 챗봇 assemble_response 계약 테스트 (D-210·D-212) | 테스트 작성 완료 → 프로덕션 3줄 수정(D-213~215) 후 초록불 확인 | 기본 챗봇 담당 | 8/18 |
+| P-038 | self_check_node의 issues.action 값 검토 — 현재 "block" 사용 | BlockedResult.action enum(block·reask·warn)에는 reject가 없어 현재는 통과. 검증 함수 실구현 후 재확인 | 전민재 PM | 8/18 |
