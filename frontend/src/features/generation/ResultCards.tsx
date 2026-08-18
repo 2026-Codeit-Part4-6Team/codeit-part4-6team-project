@@ -21,11 +21,11 @@ export function ResultCards({ response, onSuggestedChip }: { response: Generatio
       {response.chatbot_type === "basic" ? (
         <div className="proposal-grid">
           {proposals.map((raw, index) => {
-            const proposal = raw as { copy?: string | null; error?: { message?: string } | null };
+            const proposal = raw as { copy?: string | null; image_b64?: string | null; error?: { message?: string } | null };
             return (
               <article className="card proposal" key={index}>
-                <span>제안 {index + 1}</span>
-                <p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p>
+                <div className="proposal-visual">{proposal.image_b64 ? <img className="proposal-image" src={`data:image/png;base64,${proposal.image_b64}`} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>
+                <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className="proposal-action">이 제안 선택</button></div>
               </article>
             );
           })}

@@ -323,10 +323,17 @@ select:focus-visible {
 .result-section { margin-top: 54px; }
 .section-heading { display: flex; justify-content: space-between; align-items: start; gap: 24px; }
 .plan-pill { border-radius: 999px; padding: 9px 13px; background: var(--sidebar); color: #fff; font-size: 13px; font-weight: 700; }
-.proposal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.proposal { min-height: 190px; padding: 24px; }
-.proposal span { color: var(--primary); font-size: 13px; font-weight: 800; }
-.proposal p { margin-top: 26px; line-height: 1.7; }
+.proposal-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.proposal { min-height: 280px; display: grid; grid-template-columns: minmax(280px, 36%) minmax(0, 1fr); padding: 14px; overflow: hidden; }
+.proposal-visual { min-width: 0; }
+.proposal-image { width: 100%; height: 100%; min-height: 250px; display: block; border-radius: 10px; object-fit: cover; background: #eeeaf7; }
+.proposal-image-placeholder { display: grid; place-items: center; align-content: center; gap: 6px; color: var(--primary); background: linear-gradient(135deg, #f0edf8, #e4e0ff); }
+.proposal-image-placeholder span { font-size: .7rem; font-weight: 900; letter-spacing: .12em; }
+.proposal-image-placeholder small { color: #6d6884; font-size: .78rem; }
+.proposal-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding: 20px 24px; }
+.proposal-copy span { color: var(--primary); font-size: 13px; font-weight: 800; }
+.proposal-copy p { margin: 20px 0; line-height: 1.8; white-space: pre-wrap; }
+.proposal-action { margin-top: auto; border: 1px solid rgba(61, 52, 165, .3); border-radius: 999px; padding: 10px 15px; background: #fff; color: var(--primary); font-weight: 750; }
 .strategy-card { padding: 28px; line-height: 1.7; }
 .result-subsection { margin-top: 24px; padding-top: 18px; border-top: 1px solid #eeeae3; }
 .result-subsection h3 { margin-bottom: 8px; font-size: 0.95rem; }
@@ -468,6 +475,9 @@ select:focus-visible {
   .section-heading, .history-row { align-items: stretch; flex-direction: column; }
   .history-row > div:last-child { justify-content: space-between; width: 100%; }
   .extra-grid, .follow-up-form { grid-template-columns: 1fr; flex-direction: column; }
+  .proposal { display: block; }
+  .proposal-image { height: auto; min-height: 0; aspect-ratio: 4 / 3; }
+  .proposal-copy { padding: 18px 10px 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
