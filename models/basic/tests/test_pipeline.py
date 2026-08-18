@@ -46,12 +46,18 @@ def _fake_call_llm(system: str, user: str, json_mode: bool = False) -> tuple[str
                 {
                     "sufficient": False,
                     "rewritten_question": question,
+                    "keyword": "",
                     "message": "무엇을 광고하고 싶으신지 조금 더 알려주세요.",
                 }
             )
         else:
             content = json.dumps(
-                {"sufficient": True, "rewritten_question": question, "message": ""}
+                {
+                    "sufficient": True,
+                    "rewritten_question": question,
+                    "keyword": question,
+                    "message": "",
+                }
             )
         return content, 10
 
@@ -67,7 +73,6 @@ def _fake_get_trend(question, industry=None):
         "keyword": industry or "카페",
         "direction": "상승",
         "related": ["아이스 아메리카노"],
-        "weather": None,
     }
 
 
