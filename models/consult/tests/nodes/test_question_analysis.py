@@ -67,15 +67,32 @@ def test_passes_question_and_store_info_to_llm(mock_call_llm) -> None:
 
 
 @patch("models.consult.nodes.question_analysis.call_llm")
-def test_requests_json_mode(mock_call_llm) -> None:
-    """shared call_llm의 json_mode를 켜서 응답 형식을 강제한다 — 파싱 실패 가능성을 줄인다."""
+def test_does_not_request_json_mode(mock_call_llm) -> None:
+    """json_mode를 켜지 않는다 — 이 노드의 존재 이유가 "비JSON 응답도 폴백으로 버틴다"인데,
+    json_mode로 비JSON 응답 자체를 원천 차단하면 그 폴백 경로가 실전에서 거의 실행되지
+    않게 되어 폴백 테스트들이 지키는 시나리오가 유명무실해진다(PM 리뷰, PR #93)."""
     mock_call_llm.return_value = _response(
         {"rewritten_question": "질문", "is_sufficient": True, "missing_info": []}
     )
 
     question_analysis(_state("여기 어때요?"))
 
-    assert mock_call_llm.call_args.kwargs.get("json_mode") is True
+    assert mock_call_llm.call_args.kwargs.get("json_mode") is not True
+
+
+@patch("models.consult.nodes.question_analysis.call_llm")
+def test_passes_deadline_from_state_to_call_llm(mock_call_llm) -> None:
+    """security_input이 세팅한 state["deadline"]을 그대로 call_llm에 넘겨, 이 노드
+    호출이 그래프 전체 예산을 나눠 쓰게 한다(PM 리뷰, PR #93)."""
+    mock_call_llm.return_value = _response(
+        {"rewritten_question": "질문", "is_sufficient": True, "missing_info": []}
+    )
+    state = _state("여기 어때요?")
+    state["deadline"] = 1234.5
+
+    question_analysis(state)
+
+    assert mock_call_llm.call_args.kwargs.get("deadline") == 1234.5
 
 
 @patch("models.consult.nodes.question_analysis.call_llm")

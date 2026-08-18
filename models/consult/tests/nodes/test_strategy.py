@@ -92,12 +92,59 @@ def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
 
 
 @patch("models.consult.nodes.strategy.call_llm")
+def test_accumulates_retry_count_onto_existing_state_value(mock_call_llm) -> None:
+    """retry_count는 strategy 혼자만 쓰는 게 아니라 앞으로 다른 노드(D9 strategy_check)도
+    같은 키에 쓸 예정이라, 덮어쓰지 않고 기존 값에 더한다(PM 리뷰, PR #93)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음 → strategy 내부에서 1회 재시도
+        _response(_payload(reasons=_REASONS)),  # 2차: 성공
+    ]
+    state = _state()
+    state["retry_count"] = 3  # 다른 노드가 이미 채워둔 값을 흉내
+
+    result = strategy(state)
+
+    assert result["retry_count"] == 3 + 1
+
+
+@patch("models.consult.nodes.strategy.call_llm")
 def test_requests_json_mode(mock_call_llm) -> None:
     mock_call_llm.return_value = _response(_payload())
 
     strategy(_state())
 
     assert mock_call_llm.call_args.kwargs.get("json_mode") is True
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_passes_deadline_from_state_to_call_llm(mock_call_llm) -> None:
+    """security_input이 세팅한 state["deadline"]을 그대로 call_llm에 넘긴다(PM 리뷰, PR #93)."""
+    mock_call_llm.return_value = _response(_payload())
+    state = _state()
+    state["deadline"] = 1234.5
+
+    strategy(state)
+
+    assert mock_call_llm.call_args.kwargs.get("deadline") == 1234.5
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_reuses_same_deadline_across_retries(mock_call_llm) -> None:
+    """근거 재생성으로 call_llm을 여러 번 불러도, 매번 새 예산을 받는 게 아니라
+    그래프 진입 시 세팅된 동일한 deadline을 계속 공유한다(PM 리뷰, PR #93)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),
+        _response(_payload(reasons=_REASONS)),
+    ]
+    state = _state()
+    state["deadline"] = 1234.5
+
+    strategy(state)
+
+    first_deadline = mock_call_llm.call_args_list[0].kwargs.get("deadline")
+    second_deadline = mock_call_llm.call_args_list[1].kwargs.get("deadline")
+    assert first_deadline == 1234.5
+    assert second_deadline == 1234.5
 
 
 @patch("models.consult.nodes.strategy.call_llm")

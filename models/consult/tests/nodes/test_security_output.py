@@ -12,7 +12,11 @@ _STORE = {
 }
 
 
-def _state(summary: str | None = "전략 요약") -> dict:
+def _state(
+    summary: str | None = "전략 요약",
+    actions: list[dict] | None = None,
+    reasons: list[str] | None = None,
+) -> dict:
     state = {
         "chatbot_type": "consultant",
         "user_id": 1,
@@ -20,7 +24,11 @@ def _state(summary: str | None = "전략 요약") -> dict:
         "store": _STORE,
     }
     if summary is not None:
-        state["result"] = {"summary": summary}
+        state["result"] = {
+            "summary": summary,
+            "actions": actions or [],
+            "reasons": reasons or [],
+        }
     return state
 
 
@@ -40,6 +48,25 @@ def test_stores_result_under_validation_output(mock_check_output) -> None:
     result = security_output(_state())
 
     assert result == {"validation": {"output": {"action": "warn", "message": "표현 주의"}}}
+
+
+@patch("models.consult.nodes.security_output.check_output")
+def test_combines_summary_actions_and_reasons_for_validation(mock_check_output) -> None:
+    """actions[].content·reasons[]도 사용자에게 그대로 노출되므로 summary만이 아니라
+    셋을 합쳐서 check_output()에 넘긴다(PM 리뷰, PR #93)."""
+    mock_check_output.return_value = {"action": "pass", "message": ""}
+    state = _state(
+        summary="전략 요약",
+        actions=[{"type": "menu", "content": "액션 내용"}],
+        reasons=["근거 문장"],
+    )
+
+    security_output(state)
+
+    validated_text = mock_check_output.call_args.args[0]
+    assert "전략 요약" in validated_text
+    assert "액션 내용" in validated_text
+    assert "근거 문장" in validated_text
 
 
 @patch("models.consult.nodes.security_output.check_output")

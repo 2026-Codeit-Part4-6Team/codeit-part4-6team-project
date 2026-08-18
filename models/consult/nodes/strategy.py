@@ -35,6 +35,7 @@ def strategy(state: ConsultState) -> dict:
     store = state["store"]
     market = state.get("context", {}).get("market")
     base_user_prompt = build_user_prompt(question, store, market)
+    deadline = state.get("deadline")
 
     total_tokens = 0
     retry_count = 0
@@ -43,7 +44,7 @@ def strategy(state: ConsultState) -> dict:
         user_prompt = (
             base_user_prompt if retry_count == 0 else f"{base_user_prompt}\n\n{RETRY_REASONS_HINT}"
         )
-        raw, tokens = call_llm(SYSTEM_PROMPT, user_prompt, json_mode=True)
+        raw, tokens = call_llm(SYSTEM_PROMPT, user_prompt, json_mode=True, deadline=deadline)
         total_tokens += tokens
 
         try:
@@ -69,7 +70,9 @@ def strategy(state: ConsultState) -> dict:
     return {
         "result": {"summary": summary.strip(), "actions": actions, "reasons": reasons},
         "tokens_used": state.get("tokens_used", 0) + total_tokens,
-        "retry_count": retry_count,
+        # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
+        # (PM 리뷰, PR #93).
+        "retry_count": state.get("retry_count", 0) + retry_count,
     }
 
 
