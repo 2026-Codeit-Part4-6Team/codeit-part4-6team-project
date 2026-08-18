@@ -132,12 +132,15 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           />
         </label>
         <div className="quick-prompts" aria-label="예시 질문">{quickPrompts.map((prompt) => <button type="button" key={prompt} onClick={() => setQuestion(prompt)}>{prompt}</button>)}</div>
-        {chatbotType === "basic" && <div className="extra-grid">
-          <label>광고 목적 <small>선택</small><input value={extra.purpose ?? ""} onChange={(event) => updateExtra("purpose", event.target.value)} placeholder="신메뉴 홍보" /></label>
-          <label>타깃 연령 <small>선택</small><input value={extra.target_age ?? ""} onChange={(event) => updateExtra("target_age", event.target.value)} placeholder="20~30대" /></label>
-          <label>가격대 <small>선택</small><input value={extra.price_range ?? ""} onChange={(event) => updateExtra("price_range", event.target.value)} placeholder="1만원대" /></label>
-          <label>가게 강점 <small>선택</small><input value={extra.strength ?? ""} onChange={(event) => updateExtra("strength", event.target.value)} placeholder="직접 만든 소스" /></label>
-        </div>}
+        {chatbotType === "basic" && <details className="extra-details">
+          <summary>광고 상세 정보 추가 <span>선택사항</span></summary>
+          <div className="extra-grid">
+            <label>광고 목적 <small>선택</small><input value={extra.purpose ?? ""} onChange={(event) => updateExtra("purpose", event.target.value)} placeholder="신메뉴 홍보" /></label>
+            <label>타깃 연령 <small>선택</small><input value={extra.target_age ?? ""} onChange={(event) => updateExtra("target_age", event.target.value)} placeholder="20~30대" /></label>
+            <label>가격대 <small>선택</small><input value={extra.price_range ?? ""} onChange={(event) => updateExtra("price_range", event.target.value)} placeholder="1만원대" /></label>
+            <label>가게 강점 <small>선택</small><input value={extra.strength ?? ""} onChange={(event) => updateExtra("strength", event.target.value)} placeholder="직접 만든 소스" /></label>
+          </div>
+        </details>}
         {chatbotType === "consultant" && <p className="generation-note">등록된 가게 정보와 상권 데이터를 바탕으로 상담을 시작합니다. 필요한 정보는 대화 중에 추가로 질문할게요.</p>}
         <button className="primary" disabled={busy}>{busy ? "확인 중…" : "예상 사용량 확인"}</button>
       </form>
