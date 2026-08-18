@@ -132,8 +132,8 @@ class GenerateExtra(StrictModel):
     clarification: str | None = Field(default=None, max_length=500)
 
 
-class GenerateRequest(StrictModel):
-    """Frontend가 Service에 보내는 생성 요청."""
+class GenerateEstimateRequest(StrictModel):
+    """Frontend가 생성 전 Estimate에 보내는 요청."""
 
     chatbot_type: ChatbotType
     question: str = Field(min_length=1, max_length=2_000)
@@ -142,13 +142,19 @@ class GenerateRequest(StrictModel):
     source_gen_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
-    def validate_platform(self) -> "GenerateRequest":
+    def validate_platform(self) -> "GenerateEstimateRequest":
         """챗봇 종류에 따라 플랫폼 사용 여부를 검증합니다."""
         if self.chatbot_type == "basic" and self.platform is None:
             raise ValueError("Basic 요청에는 platform이 필요합니다.")
         if self.chatbot_type == "consultant" and self.platform is not None:
             raise ValueError("Consultant 요청은 platform을 사용하지 않습니다.")
         return self
+
+
+class GenerateRequest(GenerateEstimateRequest):
+    """실제 생성 요청. Estimate 이후 사용자가 승인한 Credit 상한을 포함합니다."""
+
+    max_accepted_credits: int = Field(ge=0)
 
 
 class GenerateEstimateResponse(StrictModel):
