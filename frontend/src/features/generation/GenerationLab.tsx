@@ -72,6 +72,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     : ["우리 가게 매출을 늘리려면?", "주변 경쟁 가게와 차별화하려면?", "이번 달 프로모션 아이디어가 필요해"];
 
   function updateExtra(key: keyof GenerateExtra, value: string) {
+    setPending(null);
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
@@ -80,6 +81,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     if (busy) return;
     setBusy(true);
     setError(null);
+    setPending(null);
     setMessages([]);
     try {
       const payload = buildEstimatePayload(chatbotType, question, platform, extra);
@@ -117,7 +119,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
       <form className="card generation-card chat-generation-card" onSubmit={estimate}>
         <div className="chat-context-header"><span className="chat-avatar">AI</span><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <label>광고 형식
-          <select value={platform} onChange={(event) => setPlatform(event.target.value as Platform)}>
+          <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
             <option value="instagram">Instagram</option>
             <option value="banner">현수막</option>
           </select>
@@ -125,7 +127,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
         <label className="chat-composer-label">첫 메시지
           <textarea
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
+            onChange={(event) => { setPending(null); setQuestion(event.target.value); }}
             maxLength={2000}
             required
             placeholder={chatbotType === "basic" ? "예: 여름 신메뉴를 알리는 활기찬 광고를 만들어줘" : "예: 우리 카페의 매출을 늘리려면 어떻게 해야 할까요?"}
@@ -147,7 +149,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
 
       {error && <div className="error-banner wide" role="alert">{error}</div>}
       {pending && <EstimateCard estimate={pending.estimate} busy={busy} onGenerate={generate} />}
-      {generation && <ResultCards response={generation} onSuggestedChip={(chip) => { setQuestion(chip); setGeneration(null); setMessages([]); }} />}
+      {generation && <ResultCards response={generation} onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }} />}
       {generation && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
     </section>
   );
