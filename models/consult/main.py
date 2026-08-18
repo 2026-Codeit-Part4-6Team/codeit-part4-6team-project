@@ -14,12 +14,20 @@ import logging
 from models.basic.llm import classify_llm_error
 from models.consult.graph.build_consultant import build_consultant
 
+# strategy.py가 파싱 직후 쓰는 것과 동일한 검증 수준으로 title을 정규화한다 —
+# 조립 단계에서 따로 truthy만 확인하면 공백 문자열("   ")도 통과해버린다.
+from models.consult.nodes.strategy import normalize_title
+
 # suggested_chips 노드 자신의 폴백을 그대로 재사용한다 — 조립 단계에서 별도
 # 문구를 새로 만들면, 폴백이 노드 안/최종 조립 중 어디서 걸리느냐에 따라
 # 사용자가 다른 질문을 보게 된다.
 from models.consult.nodes.suggested_chips import _FALLBACK_CHIPS
 
 logger = logging.getLogger(__name__)
+
+# ErrorResult.reason이 허용하는 4종(backend/schemas.py) — 이 밖의 값이 issues에
+# 담겨 있어도 그대로 흘려보내지 않고 unknown으로 정규화한다.
+_VALID_ERROR_REASONS = {"timeout", "rate_limit", "provider_error", "unknown"}
 
 
 def run(request: dict) -> dict:
@@ -41,8 +49,10 @@ def run(request: dict) -> dict:
         }
         final_state = build_consultant().invoke(initial_state)
         return assemble_response(final_state)
-    except Exception as exc:  # noqa: BLE001 — 어떤 실패든 ErrorResult 계약으로 변환한다
-        logger.warning("컨설턴트 파이프라인 실행 실패: %s", exc)
+    except Exception as exc:
+        # warning()은 exc의 문자열만 남겨 실제 버그의 호출 경로(traceback)가 사라진다 —
+        # exception()으로 전체 traceback을 남겨야 나중에 원인을 추적할 수 있다.
+        logger.exception("컨설턴트 파이프라인 실행 실패")
         return {
             "status": "error",
             "reason": classify_llm_error(exc),
@@ -70,10 +80,14 @@ def assemble_response(state: dict) -> dict:
         }
 
     if status == "error":
+        reason = last_issue.get("reason")
+        if reason not in _VALID_ERROR_REASONS:
+            # issues를 채우는 노드가 계약 enum 밖의 값을 실수로 넣어도, 그대로
+            # 흘려보내면 서비스 쪽 ErrorResult 검증이 그냥 실패한다(Codex 리뷰).
+            reason = "unknown"
         return {
             "status": "error",
-            # ErrorResult.reason은 timeout·rate_limit·provider_error·unknown 4종만 허용
-            "reason": last_issue.get("reason", "unknown"),
+            "reason": reason,
             "message": last_issue.get("message") or "전략 생성 중 오류가 발생했습니다.",
         }
 
@@ -95,8 +109,10 @@ def assemble_response(state: dict) -> dict:
 
     return {
         "status": "ok",
-        # title은 이력 목록 라벨이라 여기서 실패시키지 않고 폴백한다(D-179)
-        "title": (result.get("title") or f"{store_name} 마케팅 전략")[:100],
+        # title은 이력 목록 라벨이라 여기서 실패시키지 않고 폴백한다(D-179).
+        # [:100]은 계약 스키마상 강제되는 제약은 아니고(ConsultantModelResult.title엔
+        # max_length가 없다), 극단적으로 긴 제목이 그대로 나가지 않게 하는 자체 방어다.
+        "title": normalize_title(result.get("title"), store_name)[:100],
         # 그래프 state는 평면(summary·actions·reasons)인데, 계약은 strategy로 한 겹 감싼다
         "strategy": {
             "summary": result["summary"],
@@ -105,5 +121,7 @@ def assemble_response(state: dict) -> dict:
         "reasons": result["reasons"],
         "sources": state.get("sources") or ["가게정보"],
         "tokens_used": state.get("tokens_used", 0),
-        "suggested_chips": chips if len(chips) == 3 else _FALLBACK_CHIPS,
+        # _FALLBACK_CHIPS를 그대로 반환하면 호출한 쪽이 리스트를 변형했을 때 이후 모든
+        # 폴백 응답이 오염된다(Codex 리뷰) — 매번 새 리스트를 반환한다.
+        "suggested_chips": chips if len(chips) == 3 else list(_FALLBACK_CHIPS),
     }

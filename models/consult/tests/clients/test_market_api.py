@@ -46,18 +46,20 @@ _STORES = [
 
 
 def test_aggregate_without_industry_leaves_same_industry_fields_unknown() -> None:
-    result = aggregate(_STORES, total_count=3, industry=None, lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+    # total_count는 _STORES(현재 4곳)와 같은 수여야 한다 — API의 전체 건수가
+    # 반환된 현재 페이지 항목 수보다 작을 수는 없다(Codex 리뷰로 발견한 불가능한 fixture).
+    result = aggregate(_STORES, total_count=4, industry=None, lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
-    assert result["total_count"] == 3
+    assert result["total_count"] == 4
     assert result["same_industry_count"] is None
     assert result["nearest_distance_m"] is None
     assert result["industry_breakdown"] == {"카페": 2, "편의점": 1, "병원": 1}
 
 
 def test_aggregate_with_industry_counts_matches_and_nearest_distance() -> None:
-    result = aggregate(_STORES, total_count=3, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+    result = aggregate(_STORES, total_count=4, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
-    assert result["total_count"] == 3
+    assert result["total_count"] == 4
     assert result["same_industry_count"] == 2
     # 두 카페 중 더 가까운 쪽(약 14m)이 선택돼야 한다 — 느슨한 상한만 두면 0이나 1을 반환해도
     # 통과하므로, 실제 예상 거리 근방으로 좁게 검증한다.
@@ -72,7 +74,7 @@ def test_haversine_matches_known_distance_for_one_degree_latitude() -> None:
 
 
 def test_aggregate_with_industry_no_match_returns_zero_and_none_distance() -> None:
-    result = aggregate(_STORES, total_count=3, industry="미용실", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+    result = aggregate(_STORES, total_count=4, industry="미용실", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
     assert result["same_industry_count"] == 0
     assert result["nearest_distance_m"] is None
@@ -189,7 +191,7 @@ def test_aggregate_uses_matched_stores_when_given_instead_of_text_matching() -> 
 
     result = aggregate(
         _STORES,
-        total_count=3,
+        total_count=4,
         industry="카페",
         lat=_GANGNAM_LAT,
         lng=_GANGNAM_LNG,
@@ -197,7 +199,7 @@ def test_aggregate_uses_matched_stores_when_given_instead_of_text_matching() -> 
         matched_total_count=177,
     )
 
-    assert result["total_count"] == 3
+    assert result["total_count"] == 4
     assert result["same_industry_count"] == 177
     assert result["nearest_distance_m"] == pytest.approx(14, abs=3)
 

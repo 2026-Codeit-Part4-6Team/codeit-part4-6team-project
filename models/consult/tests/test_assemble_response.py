@@ -98,6 +98,38 @@ def test_error_reason_stays_inside_contract_enum():
     assert isinstance(result, ErrorResult)
 
 
+def test_error_reason_outside_enum_is_normalized_to_unknown():
+    """issues의 reason이 계약 enum 4종 밖이면 그대로 흘려보내지 않고 unknown으로
+    정규화한다 — 그대로 두면 서비스 쪽 ErrorResult 검증에서 그냥 실패한다(Codex 리뷰)."""
+    state = {
+        "status": "error",
+        "issues": [{"source": "self_check", "reason": "self_check_failed", "message": "실패"}],
+    }
+    response = assemble_response(state)
+
+    assert response["reason"] == "unknown"
+    MODEL_RESULT_ADAPTER.validate_python(response, chatbot_type="consultant")
+
+
+def test_whitespace_only_title_falls_back_instead_of_passing_through():
+    """title이 공백뿐이어도 그대로 통과시키지 않는다 — strategy.py의 title 검증
+    (타입+strip)과 조립 단계 검증 수준이 달랐던 문제(Codex 리뷰)."""
+    response = assemble_response(_ok_state(result={**_ok_state()["result"], "title": "   "}))
+
+    assert response["title"] == "카페 코드잇 마케팅 전략"
+
+
+def test_fallback_chips_are_not_the_shared_list_object():
+    """폴백 칩 리스트를 그대로 반환하면, 호출한 쪽이 리스트를 변형했을 때 이후 모든
+    폴백 응답이 오염된다(Codex 리뷰) — 매번 새 리스트를 반환해야 한다."""
+    response = assemble_response(_ok_state(suggested_chips=[]))
+    response["suggested_chips"].append("오염")
+
+    second_response = assemble_response(_ok_state(suggested_chips=[]))
+
+    assert "오염" not in second_response["suggested_chips"]
+
+
 def test_empty_result_is_converted_to_error_not_ok():
     """전략이 비었는데 ok로 내보내면 계약이 깨진다."""
     response = assemble_response({"store": _STORE, "result": {}})
