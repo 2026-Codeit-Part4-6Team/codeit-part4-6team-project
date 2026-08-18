@@ -1,5 +1,12 @@
 import type { GenerationResponse } from "../../api";
 
+const actionMeta: Record<string, { label: string; icon: string }> = {
+  menu: { label: "메뉴 구성", icon: "✦" },
+  promotion: { label: "프로모션", icon: "↗" },
+  target: { label: "타깃 고객", icon: "◎" },
+  other: { label: "추가 제안", icon: "＋" },
+};
+
 export function ResultCards({ response, onSuggestedChip }: { response: GenerationResponse; onSuggestedChip?: (chip: string) => void }) {
   const result = response.result ?? {};
   const title = typeof result.title === "string" ? result.title : "생성 결과";
@@ -32,10 +39,10 @@ export function ResultCards({ response, onSuggestedChip }: { response: Generatio
         </div>
       ) : (
         <article className="card strategy-card">
-          <p>{strategy?.summary ?? "전략 요약이 없습니다."}</p>
-          <ul>{strategy?.actions?.map((action, index) => <li key={index}><b>{action.type}</b> {action.content}</li>)}</ul>
-          {reasons.length > 0 && <div className="result-subsection"><h3>이렇게 제안한 이유</h3><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
-          {sources.length > 0 && <div className="result-subsection"><h3>참고 근거</h3><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></div>}
+          <p className="strategy-summary">{strategy?.summary ?? "전략 요약이 없습니다."}</p>
+          <div className="strategy-actions">{strategy?.actions?.map((action, index) => { const meta = actionMeta[action.type ?? "other"] ?? actionMeta.other; return <article className="strategy-action" key={index}><div className="strategy-action-icon">{meta.icon}</div><div><span>{String(index + 1).padStart(2, "0")} · {meta.label}</span><p>{action.content}</p></div></article>; })}</div>
+          {reasons.length > 0 && <details className="result-details"><summary>이렇게 제안한 이유 <span>{reasons.length}</span></summary><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details>}
+          {sources.length > 0 && <details className="result-details"><summary>참고 근거 <span>{sources.length}</span></summary><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></details>}
           {suggestedChips.length > 0 && <div className="suggested-chips">{suggestedChips.slice(0, 3).map((chip) => <button type="button" key={chip} onClick={() => onSuggestedChip?.(chip)}>{chip}</button>)}</div>}
         </article>
       )}
