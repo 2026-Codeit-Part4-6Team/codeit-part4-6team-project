@@ -9,6 +9,9 @@ def benchmark_node(state: BasicState) -> dict:
     results = search_benchmark(query, k=3)
 
     context = {**state.get("context", {})}
-    context["benchmark"] = str(results) if results else None
+    if results:
+        examples = "; ".join(r["copy"] for r in results)
+        context["benchmark"] = f"업종 벤치마크 카피 예시: {examples}"
+    else:
+        context["benchmark"] = None
     return {"context": context}
-    # search_benchmark() 실제 구현 후, 반환 형식(리스트/딕셔너리)에 맞춰 카피용 문장으로 재요약 필요

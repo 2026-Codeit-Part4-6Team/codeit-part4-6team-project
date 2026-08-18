@@ -23,6 +23,7 @@ def _fake_call_llm(system: str, user: str, json_mode: bool = False) -> tuple[str
     payload = json.loads(user)
 
     if "카피라이터" in system:
+        assert payload.get("benchmark") is not None, "benchmark 컨텍스트가 copy_gen에 전달되지 않았습니다."
         content = json.dumps(
             {
                 "candidates": [
