@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 # ErrorResult.reason이 허용하는 4종(backend/schemas.py) — 이 밖의 값이 issues에
 # 담겨 있어도 그대로 흘려보내지 않고 unknown으로 정규화한다.
 _VALID_ERROR_REASONS = {"timeout", "rate_limit", "provider_error", "unknown"}
+# BlockedResult.action이 허용하는 3종(backend/schemas.py) — error.reason과 같은
+# 이유로 정규화한다.
+_VALID_BLOCKED_ACTIONS = {"block", "reask", "warn"}
 
 
 def run(request: dict) -> dict:
@@ -71,9 +74,12 @@ def assemble_response(state: dict) -> dict:
     last_issue = (state.get("issues") or [{}])[-1]
 
     if status == "blocked":
+        action = last_issue.get("action")
+        if action not in _VALID_BLOCKED_ACTIONS:
+            action = "block"
         return {
             "status": "blocked",
-            "action": last_issue.get("action", "block"),
+            "action": action,
             "reason": last_issue.get("reason", "policy_blocked"),
             # message는 min_length=1이라 빈 문자열이면 계약 위반이다
             "message": last_issue.get("message") or "요청을 처리할 수 없습니다.",

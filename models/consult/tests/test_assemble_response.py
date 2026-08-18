@@ -98,6 +98,20 @@ def test_error_reason_stays_inside_contract_enum():
     assert isinstance(result, ErrorResult)
 
 
+def test_blocked_action_outside_enum_is_normalized_to_block():
+    """issues의 action이 계약 enum 3종(block/reask/warn) 밖이면 그대로 흘려보내지
+    않고 block으로 정규화한다 — error.reason과 같은 종류의 결함(Codex 리뷰 후속 점검)."""
+    state = {
+        "status": "blocked",
+        "issues": [{"source": "input", "action": "reject",
+                    "reason": "illegal_or_injection", "message": "차단됨"}],
+    }
+    response = assemble_response(state)
+
+    assert response["action"] == "block"
+    MODEL_RESULT_ADAPTER.validate_python(response, chatbot_type="consultant")
+
+
 def test_error_reason_outside_enum_is_normalized_to_unknown():
     """issues의 reason이 계약 enum 4종 밖이면 그대로 흘려보내지 않고 unknown으로
     정규화한다 — 그대로 두면 서비스 쪽 ErrorResult 검증에서 그냥 실패한다(Codex 리뷰)."""
