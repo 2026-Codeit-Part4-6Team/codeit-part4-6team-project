@@ -25,7 +25,14 @@ def _load_clip():
 def _clip_score(image, text: str) -> float:
     """이미지와 텍스트 간 CLIP 코사인 유사도 점수를 계산한다."""
     model, processor = _load_clip()
-    inputs = processor(text=[text], images=image, return_tensors="pt", padding=True)
+    inputs = processor(
+        text=[text],
+        images=image,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=77,
+    )
     with torch.no_grad():
         outputs = model(**inputs)
     image_embeds = outputs.image_embeds / outputs.image_embeds.norm(
@@ -38,11 +45,12 @@ def _clip_score(image, text: str) -> float:
 def image_review_node(state: BasicState) -> dict:
     """생성된 이미지를 디코딩해 CLIP 적합도 점수를 기록한다.
 
-    MVP 정책: 이미지가 없거나 CLIP 점수가 낮아도 차단하지 않는다(CLIP Score는
-    현재 개발용 평가 지표일 뿐 — FR-13b). 디코딩 자체가 전부 실패한 경우만
-    실제 처리 오류로 보고 재생성을 요청한다.
+    MVP 정책: 이미지가 없거나 CLIP 점수가 낮아도 차단하지 않는다. 
+    디코딩 자체가 전부 실패한 경우만 실제 처리 오류로 보고 재생성을 요청한다. 
+    CLIP 점수는 ranked_copies 항목에는붙이지 않고, image_review_result에 리스트로만 남긴다.
     """
     reviewed = []
+    clip_scores = []
     has_copy_count = 0
     decode_fail_count = 0
 
@@ -76,18 +84,19 @@ def image_review_node(state: BasicState) -> dict:
             )
             continue
 
-        reviewed.append({**c, "clip_score": score})
+        clip_scores.append(score)
+        reviewed.append(c)
 
     all_decode_failed = has_copy_count > 0 and decode_fail_count == has_copy_count
 
     if all_decode_failed:
         return {
             "ranked_copies": reviewed,
-            "image_review_result": {"action": "reject"},
+            "image_review_result": {"action": "reject", "clip_scores": clip_scores},
             "image_retry_count": state.get("image_retry_count", 0) + 1,
         }
 
     return {
         "ranked_copies": reviewed,
-        "image_review_result": {"action": "pass"},
+        "image_review_result": {"action": "pass", "clip_scores": clip_scores},
     }
