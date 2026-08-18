@@ -12,10 +12,25 @@ describe("generation contract", () => {
       chatbot_type: "basic",
       question: "여름 음료 광고",
       platform: "instagram",
+      extra: {
+        purpose: null,
+        price_range: null,
+        target_age: null,
+        strength: null,
+        clarification: null,
+      },
     });
     expect(buildEstimatePayload("consultant", "상권 전략", "banner")).toEqual({
       chatbot_type: "consultant",
       question: "상권 전략",
+      platform: null,
+      extra: {
+        purpose: null,
+        price_range: null,
+        target_age: null,
+        strength: null,
+        clarification: null,
+      },
     });
   });
 

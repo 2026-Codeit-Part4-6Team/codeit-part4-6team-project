@@ -1,6 +1,6 @@
 import type { GenerationResponse } from "../../api";
 
-export function ResultCards({ response }: { response: GenerationResponse }) {
+export function ResultCards({ response, onSuggestedChip }: { response: GenerationResponse; onSuggestedChip?: (chip: string) => void }) {
   const result = response.result ?? {};
   const title = typeof result.title === "string" ? result.title : "생성 결과";
   const proposals = Array.isArray(result.proposals) ? result.proposals : [];
@@ -8,6 +8,9 @@ export function ResultCards({ response }: { response: GenerationResponse }) {
     typeof result.strategy === "object" && result.strategy !== null
       ? (result.strategy as { summary?: string; actions?: Array<{ type?: string; content?: string }> })
       : null;
+  const reasons = Array.isArray(result.reasons) ? result.reasons.filter((item): item is string => typeof item === "string") : [];
+  const sources = Array.isArray(result.sources) ? result.sources.filter((item): item is string => typeof item === "string") : [];
+  const suggestedChips = Array.isArray(result.suggested_chips) ? result.suggested_chips.filter((item): item is string => typeof item === "string") : [];
 
   return (
     <section className="result-section">
@@ -31,6 +34,9 @@ export function ResultCards({ response }: { response: GenerationResponse }) {
         <article className="card strategy-card">
           <p>{strategy?.summary ?? "전략 요약이 없습니다."}</p>
           <ul>{strategy?.actions?.map((action, index) => <li key={index}><b>{action.type}</b> {action.content}</li>)}</ul>
+          {reasons.length > 0 && <div className="result-subsection"><h3>이렇게 제안한 이유</h3><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
+          {sources.length > 0 && <div className="result-subsection"><h3>참고 근거</h3><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></div>}
+          {suggestedChips.length > 0 && <div className="suggested-chips">{suggestedChips.slice(0, 3).map((chip) => <button type="button" key={chip} onClick={() => onSuggestedChip?.(chip)}>{chip}</button>)}</div>}
         </article>
       )}
     </section>

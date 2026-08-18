@@ -297,6 +297,10 @@ select:focus-visible {
   color: #252143;
 }
 .generation-card textarea { min-height: 150px; resize: vertical; }
+.generation-note { margin: -4px 0 0; padding: 14px 16px; border-radius: 12px; background: #f0edf8; color: #625b7b; line-height: 1.55; }
+.quick-prompts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -6px; }
+.quick-prompts button { border: 1px solid rgba(61, 52, 165, .25); border-radius: 999px; padding: 9px 12px; background: #fff; color: var(--primary); font-size: .82rem; text-align: left; }
+.quick-prompts button:hover { border-color: var(--primary); background: #f0edf8; }
 .type-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 5px; border-radius: 14px; background: #f0edf8; }
 .type-switch button { border: 0; border-radius: 10px; padding: 12px; background: transparent; color: #625b7b; font-weight: 750; }
 .type-switch button.active { background: #fff; color: var(--primary); box-shadow: 0 5px 16px rgba(37, 33, 67, 0.1); }
@@ -311,6 +315,11 @@ select:focus-visible {
 .proposal span { color: var(--primary); font-size: 13px; font-weight: 800; }
 .proposal p { margin-top: 26px; line-height: 1.7; }
 .strategy-card { padding: 28px; line-height: 1.7; }
+.result-subsection { margin-top: 24px; padding-top: 18px; border-top: 1px solid #eeeae3; }
+.result-subsection h3 { margin-bottom: 8px; font-size: 0.95rem; }
+.result-subsection ul { margin: 0; padding-left: 20px; }
+.suggested-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.suggested-chips button { border: 1px solid rgba(61, 52, 165, .3); border-radius: 999px; padding: 9px 13px; background: #fff; color: var(--primary); font-size: 0.82rem; }
 
 .placeholder-page { width: min(100%, 680px); margin: 0 auto; padding-top: clamp(90px, 18vh, 190px); text-align: center; }
 .placeholder-page h1 { margin-bottom: 16px; font-size: clamp(34px, 4vw, 54px); }
@@ -374,6 +383,78 @@ select:focus-visible {
   .estimate-card,
   .section-heading { align-items: stretch; flex-direction: column; }
   .proposal-grid { grid-template-columns: 1fr; }
+}
+
+/* Storyboard account surfaces */
+.account-page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 72px clamp(28px, 5vw, 78px) 90px;
+}
+.back-link {
+  margin-bottom: 30px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 750;
+}
+.page-heading { margin-bottom: 42px; }
+.page-heading h1 { max-width: 720px; margin-bottom: 14px; }
+.page-heading > p:last-child { color: var(--muted); line-height: 1.7; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; }
+.stat-card { display: grid; gap: 12px; padding: 20px; border-radius: 16px; background: var(--sidebar-card); color: #fff; }
+.stat-card span { color: #c9c5dd; font-size: 0.82rem; }
+.stat-card strong { color: var(--usage); font-size: 1.8rem; }
+.history-card, .settings-card { padding: 28px; }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.section-heading h2 { margin-bottom: 10px; }
+.muted { color: var(--muted); font-size: 0.8rem; }
+.history-list { display: grid; margin-top: 8px; }
+.history-row, .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 0; border-top: 1px solid #eeeae3; }
+.history-row > div:first-child { display: grid; gap: 5px; }
+.history-row span, .history-row small { color: var(--muted); font-size: 0.8rem; }
+.history-row > div:last-child { display: flex; align-items: center; gap: 14px; }
+.status-chip { padding: 7px 10px; border-radius: 999px; background: #e9f8f0; color: #20734f !important; font-size: 0.75rem !important; }
+.settings-stack { display: grid; gap: 18px; max-width: 800px; }
+.settings-card > div:first-child p:last-child, .settings-card > p:not(.kicker) { color: var(--muted); line-height: 1.6; }
+.settings-model-card { border-top: 5px solid var(--accent); }
+.model-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0 18px; }
+.model-options button { min-height: 142px; display: grid; align-content: start; gap: 7px; padding: 18px; border: 1px solid #d8d3ca; border-radius: 16px; background: #fdfbf7; color: #18171d; text-align: left; transition: border-color .18s ease, background .18s ease, color .18s ease; }
+.model-options button:hover { border-color: var(--primary); }
+.model-options button.selected { border-color: var(--sidebar-card); background: var(--sidebar-card); color: #fff; box-shadow: 0 10px 24px rgba(37, 33, 67, .16); }
+.model-options button span { color: var(--primary); font-size: 1.3rem; }
+.model-options button.selected span { color: var(--accent); }
+.model-options button small { color: var(--muted); line-height: 1.45; }
+.model-options button.selected small { color: #d6d1e6; }
+.settings-save { width: fit-content; }
+.saved-note { color: #20734f !important; font-size: 0.82rem; }
+.muted-settings { background: rgba(255, 255, 255, .58); box-shadow: none; }
+.coming-soon { color: var(--muted); font-size: 0.8rem; }
+.extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.extra-grid label { font-size: 0.9rem; }
+.extra-grid input { min-height: 48px; padding: 11px 14px; }
+.follow-up-card { max-width: 900px; margin-top: 26px; padding: 28px; }
+.follow-up-card > div:first-child p:last-child { color: var(--muted); line-height: 1.6; }
+.message-list { display: grid; gap: 10px; margin: 18px 0; }
+.message { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; line-height: 1.5; }
+.message.user { background: #eeeafd; }
+.message.assistant { background: var(--canvas); }
+.message span { color: var(--primary); font-size: 0.75rem; font-weight: 900; }
+.message p { margin: 0; }
+.follow-up-form { display: flex; gap: 10px; }
+.follow-up-form input { min-width: 0; flex: 1; min-height: 50px; }
+
+@media (max-width: 900px) {
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .account-page { padding: 42px 20px 60px; }
+  .summary-grid, .model-options { grid-template-columns: 1fr; }
+  .section-heading, .history-row { align-items: stretch; flex-direction: column; }
+  .history-row > div:last-child { justify-content: space-between; width: 100%; }
+  .extra-grid, .follow-up-form { grid-template-columns: 1fr; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

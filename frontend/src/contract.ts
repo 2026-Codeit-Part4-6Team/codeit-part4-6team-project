@@ -1,10 +1,18 @@
 export type ChatbotType = "basic" | "consultant";
 export type Platform = "instagram" | "banner";
+export type GenerateExtra = {
+  purpose: string | null;
+  price_range: string | null;
+  target_age: string | null;
+  strength: string | null;
+  clarification: string | null;
+};
 
 export type EstimatePayload = {
   chatbot_type: ChatbotType;
   question: string;
-  platform?: Platform;
+  platform?: Platform | null;
+  extra?: GenerateExtra;
 };
 
 export type GeneratePayload = EstimatePayload & {
@@ -24,6 +32,7 @@ export function buildEstimatePayload(
   chatbotType: ChatbotType,
   question: string,
   platform: Platform,
+  extra: Partial<GenerateExtra> = {},
 ): EstimatePayload {
   const normalizedQuestion = question.trim();
   if (!normalizedQuestion) {
@@ -32,10 +41,15 @@ export function buildEstimatePayload(
   const payload: EstimatePayload = {
     chatbot_type: chatbotType,
     question: normalizedQuestion,
+    extra: {
+      purpose: extra.purpose ?? null,
+      price_range: extra.price_range ?? null,
+      target_age: extra.target_age ?? null,
+      strength: extra.strength ?? null,
+      clarification: extra.clarification ?? null,
+    },
   };
-  if (chatbotType === "basic") {
-    payload.platform = platform;
-  }
+  payload.platform = chatbotType === "basic" ? platform : null;
   return payload;
 }
 

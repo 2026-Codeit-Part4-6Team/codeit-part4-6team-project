@@ -4,6 +4,8 @@ import { DashboardHome } from "./components/DashboardHome";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { PlaceholderPage } from "./components/PlaceholderPage";
 import { GenerationLab } from "./features/generation/GenerationLab";
+import { MyPage } from "./components/MyPage";
+import { SettingsPage } from "./components/SettingsPage";
 
 type ProtectedRouteViewProps = {
   api: ApiClient;
@@ -20,21 +22,11 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: P
   } else if (route === "basic_chatbot") {
     content = <GenerationLab api={api} />;
   } else if (route === "consultant_chatbot") {
-    content = (
-      <PlaceholderPage
-        title="컨설턴트 챗봇"
-        description="화면 진입 경로가 준비되었습니다. 실제 상담 기능은 다음 구현 단계에서 연결됩니다."
-        onBack={() => onNavigate("dashboard")}
-      />
-    );
+    content = <GenerationLab api={api} chatbotType="consultant" />;
   } else if (route === "mypage") {
-    content = (
-      <PlaceholderPage
-        title="마이페이지"
-        description="마이페이지는 D9 범위입니다. 현재는 대시보드에서 계정 요약을 확인할 수 있습니다."
-        onBack={() => onNavigate("dashboard")}
-      />
-    );
+    content = <MyPage user={user} onBack={() => onNavigate("dashboard")} />;
+  } else if (route === "settings") {
+    content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
   } else {
     content = (
       <PlaceholderPage

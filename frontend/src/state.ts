@@ -6,6 +6,26 @@ import {
   type GeneratePayload,
 } from "./contract";
 
+export type FollowUpMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
+
+export function createFollowUpMessage(
+  role: FollowUpMessage["role"],
+  content: string,
+  id: string,
+): FollowUpMessage {
+  return { id, role, content };
+}
+
+export function mockFollowUpReply(input: string): string {
+  const normalizedInput = input.trim();
+  if (!normalizedInput) return "추가 요청을 입력해 주세요.";
+  return `요청하신 내용(${normalizedInput})을 반영한 시안으로 다시 준비해볼게요.`;
+}
+
 export type PendingGeneration = {
   estimatePayload: EstimatePayload;
   estimate: EstimateResponse;

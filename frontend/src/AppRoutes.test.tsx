@@ -22,7 +22,7 @@ const user: UserResponse = {
   daily_free_remaining: 7,
 };
 
-function renderRoute(route: "dashboard" | "basic_chatbot" | "consultant_chatbot") {
+function renderRoute(route: "dashboard" | "basic_chatbot" | "consultant_chatbot" | "mypage" | "billing" | "settings") {
   return renderToStaticMarkup(
     <ProtectedRouteView
       api={new ApiClient()}
@@ -42,12 +42,24 @@ describe("D5 protected routes", () => {
   it("preserves the connected estimate and generation form behind 게시물 생성", () => {
     const html = renderRoute("basic_chatbot");
     expect(html).toContain("예상 사용량 확인");
-    expect(html).toContain("무엇을 만들까요?");
+    expect(html).toContain("첫 메시지");
+    expect(html).toContain("첫 메시지");
+    expect(html).not.toContain("상권 컨설팅");
   });
 
-  it("keeps the consultant route as a D5 placeholder", () => {
+  it("renders the consultant input surface without a platform selector", () => {
     const html = renderRoute("consultant_chatbot");
-    expect(html).toContain("컨설턴트 챗봇");
-    expect(html).toContain("다음 구현 단계에서 연결됩니다.");
+    expect(html).toContain("상권 컨설팅");
+    expect(html).toContain("등록된 가게 정보와 상권 데이터를 바탕으로 상담을 시작합니다.");
+    expect(html).toContain("우리 가게 매출을 늘리려면?");
+    expect(html).not.toContain("광고 목적");
+    expect(html).not.toContain("광고 형식");
+  });
+
+  it("renders the storyboard account surfaces", () => {
+    expect(renderRoute("mypage")).toContain("최근 생성 기록");
+    expect(renderRoute("settings")).toContain("사용할 AI 모델");
+    expect(renderRoute("settings")).toContain("GPT");
+    expect(renderRoute("settings")).toContain("Claude");
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { apiErrorMessage, createPendingGeneration, generationPayload } from "./state";
+import { apiErrorMessage, createFollowUpMessage, createPendingGeneration, generationPayload, mockFollowUpReply } from "./state";
 
 describe("generation state", () => {
   it("reuses its key and accepts estimated paid credits", () => {
@@ -28,5 +28,14 @@ describe("generation state", () => {
     expect(apiErrorMessage(503, {})).toBe(
       "서버 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.",
     );
+  });
+
+  it("creates follow-up messages for the generation conversation", () => {
+    expect(createFollowUpMessage("user", "더 캐주얼하게", "m1")).toEqual({
+      id: "m1",
+      role: "user",
+      content: "더 캐주얼하게",
+    });
+    expect(mockFollowUpReply("20대 대상으로 바꿔줘")).toContain("20대");
   });
 });

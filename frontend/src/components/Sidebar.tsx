@@ -100,6 +100,11 @@ export function Sidebar({ user, route, open, onClose, onNavigate, onLogout }: Si
           currentRoute={route}
           onSelect={selectRoute}
         />
+        <NavigationButton
+          item={{ route: "settings", label: "환경설정", icon: "/assets/settings.svg" }}
+          currentRoute={route}
+          onSelect={selectRoute}
+        />
         <button type="button" className="sidebar-nav-item" onClick={onLogout}>
           <img src="/assets/logout.svg" alt="" aria-hidden="true" />
           <span>로그아웃</span>
