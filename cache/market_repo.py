@@ -8,10 +8,9 @@ from cache.db import SessionLocal
 from cache.models import MarketCache
 from cache.ttl import expired
 from models.consult.clients.market_api import aggregate, fetch_raw
+from models.consult.config import CACHE_TTL_MARKET_DAYS
 
 logger = logging.getLogger(__name__)
-
-_TTL_DAYS = 7
 
 
 def get_market(
@@ -59,7 +58,7 @@ def _read_cache(round_lat: float, round_lng: float, radius: int) -> dict | None:
                 .order_by(MarketCache.created_at.desc())
                 .first()
             )
-            if row and not expired(row.created_at, days=_TTL_DAYS):
+            if row and not expired(row.created_at, days=CACHE_TTL_MARKET_DAYS):
                 parsed = _parse_cached_payload(row.result_json)
                 if parsed is not None:
                     logger.info("market cache hit (%s)", key)
