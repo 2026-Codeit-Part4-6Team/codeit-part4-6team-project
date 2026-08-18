@@ -1,4 +1,5 @@
 import base64
+from unittest.mock import patch
 
 from models.basic.nodes.image_review import image_review_node
 
@@ -54,3 +55,19 @@ def test_partial_decode_failure_still_passes():
     result = image_review_node(state)
 
     assert result["image_review_result"]["action"] == "pass"
+
+@patch("models.basic.nodes.image_review._clip_score")
+def test_clip_score_uses_matching_image_prompt_by_index(mock_clip_score):
+    mock_clip_score.return_value = 0.5
+    state = {
+        "ranked_copies": [
+            {"copy": "카피1", "image_b64": _fake_png_b64()},
+            {"copy": "카피2", "image_b64": _fake_png_b64()},
+        ],
+        "image_prompts": ["카피1용 프롬프트", "카피2용 프롬프트"],
+    }
+
+    image_review_node(state)
+
+    calls = [call.args[1] for call in mock_clip_score.call_args_list]
+    assert calls == ["카피1용 프롬프트", "카피2용 프롬프트"]

@@ -143,3 +143,47 @@ def test_partial_block_replaces_blocked_copy_with_placeholder_slot(
         },
     }
     assert result["validation"]["regulation"]["action"] == "pass"
+
+@patch("models.basic.nodes.regulation_node.check_regulation")
+def test_passed_copy_does_not_leak_internal_regulation_key(mock_check_regulation):
+    mock_check_regulation.return_value = {
+        "action": "pass", "law": "", "reason": "", "alternative": "", "message": "",
+    }
+    state = {
+        "ranked_copies": [{"copy": "정상 카피", "score": 4.5}],
+        "validation": {},
+        "issues": [],
+    }
+
+    result = regulation_node(state)
+
+    assert "regulation" not in result["ranked_copies"][0]
+
+
+@patch("models.basic.nodes.regulation_node.check_regulation")
+def test_middle_item_blocked_stays_in_original_rank_position(mock_check_regulation):
+    """차단된 항목이 배열 끝으로 밀리지 않고 원래 순위 자리를 유지해야 한다
+    (사용자에게 점수순 A·B·C가 아니라 A·C·B로 보이는 버그 회귀 방지)."""
+    mock_check_regulation.side_effect = [
+        {"action": "pass", "law": "", "reason": "", "alternative": "", "message": ""},
+        {
+            "action": "block",
+            "reason": "exaggeration",
+            "message": "과장 광고 표현입니다.",
+        },
+        {"action": "pass", "law": "", "reason": "", "alternative": "", "message": ""},
+    ]
+    state = {
+        "ranked_copies": [
+            {"copy": "A", "score": 4.8},
+            {"copy": "B", "score": 4.2},
+            {"copy": "C", "score": 3.9},
+        ],
+        "validation": {},
+        "issues": [],
+    }
+
+    result = regulation_node(state)
+
+    assert [c["copy"] for c in result["ranked_copies"]] == ["A", None, "C"]
+    assert result["ranked_copies"][1]["error"]["reason"] == "content_policy"
