@@ -7,6 +7,8 @@ const actionMeta: Record<string, { label: string; visual: string }> = {
   other: { label: "추가 제안", visual: "＋" },
 };
 
+// 모델 enum은 사용자 문구가 아니므로 카드에서는 한국어 라벨과 시각 요소로 변환한다.
+
 export function ResultCards({ response, onSuggestedChip }: { response: GenerationResponse; onSuggestedChip?: (chip: string) => void }) {
   const result = response.result ?? {};
   const title = typeof result.title === "string" ? result.title : "생성 결과";

@@ -8,6 +8,8 @@ const models: Array<{ id: ModelId; name: string; detail: string }> = [
   { id: "pending", name: "모델 설정 준비 중", detail: "제공 모델 확정 후 선택 항목을 갱신합니다" },
 ];
 
+// 제공 Provider가 확정되기 전까지는 실제 업체명을 UI 계약으로 고정하지 않는다.
+
 export function SettingsPage({ onBack }: { onBack: () => void }) {
   const [modelType, setModelType] = useState<ModelId>("service_basic");
   const [saved, setSaved] = useState(false);

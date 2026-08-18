@@ -84,6 +84,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     setPending(null);
     setMessages([]);
     try {
+      // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
       const payload = buildEstimatePayload(chatbotType, question, platform, extra);
       const response = await api.estimate(payload);
       setPending(createPendingGeneration(payload, response, crypto.randomUUID()));

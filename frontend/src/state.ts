@@ -26,6 +26,7 @@ export function mockFollowUpReply(input: string): string {
   return `요청하신 내용(${normalizedInput})을 반영한 시안으로 다시 준비해볼게요.`;
 }
 
+/** Estimate 결과와 승인 key를 묶어 Generate 전까지 보관하는 상태다. */
 export type PendingGeneration = {
   estimatePayload: EstimatePayload;
   estimate: EstimateResponse;
