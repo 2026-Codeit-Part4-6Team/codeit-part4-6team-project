@@ -29,8 +29,9 @@ export function ResultCards({ response, onSuggestedChip }: { response: Generatio
       </div>
       {response.chatbot_type === "basic" ? (
         <div className="proposal-grid">
-          {proposals.map((raw, index) => {
-            const proposal = raw as { copy?: string | null; image_b64?: string | null; error?: { message?: string } | null };
+          {Array.from({ length: 3 }, (_, index) => {
+            const raw = proposals[index];
+            const proposal = (raw ?? {}) as { copy?: string | null; image_b64?: string | null; error?: { message?: string } | null };
             return (
               <article className="card proposal" key={index}>
                 <div className="proposal-visual">{proposal.image_b64 ? <img className="proposal-image" src={`data:image/png;base64,${proposal.image_b64}`} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>

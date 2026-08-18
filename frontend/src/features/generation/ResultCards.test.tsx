@@ -4,6 +4,24 @@ import { describe, expect, it } from "vitest";
 import { ResultCards } from "./ResultCards";
 
 describe("ResultCards", () => {
+  it("keeps three Basic proposal slots even when the response is partial", () => {
+    const html = renderToStaticMarkup(
+      <ResultCards
+        response={{
+          generation_id: 2,
+          status: "done",
+          chatbot_type: "basic",
+          result: { proposals: [{ copy: "첫 번째 제안" }] },
+          usage: { plan: "free", credits_used: 0 },
+        }}
+      />,
+    );
+
+    expect(html).toContain("제안 1");
+    expect(html).toContain("제안 2");
+    expect(html).toContain("제안 3");
+  });
+
   it("renders consultant actions as labeled strategy cards with collapsible evidence", () => {
     const html = renderToStaticMarkup(
       <ResultCards
