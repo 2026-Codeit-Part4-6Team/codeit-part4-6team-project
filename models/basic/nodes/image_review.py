@@ -45,16 +45,19 @@ def _clip_score(image, text: str) -> float:
 def image_review_node(state: BasicState) -> dict:
     """생성된 이미지를 디코딩해 CLIP 적합도 점수를 기록한다.
 
-    MVP 정책: 이미지가 없거나 CLIP 점수가 낮아도 차단하지 않는다. 
-    디코딩 자체가 전부 실패한 경우만 실제 처리 오류로 보고 재생성을 요청한다. 
-    CLIP 점수는 ranked_copies 항목에는붙이지 않고, image_review_result에 리스트로만 남긴다.
+    MVP 정책: 이미지가 없거나 CLIP 점수가 낮아도 차단하지 않는다. 디코딩 자체가
+    전부 실패한 경우만 실제 처리 오류로 보고 재생성을 요청한다. CLIP 점수는
+    ranked_copies 항목에는 붙이지 않고 image_review_result에 리스트로만
+    남긴다. image_prompt는 image_gen이 항목과 같은 순서로 넘겨준
+    image_prompts 리스트에서 인덱스로 짝을 맞춰 읽는다.
     """
     reviewed = []
     clip_scores = []
     has_copy_count = 0
     decode_fail_count = 0
+    prompts = state.get("image_prompts") or []
 
-    for c in state["ranked_copies"]:
+    for i, c in enumerate(state["ranked_copies"]):
         if not c.get("copy"):
             reviewed.append(c)
             continue
@@ -65,9 +68,12 @@ def image_review_node(state: BasicState) -> dict:
             reviewed.append(c)
             continue
 
+        prompt = prompts[i] if i < len(prompts) else None
+        text_for_clip = prompt or c["copy"]
+
         try:
             image = Image.open(io.BytesIO(base64.b64decode(c["image_b64"])))
-            score = _clip_score(image, c.get("image_prompt", c["copy"]))
+            score = _clip_score(image, text_for_clip)
         # BLE001 억제 사유: 디코딩/CLIP 추론 중 어떤 예외가 나든 해당 항목만 실패 처리
         except Exception:  # noqa: BLE001
             decode_fail_count += 1
