@@ -34,7 +34,10 @@ def suggested_chips(state: ConsultState) -> dict:
     missing_info = state.get("context", {}).get("question_analysis", {}).get("missing_info", [])
 
     raw, tokens = call_llm(
-        SYSTEM_PROMPT, build_user_prompt(question, store, missing_info), json_mode=True
+        SYSTEM_PROMPT,
+        build_user_prompt(question, store, missing_info),
+        json_mode=True,
+        deadline=state.get("deadline"),
     )
     chips = _parse_chips(raw)
 

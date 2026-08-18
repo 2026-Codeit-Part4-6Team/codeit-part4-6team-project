@@ -67,6 +67,18 @@ def test_requests_json_mode(mock_call_llm) -> None:
 
 
 @patch("models.consult.nodes.suggested_chips.call_llm")
+def test_passes_deadline_from_state_to_call_llm(mock_call_llm) -> None:
+    """security_input이 세팅한 state["deadline"]을 그대로 call_llm에 넘긴다(PM 리뷰, PR #93)."""
+    mock_call_llm.return_value = _response({"chips": _CHIPS})
+    state = _state()
+    state["deadline"] = 1234.5
+
+    suggested_chips(state)
+
+    assert mock_call_llm.call_args.kwargs.get("deadline") == 1234.5
+
+
+@patch("models.consult.nodes.suggested_chips.call_llm")
 def test_accumulates_tokens_used(mock_call_llm) -> None:
     mock_call_llm.return_value = _response({"chips": _CHIPS}, tokens=90)
 
