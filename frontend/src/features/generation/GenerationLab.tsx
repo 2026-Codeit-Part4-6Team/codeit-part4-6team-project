@@ -114,14 +114,15 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
         <p>{chatbotType === "basic" ? "구조화된 정보를 입력한 뒤 결과를 대화로 계속 다듬을 수 있습니다." : "가게와 상권에 대한 질문을 입력하고 다음 액션을 제안받아보세요."}</p>
       </div>
 
-      <form className="card generation-card" onSubmit={estimate}>
+      <form className="card generation-card chat-generation-card" onSubmit={estimate}>
+        <div className="chat-context-header"><span className="chat-avatar">AI</span><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <label>광고 형식
           <select value={platform} onChange={(event) => setPlatform(event.target.value as Platform)}>
             <option value="instagram">Instagram</option>
             <option value="banner">현수막</option>
           </select>
         </label>}
-        <label>첫 메시지
+        <label className="chat-composer-label">첫 메시지
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}

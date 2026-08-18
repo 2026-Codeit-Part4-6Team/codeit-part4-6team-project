@@ -286,6 +286,12 @@ select:focus-visible {
 .generation-heading h1 { margin-bottom: 12px; font-size: clamp(32px, 4vw, 52px); letter-spacing: -0.04em; }
 .generation-heading > p:last-child { max-width: 680px; color: #6d6884; line-height: 1.65; }
 .generation-card { padding: 30px; display: grid; gap: 20px; }
+.chat-generation-card { padding: 24px; gap: 18px; }
+.chat-context-header { display: flex; align-items: flex-start; gap: 13px; padding: 16px; border-radius: 14px; background: var(--sidebar-card); color: #fff; }
+.chat-context-header strong { display: block; margin-bottom: 5px; font-size: 1rem; }
+.chat-context-header p { margin: 0; color: #d6d1e6; font-size: .84rem; line-height: 1.5; }
+.chat-avatar { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 11px; background: var(--accent); color: #252143; font-size: .7rem; font-weight: 900; }
+.chat-composer-label textarea { min-height: 116px; border-color: rgba(61, 52, 165, .25); background: #fdfbf7; }
 .generation-card label { display: grid; gap: 8px; font-size: 15px; font-weight: 700; }
 .generation-card textarea,
 .generation-card select {
