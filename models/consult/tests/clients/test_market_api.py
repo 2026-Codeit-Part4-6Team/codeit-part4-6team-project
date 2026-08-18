@@ -35,6 +35,13 @@ _STORES = [
         "lat": 37.4982,
         "lon": 127.0278,
     },
+    {
+        "indsLclsNm": "의료",
+        "indsMclsNm": "병원",
+        "indsSclsNm": "일반병원",
+        "lat": 37.4983,
+        "lon": 127.0279,
+    },
 ]
 
 
@@ -44,7 +51,7 @@ def test_aggregate_without_industry_leaves_same_industry_fields_unknown() -> Non
     assert result["total_count"] == 3
     assert result["same_industry_count"] is None
     assert result["nearest_distance_m"] is None
-    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1}
+    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1, "병원": 1}
 
 
 def test_aggregate_with_industry_counts_matches_and_nearest_distance() -> None:
@@ -65,7 +72,7 @@ def test_haversine_matches_known_distance_for_one_degree_latitude() -> None:
 
 
 def test_aggregate_with_industry_no_match_returns_zero_and_none_distance() -> None:
-    result = aggregate(_STORES, total_count=3, industry="병원", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
+    result = aggregate(_STORES, total_count=3, industry="미용실", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
     assert result["same_industry_count"] == 0
     assert result["nearest_distance_m"] is None
@@ -77,7 +84,7 @@ def test_aggregate_ignores_store_with_non_string_industry_name() -> None:
 
     result = aggregate(stores, total_count=4, industry=None, lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
-    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1}
+    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1, "병원": 1}
 
 
 def test_aggregate_ignores_store_with_non_numeric_coordinates() -> None:
@@ -131,7 +138,7 @@ def test_aggregate_ignores_non_dict_items_in_stores() -> None:
     result = aggregate(stores, total_count=6, industry="카페", lat=_GANGNAM_LAT, lng=_GANGNAM_LNG)
 
     assert result["same_industry_count"] == 2
-    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1}
+    assert result["industry_breakdown"] == {"카페": 2, "편의점": 1, "병원": 1}
 
 
 def test_load_industry_code_map_returns_empty_when_file_missing(monkeypatch, tmp_path) -> None:
@@ -247,11 +254,11 @@ def test_fetch_falls_back_to_text_matching_when_industry_has_no_code_mapping(
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "header": {"resultCode": "00", "resultMsg": "NORMAL SERVICE"},
-        "body": {"items": _STORES, "totalCount": 3},
+        "body": {"items": _STORES, "totalCount": 4},
     }
     mock_get.return_value = mock_response
 
-    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="편의점")
+    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="병원")
 
     assert mock_get.call_count == 1
     assert result["same_industry_count"] == 1
@@ -293,7 +300,7 @@ def test_fetch_builds_request_and_returns_none_without_api_key(
 
 @patch("models.consult.clients.market_api.httpx.get")
 def test_fetch_parses_response_into_contract_shape(mock_get: MagicMock, monkeypatch) -> None:
-    """industry_code_for() 매핑이 없는 업종(편의점)을 써서 원본 파싱·텍스트 매칭 경로만
+    """industry_code_for() 매핑이 없는 업종(병원)을 써서 원본 파싱·텍스트 매칭 경로만
     검증한다 — 업종코드 필터 2회 호출 경로는 test_fetch_calls_code_filter_when_industry_has_mapping에서
     따로 검증한다."""
     monkeypatch.setenv("MARKET_API_KEY", "test-decoding-key")
@@ -302,16 +309,16 @@ def test_fetch_parses_response_into_contract_shape(mock_get: MagicMock, monkeypa
         "header": {"resultCode": "00", "resultMsg": "NORMAL SERVICE"},
         "body": {
             "items": _STORES,
-            "numOfRows": 3,
+            "numOfRows": 4,
             "pageNo": 1,
-            "totalCount": 3,
+            "totalCount": 4,
         },
     }
     mock_get.return_value = mock_response
 
-    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="편의점")
+    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="병원")
 
-    assert result["total_count"] == 3
+    assert result["total_count"] == 4
     assert result["same_industry_count"] == 1
 
     called_params = mock_get.call_args.kwargs["params"]
@@ -328,11 +335,11 @@ def test_fetch_ignores_non_dict_items_from_live_response(mock_get: MagicMock, mo
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "header": {"resultCode": "00", "resultMsg": "NORMAL SERVICE"},
-        "body": {"items": [*_STORES, None], "numOfRows": 4, "pageNo": 1, "totalCount": 4},
+        "body": {"items": [*_STORES, None], "numOfRows": 5, "pageNo": 1, "totalCount": 5},
     }
     mock_get.return_value = mock_response
 
-    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="편의점")
+    result = fetch(_GANGNAM_LAT, _GANGNAM_LNG, radius=500, industry="병원")
 
     assert result["same_industry_count"] == 1
 
