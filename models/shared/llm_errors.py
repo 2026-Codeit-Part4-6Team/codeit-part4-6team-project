@@ -1,5 +1,6 @@
 import openai
 
+
 def classify_llm_error(exc: Exception) -> str:
     """OpenAI 예외를 서비스 ErrorResult가 허용하는 reason
     (timeout/rate_limit/provider_error/unknown) 중 하나로 분류한다."""
