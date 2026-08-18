@@ -14,43 +14,40 @@ import logging
 from models.basic.llm import classify_llm_error
 from models.consult.graph.build_consultant import build_consultant
 
-logger = logging.getLogger(__name__)
+# suggested_chips 노드 자신의 폴백을 그대로 재사용한다 — 조립 단계에서 별도
+# 문구를 새로 만들면, 폴백이 노드 안/최종 조립 중 어디서 걸리느냐에 따라
+# 사용자가 다른 질문을 보게 된다.
+from models.consult.nodes.suggested_chips import _FALLBACK_CHIPS
 
-# suggested_chips는 계약상 정확히 3개라 조립 단계에서도 최종 방어한다
-_FALLBACK_CHIPS = [
-    "주변 경쟁사는 얼마나 되나요?",
-    "어떤 메뉴를 추가하면 좋을까요?",
-    "요즘 어떤 이벤트가 효과적일까요?",
-]
+logger = logging.getLogger(__name__)
 
 
 def run(request: dict) -> dict:
     """ModelRequest dict를 받아 ModelResult dict를 반환한다.
 
-    그래프가 예외를 던져도 서비스에는 항상 계약을 지키는 dict를 돌려준다 —
-    예외를 그대로 올리면 서비스가 ModelResult가 아닌 것을 받게 되어
-    ErrorResult(§6.6) 계약을 만족할 수 없다.
+    request 구성이나 그래프 실행, 응답 조립(assemble_response) 중 어디서
+    실패하든 서비스에는 항상 계약을 지키는 dict를 돌려준다 — 예외를 그대로
+    올리면 서비스가 ModelResult가 아닌 것을 받게 되어 ErrorResult(§6.6)
+    계약을 만족할 수 없다.
     """
-    initial_state = {
-        "chatbot_type": request["chatbot_type"],
-        "user_id": request["user_id"],
-        "question": request["question"],
-        "store": request["store"],
-        "extra": request.get("extra") or {},
-        "tokens_used": 0,
-    }
-
     try:
+        initial_state = {
+            "chatbot_type": request["chatbot_type"],
+            "user_id": request["user_id"],
+            "question": request["question"],
+            "store": request["store"],
+            "extra": request.get("extra") or {},
+            "tokens_used": 0,
+        }
         final_state = build_consultant().invoke(initial_state)
+        return assemble_response(final_state)
     except Exception as exc:  # noqa: BLE001 — 어떤 실패든 ErrorResult 계약으로 변환한다
-        logger.warning("컨설턴트 그래프 실행 실패: %s", exc)
+        logger.warning("컨설턴트 파이프라인 실행 실패: %s", exc)
         return {
             "status": "error",
             "reason": classify_llm_error(exc),
             "message": "전략 생성 중 오류가 발생했습니다.",
         }
-
-    return assemble_response(final_state)
 
 
 def assemble_response(state: dict) -> dict:
