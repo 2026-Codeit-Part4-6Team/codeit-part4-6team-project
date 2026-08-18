@@ -35,12 +35,14 @@ def test_successful_generation_attaches_image_b64_to_each_valid_copy(
         "base64imagedata",
         "base64imagedata",
     ]
-    assert all("image_prompt" in c for c in result["ranked_copies"])
+    assert all("image_prompt" not in c for c in result["ranked_copies"])
     assert result["image_results"] == [
         "base64imagedata",
         "base64imagedata",
         "base64imagedata",
     ]
+    assert len(result["image_prompts"]) == 3
+    assert all(result["image_prompts"])
     assert mock_generate_image.call_count == 3
 
 
@@ -70,7 +72,7 @@ def test_copy_less_item_is_skipped_without_calling_generate_image(mock_generate_
 
 
 @patch("models.basic.nodes.image_gen.generate_image")
-def test_prompt_includes_store_type_and_copy_text_and_is_saved_as_image_prompt(
+def test_prompt_includes_store_type_and_copy_text_and_is_saved_in_image_prompts(
     mock_generate_image,
 ):
     mock_generate_image.return_value = "base64imagedata"
@@ -84,7 +86,8 @@ def test_prompt_includes_store_type_and_copy_text_and_is_saved_as_image_prompt(
     prompt = mock_generate_image.call_args.args[0]
     assert "카페" in prompt
     assert "여름 신메뉴" in prompt
-    assert result["ranked_copies"][0]["image_prompt"] == prompt
+    assert "image_prompt" not in result["ranked_copies"][0]
+    assert result["image_prompts"] == [prompt]
 
 
 @patch("models.basic.nodes.image_gen.generate_image")
@@ -109,11 +112,15 @@ def test_generation_failure_records_classified_error_and_keeps_batch_going(
 
     first, second, third = result["ranked_copies"]
     assert first["image_b64"] == "base64imagedata"
-    assert first["image_prompt"]
+    assert "image_prompt" not in first
     assert second["image_b64"] is None
     assert second["error"]["field"] == "image"
     assert second["error"]["reason"] == "rate_limit"
     assert "image_prompt" not in second
     assert third["image_b64"] == "base64imagedata"
-    assert third["image_prompt"]
+    assert "image_prompt" not in third
     assert result["image_results"] == ["base64imagedata", "base64imagedata"]
+    assert len(result["image_prompts"]) == 3
+    assert result["image_prompts"][0]
+    assert result["image_prompts"][1] is None
+    assert result["image_prompts"][2]
