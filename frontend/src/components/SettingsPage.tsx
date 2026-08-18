@@ -1,15 +1,15 @@
 import { useState } from "react";
 
-type ModelId = "gpt" | "claude" | "gemini";
+type ModelId = "service_basic" | "service_advanced" | "pending";
 
 const models: Array<{ id: ModelId; name: string; detail: string }> = [
-  { id: "gpt", name: "GPT", detail: "OpenAI 기반 모델" },
-  { id: "claude", name: "Claude", detail: "Anthropic 기반 모델" },
-  { id: "gemini", name: "Gemini", detail: "Google 기반 모델" },
+  { id: "service_basic", name: "기본 제공 모델", detail: "서비스에서 제공하는 기본 생성 모델" },
+  { id: "service_advanced", name: "고급 제공 모델", detail: "서비스에서 제공하는 고급 생성 모델" },
+  { id: "pending", name: "모델 설정 준비 중", detail: "제공 모델 확정 후 선택 항목을 갱신합니다" },
 ];
 
 export function SettingsPage({ onBack }: { onBack: () => void }) {
-  const [modelType, setModelType] = useState<ModelId>("gpt");
+  const [modelType, setModelType] = useState<ModelId>("service_basic");
   const [saved, setSaved] = useState(false);
 
   function changeModel(value: ModelId) {
@@ -25,7 +25,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
         <section className="card settings-card settings-model-card">
           <div><p className="kicker">AI PROVIDER</p><h2>사용할 AI 모델</h2><p>광고 생성과 후속 대화에 사용할 모델을 선택하세요.</p></div>
           <div className="model-options">
-            {models.map((model) => <button type="button" className={modelType === model.id ? "selected" : ""} onClick={() => changeModel(model.id)} key={model.id}><span>{model.id === "gpt" ? "◈" : model.id === "claude" ? "✦" : "✺"}</span><strong>{model.name}</strong><small>{model.detail}</small></button>)}
+            {models.map((model) => <button type="button" className={modelType === model.id ? "selected" : ""} onClick={() => changeModel(model.id)} key={model.id}><span>{model.id === "service_basic" ? "◈" : model.id === "service_advanced" ? "✦" : "✺"}</span><strong>{model.name}</strong><small>{model.detail}</small></button>)}
           </div>
           {saved && <p className="saved-note">환경설정 미리보기에 반영했습니다.</p>}
           <button type="button" className="primary settings-save" onClick={() => setSaved(true)}>설정 저장</button>

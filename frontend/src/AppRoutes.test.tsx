@@ -61,7 +61,7 @@ describe("D5 protected routes", () => {
   it("renders the storyboard account surfaces", () => {
     expect(renderRoute("mypage")).toContain("최근 생성 기록");
     expect(renderRoute("settings")).toContain("사용할 AI 모델");
-    expect(renderRoute("settings")).toContain("GPT");
-    expect(renderRoute("settings")).toContain("Claude");
+    expect(renderRoute("settings")).toContain("기본 제공 모델");
+    expect(renderRoute("settings")).toContain("고급 제공 모델");
   });
 });
