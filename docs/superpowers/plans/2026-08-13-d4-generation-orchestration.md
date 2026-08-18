@@ -64,7 +64,7 @@
 - Produces: async `generate(db, user, request, idempotency_key, chatbot_client, *, now, free_limit, model_timeout_seconds) -> GenerationResponse`.
 
 - [x] Add RED tests for free Basic success, paid Consultant success, billing confirmation 409-domain exception before insert, insufficient credits before insert, pending→generating→done, Basic image_b64 stripped from storage, blocked compensation, ErrorResult compensation, client exception compensation, and no double model call/charge on same-key replay.
-- [x] Implement transaction 1: reserve, pending insert, flush, generating, commit. Catch IntegrityError by rollback and replay/conflict re-query only; never business-compensate pre-commit.
+- [x] Implement transaction 1: pending insert/flush, reserve, usage fields 반영, generating, commit. Catch IntegrityError by rollback and replay/conflict re-query only; never business-compensate pre-commit.
 - [x] Call the model outside the committed write transaction with `asyncio.wait_for`, then validate via `MODEL_RESULT_ADAPTER` using request chatbot_type.
 - [x] Implement transaction 2 success: re-read id+user, require generating, safe serialize, title/tokens/status done, commit, then settle reservation.
 - [x] Implement transaction 2 blocked/error: failed row, apply compensation once, zero charged/tokens, safe result_json, commit, finalize rollback; on compensation commit failure reset marker and raise internal `ModelExecutionError("unknown")`.

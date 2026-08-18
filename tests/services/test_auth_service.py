@@ -103,9 +103,10 @@ def test_build_user_response_preserves_current_period_and_remaining():
 
 
 def test_register_user_uses_supplied_now_for_next_reset():
-    """회원가입 초기 reset 시각은 호출자가 전달한 now를 기준으로 결정합니다."""
+    """SQLite 회원가입 reset 시각은 전달한 now 기준 naive UTC로 bind합니다."""
     db = Mock()
     db.scalar.side_effect = [None, None]
+    db.get_bind.return_value.dialect.name = "sqlite"
     geocoder = Mock()
     geocoder.geocode = AsyncMock(return_value=GeocodingResult("도로명 주소", 37.5, 127.0))
     request = RegisterRequest(
@@ -130,4 +131,5 @@ def test_register_user_uses_supplied_now_for_next_reset():
     )
 
     saved_user = db.add.call_args.args[0]
-    assert saved_user.daily_free_reset_at == datetime(2026, 8, 13, 15, 0, tzinfo=UTC)
+    expected_reset = datetime(2026, 8, 13, 15, 0)  # noqa: DTZ001 - SQLite naive UTC
+    assert saved_user.daily_free_reset_at == expected_reset

@@ -17,6 +17,7 @@ from backend.clients.geocoding_client import (
 from backend.models import User
 from backend.schemas import RegisterRequest, UserResponse
 from backend.services.usage_service import (
+    _bind_utc,
     effective_daily_usage,
     next_seoul_midnight_utc,
 )
@@ -136,7 +137,7 @@ async def register_user(
         lng=geocoded.lng,
         credits=0,
         daily_free_used=0,
-        daily_free_reset_at=next_daily_free_reset_at(now),
+        daily_free_reset_at=_bind_utc(db, next_daily_free_reset_at(now)),
     )
     db.add(user)
     try:
