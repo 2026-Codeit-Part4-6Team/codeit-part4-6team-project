@@ -27,17 +27,17 @@ corepack pnpm dev
 
 ## Docker Compose 시연
 
-기존 POC와 겹치지 않는 D5 전용 포트 예시입니다.
+기존 POC와 포트가 겹치지 않도록 실행 환경에 맞는 포트를 지정할 수 있습니다. 아래 값은 예시이며 고정된 배포 주소가 아닙니다.
 
 ```powershell
-$env:BACKEND_PORT='18103'
-$env:FRONTEND_PORT='8513'
+$env:BACKEND_PORT='<backend-port>'
+$env:FRONTEND_PORT='<frontend-port>'
 $env:APP_ENV='demo'
 $env:GEOCODE_FALLBACK_ENABLED='true'
 docker compose -p d5-react-frontend up --build -d
 ```
 
-- Frontend: `http://127.0.0.1:8513`
-- Backend: `http://127.0.0.1:18103`
+- Frontend 접속 주소: 실행 환경의 Host와 `FRONTEND_PORT`
+- Backend 연결 주소: Compose 내부 `BACKEND_URL` 또는 배포 환경 설정값
 
 개발자 계정은 앱 시작 때 자동 생성하지 않습니다. 필요하면 별도 `python -m backend.demo_seed` 명령을 명시적으로 실행합니다.
