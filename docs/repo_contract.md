@@ -54,7 +54,7 @@ def get_market(
 ## `cache.trend_repo.get_trend` (실제 구현, D5 완료)
 
 ```python
-def get_trend(keyword: str, industry: str | None = None) -> dict | None:
+def get_trend(keyword: str) -> dict | None:
     ...
 ```
 

@@ -6,10 +6,7 @@ from ..graph.state import BasicState
 def trend_for_copy_node(state: BasicState) -> dict:
     """질문과 업종 기준 검색 트렌드(연관 검색어, 날씨 포함)를 조회해
     요약 문장을 context["trend"]에 채운다."""
-    store = state["store"]
-    trend = get_trend(
-        state["question"], industry=store.get("type")
-    )  # keyword는 우선 사용자 원문 전체를 그대로 넣음
+    trend = get_trend(state["question"])  # keyword는 우선 사용자 원문 전체를 그대로 넣음
 
     context = {**state.get("context", {})}
 
