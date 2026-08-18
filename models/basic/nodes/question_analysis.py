@@ -1,7 +1,9 @@
 import json
 
+from models.shared.llm import call_llm
+
 from ..graph.state import BasicState
-from ..llm import call_llm, classify_llm_error
+from ..llm_errors import classify_llm_error
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어시스턴트다.
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
@@ -44,9 +46,7 @@ def question_analysis_node(state: BasicState) -> dict:
 
     try:
         raw, tokens = call_llm(
-            system=SYSTEM_PROMPT,
-            user=json.dumps(context, ensure_ascii=False),
-            json_mode=True,
+            SYSTEM_PROMPT, json.dumps(context, ensure_ascii=False), json_mode=True
         )
     # BLE001 억제 사유: call_llm의 모든 실패를 잡아 status=error로 안전하게 전환
     except Exception as exc:  # noqa: BLE001
