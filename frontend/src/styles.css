@@ -338,7 +338,10 @@ select:focus-visible {
 .strategy-summary { margin-bottom: 24px; font-size: 1.08rem; }
 .strategy-actions { display: grid; gap: 12px; }
 .strategy-action { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 14px; padding: 17px; border: 1px solid #e6e1d8; border-radius: 14px; background: #fdfbf7; }
-.strategy-action-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--accent); color: #252143; font-size: 1.1rem; font-weight: 900; }
+.strategy-action-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: #f8d99c; color: #252143; font-size: 1.5rem; font-weight: 900; }
+.strategy-action-promotion .strategy-action-icon { background: #ffd2c5; }
+.strategy-action-target .strategy-action-icon { background: #cfe9df; }
+.strategy-action-other .strategy-action-icon { background: #e4e0ff; }
 .strategy-action span { color: var(--primary); font-size: .78rem; font-weight: 850; }
 .strategy-action p { margin: 5px 0 0; line-height: 1.65; }
 .result-details { margin-top: 12px; border-top: 1px solid #eeeae3; padding-top: 13px; }
