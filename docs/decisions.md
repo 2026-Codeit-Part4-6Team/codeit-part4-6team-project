@@ -202,7 +202,15 @@
 | D-192 | 8/18 | 계약서 예시 응답은 현재 실제 반환값과 일치해야 하며, 미구현 필드는 예시에서도 null + "(미구현)" 표기 | repo_contract.md 예시가 weather에 값을 채워 보여줘 기본 챗봇이 그대로 mock을 만듦 → 단위 테스트는 통과하나 실제로는 해당 절이 영구 미출력. title(D-179)과 동일 구조 | 필드 표의 "선택" 표기로 갈음 |
 | D-193 | 8/18 | trend_for_copy의 weather 분기 제거(또는 미구현 주석 명시), 날씨 연동은 D9 [SHOULD] | get_trend()가 weather를 채우지 않아 죽은 코드 상태. 남겨두면 이후 담당자가 "이미 구현됨"으로 오인. add_sw_req_spec 5)의 날씨 기반 카피는 백로그로 이관 | 즉시 날씨 API 연동 / 현행 방치 |
 | D-194 | 8/18 | 날씨 연동 시 get_trend()에 포함하지 않고 별도 함수·별도 TTL로 분리 | 트렌드 캐시 TTL이 7일이라 같은 캐시에 묶으면 일주일 전 날씨로 카피를 생성 | get_trend()에 통합 |
-| D-195 | 8/18 | 타 담당 함수를 mock으로 대체할 때 실제 구현의 현재 반환값과 대조 후 작성 | mock이 실제보다 관대하면 테스트는 초록불인데 운영에서 기능이 없음. 기본 챗봇 단위 테스트는 weather 있음·E2E fake는 None이라 양쪽 다 불일치를 못 잡았음 | 계약서 예시 기준으로만 작성 |
+| D-195 | 8/18 | 다른 담당자가 구현한 함수를 mock으로 대체할 때 실제 조회 함수의 현재 반환값과 대조 후 mock 작성 | mock이 실제보다 관대하면 테스트는 초록불인데 운영에서 실제 기능처럼 실행 불가. 기본 챗봇 단위 테스트는 weather 있음·E2E fake는 None이라 양쪽 다 불일치를 못 잡았음 | 계약서 예시 기준으로만 작성 |
+| D-196 | 8/18 | regulation_node는 판정을 항목에 붙이지 않고 validation["regulation"]에만 기록 | {**c, "regulation": ...} 가 ranked_copies에 내부 키를 남김. image_review의 clip_score와 함께 누적되는 구조라, channel_format 화이트리스트가 유일한 방벽. 중첩 strict(P-018) 상태에서 화이트리스트 확장 시 502 | 화이트리스트 의존 유지 |
+| D-197 | 8/18 | 법률 규제 차단 슬롯은 제자리 치환 — passed+blocked+failed 방식 금지 | 차단 항목이 배열 뒤로 밀려 ranking_node의 점수순 정렬이 무너짐. 사용자 화면에서 2번 카드가 3번으로 이동. 현재 테스트가 2개짜리라 미검출 | 뒤에 붙이기 유지 |
+| D-198 | 8/18 | 이미지 검수 정책: 이미지 없음·CLIP 저점수는 pass, 디코딩 전부 실패만 reject (D-075 이행) | CLIP은 영어 전용이라 한국어 카피 점수가 무의미(P-015), FR-13b도 CLIP을 개발용 지표로 규정. 요청당 이미지 6장 → 3장으로 감소 | 저점수도 재생성 |
+| D-199 | 8/18 | classify_llm_error는 models/basic/llm_errors.py 소유(shared 아님) | shared는 전민재 PM 관리 영역이고 오류 분류는 챗봇별 응답 정책. 계약 enum 4종(timeout·rate_limit·provider_error·unknown) 준수는 유지(D-073) | shared에 편입 |
+| D-200 | 8/18 | route_after_ranking 추가 승인 — ranking LLM 오류 시 조기 종료 | error 상태로 regulation에 진입하면 ranked_copies 부재로 KeyError. 담당자 자체 판단 개선분 | 라우터 미추가 |
+| D-201 | 8/18 | trend_for_copy는 question 원문이 아닌 question_analysis의 keyword 사용 (D-079 기본 챗봇 이행) | 원문 사용 시 캐시 키가 매번 달라 적중률 0% → NAVER 월 5만 건 한도 직격. 문장 검색은 트렌드 결과 자체가 무의미. 컨설턴트는 D5에 이미 반영 | 원문 유지 |
+| D-202 | 8/18 | LLM 응답 json.loads 실패도 예외 처리 대상 — parse_failed 슬롯으로 전환 | call_llm 예외는 잡지만 파싱 실패는 무방비. json_mode로 확률은 낮으나 발생 시 그래프 전체 중단 | 현행 유지 |
+| D-203 | 8/18 | 노드 단위 테스트는 실제 조회 함수의 현재 반환값과 대조 후 mock 작성 (D-195 기본 챗봇 이행) | test_trend_for_copy가 weather에 값이 있는 mock을 사용 — 실제 get_trend는 항상 None이라 해당 분기가 운영에서 미실행 | 계약서 예시 기준 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -260,3 +268,5 @@
 | P-031 | 신규 API 키 6종의 .env.example·.gitignore·CI 로그 노출 점검 | 프로젝트 가이드 API key 유출 주의 조항 | 전민재 PM | 8/18 |
 | P-032 | 날씨 API 연동(기상청 단기예보 등) — add_sw_req_spec.md 추가 요구사항 명세서 5)번 사항 날씨 기반 카피 | [SHOULD]. 별도 함수·짧은 TTL(D-194). 외부 API 4번째라 전민재 PM 승인 후 착수(D-184) | 기본 챗봇 담당 | 8/20 |
 | P-033 | 기본 챗봇 로컬 mock 전반을 실제 get_market/get_trend 반환값과 대조 | weather 외 다른 필드에도 같은 불일치가 있는지 확인 | 기본 챗봇 담당 | 8/18 |
+| P-034 | image_gen이 image_prompt를 ranked_copies에 저장할지 | 현재 미저장이라 CLIP이 항상 copy로 폴백. 기록 전용 정책이라 우선순위 낮음 | 기본 챗봇 담당 | 8/20 |
+| P-035 | regulation_node 테스트의 구 필드명(retry_count) 정리 | copy_retry_count로 통일 — 현재 의도한 시나리오를 검증하지 않음 | 기본 챗봇 담당 | 8/18 |
