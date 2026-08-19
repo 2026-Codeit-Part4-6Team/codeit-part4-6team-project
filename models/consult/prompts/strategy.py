@@ -76,18 +76,14 @@ def _market_section(market: dict | None) -> str:
     nearest_distance_m = market.get("nearest_distance_m")
     nearest_distance_text = f"{nearest_distance_m}m" if nearest_distance_m is not None else "해당 없음"
 
-    industry_breakdown = market.get("industry_breakdown") or {}
-    breakdown_text = (
-        ", ".join(f"{name} {count}곳" for name, count in industry_breakdown.items())
-        if industry_breakdown
-        else "정보 없음"
-    )
-
+    # industry_breakdown은 넣지 않는다 — 원본 반경 내 매장이 API 페이지 상한(1000곳)을
+    # 넘는 지역(예: 강남역 6,691곳)에서는 상위 일부만 반영된 부분집합이라, "업종 분포"로
+    # 그대로 노출하면 부정확한 근거가 될 수 있다(PM 리뷰). same_industry_count는 별도
+    # 업종코드 필터 호출(D-041/D-042)로 정확히 계산되므로 이 문제와 무관하다.
     return (
         "상권 데이터:\n"
         f"- 반경 내 전체 매장 수: {total_count_text}\n"
         f"- 동일 업종 매장 수: {same_industry_count_text}\n"
         f"- 동일 업종 밀도 등급: {density_tier}\n"
-        f"- 가장 가까운 동일 업종까지 거리: {nearest_distance_text}\n"
-        f"- 업종 분포: {breakdown_text}"
+        f"- 가장 가까운 동일 업종까지 거리: {nearest_distance_text}"
     )

@@ -209,7 +209,9 @@ def test_includes_market_data_when_available(mock_call_llm) -> None:
     assert "12" in user_prompt
     assert "55" in user_prompt
     assert "높음" in user_prompt
-    assert "편의점" in user_prompt
+    # industry_breakdown("업종 분포")은 프롬프트에서 뺀다 — 원본이 API 페이지 상한
+    # (1000곳)을 넘는 지역은 부분집합만 반영돼 부정확한 근거가 될 수 있다(PM 리뷰).
+    assert "편의점" not in user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")
