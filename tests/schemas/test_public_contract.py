@@ -7,12 +7,12 @@ from backend.schemas import GenerateEstimateResponse, GenerateRequest, Generatio
 def test_public_basic_request_requires_platform():
     """Basic 공개 요청은 플랫폼이 필수입니다."""
     with pytest.raises(ValidationError):
-        GenerateRequest(chatbot_type="basic", question="광고를 만들어줘")
+        GenerateRequest(chatbot_type="basic", question="광고를 만들어줘", max_accepted_credits=0)
 
 
 def test_public_consultant_request_requires_null_platform():
     """Consultant 공개 요청은 플랫폼을 사용하지 않습니다."""
-    request = GenerateRequest(chatbot_type="consultant", question="상권을 분석해줘")
+    request = GenerateRequest(chatbot_type="consultant", question="상권을 분석해줘", max_accepted_credits=0)
     assert request.platform is None
 
     with pytest.raises(ValidationError):
@@ -20,6 +20,7 @@ def test_public_consultant_request_requires_null_platform():
             chatbot_type="consultant",
             question="상권을 분석해줘",
             platform="instagram",
+            max_accepted_credits=0,
         )
 
 
@@ -31,6 +32,7 @@ def test_public_request_rejects_service_owned_fields():
                 "chatbot_type": "basic",
                 "question": "광고를 만들어줘",
                 "platform": "banner",
+                "max_accepted_credits": 0,
                 "user_id": 1,
             }
         )

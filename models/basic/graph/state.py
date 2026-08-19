@@ -4,7 +4,7 @@ from models.shared.state_common import CommonState
 
 
 class BasicState(CommonState):
-    """D3 기본 카피/이미지 생성 파이프라인 전용 상태.
+    """기본 카피/이미지 생성 파이프라인 전용 상태.
 
     공통 상태(CommonState)에 카피 후보·랭킹·이미지 생성/검수 결과와
     재시도 루프에 필요한 필드를 추가한다.
@@ -20,7 +20,8 @@ class BasicState(CommonState):
         dict
     ]  # CLIP Score, 금지요소 검수 결과 (validation과 별도)
 
-    retry_count: NotRequired[int]  # 재생성 루프 카운터
+    copy_retry_count: NotRequired[int]  # 카피 생성 / 규제 재시도 루프 카운터
+    image_retry_count: NotRequired[int]  # 이미지 재생성 루프 카운터
     status: NotRequired[str]  # ok, blocked, error
     issues: NotRequired[
         list[dict]
