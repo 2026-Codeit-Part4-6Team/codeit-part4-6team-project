@@ -221,8 +221,16 @@ Mock을 쓰면 **첫날부터 마지막 날까지 개발 계획서 대로 작업
 ```json
 {
   "chatbot_type": "basic",
+  "user_id": 1,
   "question": "여름 신메뉴 홍보 문구 만들어줘",
   "platform": "instagram",
+  "store": {
+    "name": "카페 코드잇",
+    "type": "카페",
+    "address": "서울 강남구 역삼동",
+    "lat": 37.5,
+    "lng": 127.0
+  },
   "extra": {
     "purpose": "신메뉴 출시",
     "price_range": "5000-8000",
@@ -248,7 +256,7 @@ Mock을 쓰면 **첫날부터 마지막 날까지 개발 계획서 대로 작업
 }
 ```
 
-> **계약 기준**: ① Basic 제안은 3개 slot을 유지하고 부분 실패는 `error` field로 표시한다. ② 이미지는 base64 응답을 사용할 수 있지만 `result_json` 저장에서는 제외한다. ③ Frontend → Service 생성 요청은 `user_id`와 StoreContext를 직접 보내지 않는다. ④ Consultant 응답은 Basic proposals로 평탄화하지 않고 `strategy`, `reasons`, `sources`, `suggested_chips` 구조를 유지한다.
+> **계약 기준**: ① 위 요청은 Service→Model 내부 `ModelRequest` 예시이며, Frontend→Service Public 요청에는 `user_id`와 StoreContext를 넣지 않는다. ② Basic 제안은 3개 slot을 유지하고 부분 실패는 `error` field로 표시한다. ③ 이미지는 base64 응답을 사용할 수 있지만 `result_json` 저장에서는 제외한다. ④ Consultant 응답은 Basic proposals로 평탄화하지 않고 `strategy`, `reasons`, `sources`, `suggested_chips` 구조를 유지한다.
 
 ### 6.4 REST API 명세
 
