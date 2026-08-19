@@ -6,6 +6,8 @@
     "question": "주변 경쟁사는 얼마나 되나요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -14,7 +16,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -33,10 +36,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -45,7 +45,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. 스토리보드 추천질문(S-05 확정 문구, market).",
     "author": "김재헌",
@@ -56,16 +57,18 @@
     "id": "C-002",
     "area": "consult",
     "type": "market",
-    "question": "이 동네에 저 말고 카페 하는 사람이 또 있어요?",
+    "question": "이 동네에 저 말고 미용실 하는 사람이 또 있어요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -75,7 +78,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -93,9 +97,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -104,9 +106,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(평창 대관령면·카페·경쟁없음) 사용. 구어체.",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 구어체.",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -125,6 +128,8 @@
         "lng": 126.8022
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 48,
         "same_industry_count": 2,
         "nearest_distance_m": 106,
@@ -133,7 +138,8 @@
           "기술 서비스": 8,
           "자동차 수리·세차": 4
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -152,9 +158,7 @@
       "allowed_numbers": [
         48,
         2,
-        106,
-        8,
-        4
+        106
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -163,7 +167,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F2(청양읍·카페·낮음) 사용. 직접질문.",
     "author": "김재헌",
@@ -184,6 +189,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -192,7 +199,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -211,10 +219,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -223,7 +228,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F3(홍천읍·치킨·낮음) 사용. 구어체.",
     "author": "김재헌",
@@ -234,25 +240,30 @@
     "id": "C-005",
     "area": "consult",
     "type": "market",
-    "question": "우리 가게 주변에서 제일 흔한 업종이 뭐예요?",
+    "question": "주변 전체 가게 수와 같은 업종 수를 비교하면 경쟁이 어느 정도인가요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -270,11 +281,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -283,9 +291,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(구례군·카페·보통) 사용. 직접질문.",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 직접질문. (2026-08-19 재검토: industry_breakdown 없이는 답할 수 없는 질문이라, total_count/same_industry_count/nearest_distance_m으로 답 가능한 질문으로 교체)",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -304,6 +313,8 @@
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 603,
         "same_industry_count": 6,
         "nearest_distance_m": 171,
@@ -312,7 +323,8 @@
           "기타 간이": 54,
           "이용·미용": 39
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -331,10 +343,7 @@
       "allowed_numbers": [
         603,
         6,
-        171,
-        105,
-        54,
-        39
+        171
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -343,7 +352,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F5(가평·슈퍼마켓·보통) 사용. 모호하지만 답변 가능.",
     "author": "김재헌",
@@ -364,6 +374,8 @@
         "lng": 127.0276
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 9,
         "nearest_distance_m": 154,
@@ -372,7 +384,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -391,10 +404,7 @@
       "allowed_numbers": [
         6691,
         9,
-        154,
-        39,
-        33,
-        55
+        154
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -403,7 +413,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F6(강남역·미용실·높음경계) 사용. 구어체.",
     "author": "김재헌",
@@ -414,25 +425,30 @@
     "id": "C-008",
     "area": "consult",
     "type": "market",
-    "question": "가까운 경쟁 카페까지 거리가 얼마나 돼요?",
+    "question": "가까운 경쟁 치킨집까지 거리가 얼마나 돼요?",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -450,11 +466,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -463,9 +476,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음중간) 사용. 직접질문.",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 직접질문.",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -477,13 +491,15 @@
     "question": "손님이 뜸한 동네인데 어떻게 홍보하면 좋을까요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -493,7 +509,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -511,9 +528,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -522,9 +537,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(평창 대관령면·카페·경쟁없음) 사용. 전략(홍보).",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 전략(홍보).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -543,6 +559,8 @@
         "lng": 126.8022
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 48,
         "same_industry_count": 2,
         "nearest_distance_m": 106,
@@ -551,7 +569,8 @@
           "기술 서비스": 8,
           "자동차 수리·세차": 4
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -570,9 +589,7 @@
       "allowed_numbers": [
         48,
         2,
-        106,
-        8,
-        4
+        106
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -581,7 +598,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F2(청양읍·카페·낮음) 사용. 스토리보드 추천질문(S-05 확정 문구, strategy).",
     "author": "김재헌",
@@ -595,13 +613,15 @@
     "question": "돈 많이 안 들이고 손님 늘릴 방법 있어요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -611,7 +631,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -629,9 +650,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -640,9 +659,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(청양읍·카페·낮음) 사용. 제약 포함(저예산).",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 제약 포함(저예산).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -661,6 +681,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -669,7 +691,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -688,10 +711,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -700,7 +720,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F3(홍천읍·치킨·낮음) 사용. 전략(차별화).",
     "author": "김재헌",
@@ -711,25 +732,30 @@
     "id": "C-013",
     "area": "consult",
     "type": "strategy",
-    "question": "할인 행사랑 세트 메뉴 중에 뭐가 더 나을까요?",
+    "question": "할인 행사랑 세트 상품 중에 뭐가 더 나을까요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -747,11 +773,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -760,9 +783,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(구례군·카페·보통) 사용. 선택·비교.",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 선택·비교.",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -781,6 +805,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -789,7 +815,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -808,10 +835,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -820,9 +844,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F3(구례군·카페·보통) 사용. 모호하지만 답변 가능.",
+    "notes": "F3(홍천읍·치킨·낮음) 사용. 모호하지만 답변 가능.",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -841,6 +866,8 @@
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 603,
         "same_industry_count": 6,
         "nearest_distance_m": 171,
@@ -849,7 +876,8 @@
           "기타 간이": 54,
           "이용·미용": 39
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -868,10 +896,7 @@
       "allowed_numbers": [
         603,
         6,
-        171,
-        105,
-        54,
-        39
+        171
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -880,9 +905,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F5(강남역·미용실·높음경계) 사용. 전략(재방문).",
+    "notes": "F5(가평·슈퍼마켓·보통) 사용. 전략(재방문).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -901,6 +927,8 @@
         "lng": 127.0276
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 9,
         "nearest_distance_m": 154,
@@ -909,7 +937,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -928,10 +957,7 @@
       "allowed_numbers": [
         6691,
         9,
-        154,
-        39,
-        33,
-        55
+        154
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -940,7 +966,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F6(강남역·미용실·높음경계) 사용. 전략(타깃).",
     "author": "김재헌",
@@ -954,22 +981,27 @@
     "question": "경쟁이 치열한데 우리만의 강점을 어떻게 내세우죠?",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -987,11 +1019,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1000,9 +1029,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음중간) 사용. 전략(차별화).",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 전략(차별화).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1011,9 +1041,11 @@
     "id": "C-018",
     "area": "consult",
     "type": "strategy",
-    "question": "포장 주문 손님을 늘리려면 어떻게 해야 할까요?",
+    "question": "테이크아웃 손님을 좀 더 끌어보고 싶은데 뭐부터 해보면 좋을까요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -1022,7 +1054,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1041,10 +1074,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1053,7 +1083,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. store 생략(DEFAULT_STORE와 일치). 전략(포장 주문). 교차검증 지적으로 C-011과 저예산·신규고객 축이 겹쳐 포장 주문 축으로 교체.",
     "author": "김재헌",
@@ -1074,6 +1105,8 @@
         "lng": 126.8022
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 48,
         "same_industry_count": 2,
         "nearest_distance_m": 106,
@@ -1082,7 +1115,8 @@
           "기술 서비스": 8,
           "자동차 수리·세차": 4
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1101,9 +1135,7 @@
       "allowed_numbers": [
         48,
         2,
-        106,
-        8,
-        4
+        106
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1112,9 +1144,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F2(평창 대관령면·카페·경쟁없음) 사용. 시즌(비수기 마케팅). 교차검증 지적으로 원가·인력 답변까지 유도할 수 있어 마케팅 범위로 한정.",
+    "notes": "F2(청양읍·카페·낮음) 사용. 시즌(비수기 마케팅). 교차검증 지적으로 원가·인력 답변까지 유도할 수 있어 마케팅 범위로 한정.",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1126,22 +1159,27 @@
     "question": "비 오는 날은 손님이 줄던데 뭘 하면 좋을까요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1159,11 +1197,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1172,9 +1207,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(홍천읍·치킨·낮음) 사용. 시즌(우천).",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 시즌(우천).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1193,6 +1229,8 @@
         "lng": 127.0276
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 9,
         "nearest_distance_m": 154,
@@ -1201,7 +1239,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1220,10 +1259,7 @@
       "allowed_numbers": [
         6691,
         9,
-        154,
-        39,
-        33,
-        55
+        154
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1232,9 +1268,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F6(가평·슈퍼마켓·보통) 사용. 시즌(명절).",
+    "notes": "F6(강남역·미용실·높음) 사용. 시즌(명절).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1246,22 +1283,27 @@
     "question": "어떤 이벤트가 효과적일까요?",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1279,11 +1321,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1292,9 +1331,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음중간) 사용. 스토리보드 추천질문(S-05 확정 문구, season).",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 스토리보드 추천질문(S-05 확정 문구, season).",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1306,6 +1346,8 @@
     "question": "여름 방학 시즌에 신메뉴 홍보하려는데 뭐가 좋을까요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -1314,7 +1356,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1333,10 +1376,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1345,7 +1385,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. store 생략(DEFAULT_STORE와 일치). 시즌(여름방학).",
     "author": "김재헌",
@@ -1359,13 +1400,15 @@
     "question": "근처에 같은 업종 가게가 없으면 장사하기 좋은 자리인가요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -1375,7 +1418,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1393,9 +1437,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1404,9 +1446,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(대관령·카페·경쟁 없음) 사용. 경쟁 부재 입지 판단 문항",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 경쟁 부재 입지 판단 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1425,6 +1468,8 @@
         "lng": 126.8022
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 48,
         "same_industry_count": 2,
         "nearest_distance_m": 106,
@@ -1433,7 +1478,8 @@
           "기술 서비스": 8,
           "자동차 수리·세차": 4
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1452,9 +1498,7 @@
       "allowed_numbers": [
         48,
         2,
-        106,
-        8,
-        4
+        106
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1463,7 +1507,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F2(청양·카페·낮음) 사용. 상권 전체 매장 규모 확인 문항",
     "author": "김재헌",
@@ -1474,7 +1519,7 @@
     "id": "C-026",
     "area": "consult",
     "type": "market",
-    "question": "치킨집 주변에는 음식점 말고 어떤 업종이 많이 있나요?",
+    "question": "이 상권의 전체 규모와 치킨집 경쟁 상황을 같이 설명해 주세요.",
     "input": {
       "store": {
         "name": "홍천 치킨집",
@@ -1484,6 +1529,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -1492,7 +1539,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1511,10 +1559,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1523,9 +1568,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F3(홍천·치킨·낮음) 사용. 비음식 업종 분포 확인 문항",
+    "notes": "F3(홍천·치킨·낮음) 사용. 비음식 업종 분포 확인 문항 (2026-08-19 재검토: industry_breakdown 없이는 답할 수 없는 질문이라, total_count/same_industry_count/nearest_distance_m으로 답 가능한 질문으로 교체)",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1534,25 +1580,30 @@
     "id": "C-027",
     "area": "consult",
     "type": "market",
-    "question": "주변 업종 구성을 장사에 어떻게 활용하면 좋을까요?",
+    "question": "경쟁 매장 수와 가장 가까운 매장 거리를 장사 전략에 어떻게 활용할까요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1570,11 +1621,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1583,9 +1631,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(구례·카페·보통) 사용. 업종 분포 활용 문항",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 업종 분포 활용 문항 (2026-08-19 재검토: industry_breakdown 없이는 답할 수 없는 질문이라, total_count/same_industry_count/nearest_distance_m으로 답 가능한 질문으로 교체)",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1604,6 +1653,8 @@
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 603,
         "same_industry_count": 6,
         "nearest_distance_m": 171,
@@ -1612,7 +1663,8 @@
           "기타 간이": 54,
           "이용·미용": 39
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1631,10 +1683,7 @@
       "allowed_numbers": [
         603,
         6,
-        171,
-        105,
-        54,
-        39
+        171
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1643,7 +1692,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F5(가평·슈퍼마켓·보통) 사용. 입지 특징 진단 문항",
     "author": "김재헌",
@@ -1664,6 +1714,8 @@
         "lng": 127.0276
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 9,
         "nearest_distance_m": 154,
@@ -1672,7 +1724,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1691,10 +1744,7 @@
       "allowed_numbers": [
         6691,
         9,
-        154,
-        39,
-        33,
-        55
+        154
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1703,7 +1753,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F6(강남·미용실·높음) 사용. 경쟁 밀도 경계값 해석 문항",
     "author": "김재헌",
@@ -1714,25 +1765,30 @@
     "id": "C-030",
     "area": "consult",
     "type": "market",
-    "question": "이 상권에서 우리 카페가 눈에 띌 여지가 있을까요?",
+    "question": "이 상권에서 우리 치킨집이 눈에 띌 여지가 있을까요?",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1750,11 +1806,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1763,9 +1816,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음) 사용. 차별화 여지 분석 문항",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 차별화 여지 분석 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1777,6 +1831,8 @@
     "question": "경쟁 카페가 많은데 우리 가게는 어떻게 홍보해야 할까요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -1785,7 +1841,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1804,10 +1861,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1816,7 +1870,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. 고밀도 상권 홍보 전략 문항",
     "author": "김재헌",
@@ -1827,16 +1882,18 @@
     "id": "C-032",
     "area": "consult",
     "type": "strategy",
-    "question": "근처 숙박업소 손님을 카페로 끌어오려면 뭘 해보면 좋을까요?",
+    "question": "근처 숙박업소 손님을 미용실로 끌어오려면 뭘 해보면 좋을까요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -1846,7 +1903,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1864,9 +1922,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1875,9 +1931,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(대관령·카페·경쟁 없음) 사용. 인근 숙박업 연계 유입 전략 문항",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 인근 숙박업 연계 유입 전략 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -1896,6 +1953,8 @@
         "lng": 126.8022
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 48,
         "same_industry_count": 2,
         "nearest_distance_m": 106,
@@ -1904,7 +1963,8 @@
           "기술 서비스": 8,
           "자동차 수리·세차": 4
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1923,9 +1983,7 @@
       "allowed_numbers": [
         48,
         2,
-        106,
-        8,
-        4
+        106
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1934,7 +1992,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F2(청양·카페·낮음) 사용. 재방문 고객 전략 문항",
     "author": "김재헌",
@@ -1955,6 +2014,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -1963,7 +2024,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -1982,10 +2044,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -1994,7 +2053,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F3(홍천·치킨·낮음) 사용. 신규 고객 유입 전략 문항",
     "author": "김재헌",
@@ -2005,25 +2065,30 @@
     "id": "C-035",
     "area": "consult",
     "type": "strategy",
-    "question": "주변 미용실 고객에게 구례 카페를 알릴 방법이 있을까요?",
+    "question": "주변 미용실 고객에게 구례 슈퍼마켓을 알릴 방법이 있을까요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2041,11 +2106,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2054,9 +2116,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(구례·카페·보통) 사용. 인근 미용실 고객 타깃 홍보 전략 문항",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 인근 미용실 고객 타깃 홍보 전략 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -2065,7 +2128,7 @@
     "id": "C-036",
     "area": "consult",
     "type": "strategy",
-    "question": "주변 가게들과 다르게 우리 슈퍼마켓을 알릴 방법이 있을까요?",
+    "question": "주변 가게들 틈에서 우리 슈퍼마켓만의 존재감을 어떻게 드러내면 좋을까요?",
     "input": {
       "store": {
         "name": "가평 슈퍼마켓",
@@ -2075,6 +2138,8 @@
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 603,
         "same_industry_count": 6,
         "nearest_distance_m": 171,
@@ -2083,7 +2148,8 @@
           "기타 간이": 54,
           "이용·미용": 39
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2102,10 +2168,7 @@
       "allowed_numbers": [
         603,
         6,
-        171,
-        105,
-        54,
-        39
+        171
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2114,7 +2177,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F5(가평·슈퍼마켓·보통) 사용. 업종 차별화 홍보 문항",
     "author": "김재헌",
@@ -2135,6 +2199,8 @@
         "lng": 127.0276
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 9,
         "nearest_distance_m": 154,
@@ -2143,7 +2209,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2162,10 +2229,7 @@
       "allowed_numbers": [
         6691,
         9,
-        154,
-        39,
-        33,
-        55
+        154
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2174,7 +2238,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F6(강남·미용실·높음) 사용. 미용실 재방문 전략 문항",
     "author": "김재헌",
@@ -2185,25 +2250,30 @@
     "id": "C-038",
     "area": "consult",
     "type": "strategy",
-    "question": "가평 카페에서 관광객을 겨냥한 홍보를 어떻게 시작할까요?",
+    "question": "가평 치킨집에서 관광객을 겨냥한 홍보를 어떻게 시작할까요?",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2221,11 +2291,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2234,9 +2301,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음) 사용. 관광객 타깃 홍보 전략 문항",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 관광객 타깃 홍보 전략 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -2248,6 +2316,8 @@
     "question": "경쟁이 치열한 카페 상권에서 메뉴를 어떻게 차별화할까요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -2256,7 +2326,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2275,10 +2346,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2287,7 +2355,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. 메뉴 차별화 전략 문항",
     "author": "김재헌",
@@ -2298,25 +2367,30 @@
     "id": "C-040",
     "area": "consult",
     "type": "strategy",
-    "question": "구례 카페에서 점심시간 손님을 끌려면 어떤 전략이 좋을까요?",
+    "question": "구례 슈퍼마켓에서 저녁 장보기 시간대 손님을 끌려면 어떤 전략이 좋을까요?",
     "input": {
       "store": {
-        "name": "구례 카페",
-        "type": "카페",
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
         "address": "전남 구례군",
         "lat": 35.2027,
         "lng": 127.463
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 78,
-        "same_industry_count": 5,
-        "nearest_distance_m": 68,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
         "industry_breakdown": {
+          "중식": 2,
           "한식": 9,
+          "비알코올": 5,
           "이용·미용": 7,
-          "종합 소매": 6
+          "기타 간이": 7
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2334,11 +2408,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         78,
-        5,
-        68,
-        9,
-        7,
-        6
+        3,
+        395
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2347,9 +2418,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F4(구례·카페·보통) 사용. 점심시간 고객 유입 전략 문항",
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 저녁 장보기 시간대 고객 유입 전략 문항",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -2358,16 +2430,18 @@
     "id": "C-041",
     "area": "consult",
     "type": "season",
-    "question": "겨울철에 대관령 카페 손님을 끌 이벤트가 있을까요?",
+    "question": "겨울철에 대관령 미용실 손님을 끌 이벤트가 있을까요?",
     "input": {
       "store": {
-        "name": "대관령 카페",
-        "type": "카페",
+        "name": "대관령 미용실",
+        "type": "미용실",
         "address": "강원 평창군 대관령면",
         "lat": 37.6975,
         "lng": 128.7186
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 6,
         "same_industry_count": 0,
         "nearest_distance_m": null,
@@ -2377,7 +2451,8 @@
           "기타 교육": 2,
           "일반 숙박": 2
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2395,9 +2470,7 @@
       "must_contain_number": true,
       "allowed_numbers": [
         6,
-        0,
-        1,
-        2
+        0
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2406,9 +2479,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F1(대관령·카페·경쟁 없음) 사용. 겨울 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 겨울 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -2427,6 +2501,8 @@
         "lng": 127.8887
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 168,
         "same_industry_count": 2,
         "nearest_distance_m": 492,
@@ -2435,7 +2511,8 @@
           "기술 서비스": 26,
           "부동산 서비스": 10
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2454,10 +2531,7 @@
       "allowed_numbers": [
         168,
         2,
-        492,
-        33,
-        26,
-        10
+        492
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2466,7 +2540,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F3(홍천·치킨·낮음) 사용. 지역 축제 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
     "author": "김재헌",
@@ -2487,6 +2562,8 @@
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 603,
         "same_industry_count": 6,
         "nearest_distance_m": 171,
@@ -2495,7 +2572,8 @@
           "기타 간이": 54,
           "이용·미용": 39
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2514,10 +2592,7 @@
       "allowed_numbers": [
         603,
         6,
-        171,
-        105,
-        54,
-        39
+        171
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2526,7 +2601,8 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F5(가평·슈퍼마켓·보통) 사용. 새 학기 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
     "author": "김재헌",
@@ -2537,25 +2613,30 @@
     "id": "C-044",
     "area": "consult",
     "type": "season",
-    "question": "주말에 가평 카페 방문을 늘릴 이벤트를 알려주세요.",
+    "question": "주말에 가평 치킨집 방문을 늘릴 이벤트를 알려주세요.",
     "input": {
       "store": {
-        "name": "가평 카페",
-        "type": "카페",
+        "name": "가평 치킨집",
+        "type": "치킨",
         "address": "경기 가평군",
         "lat": 37.8315,
         "lng": 127.5095
       },
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
         "total_count": 603,
-        "same_industry_count": 22,
-        "nearest_distance_m": 119,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
         "industry_breakdown": {
           "한식": 105,
+          "이용·미용": 39,
           "기타 간이": 54,
-          "이용·미용": 39
+          "비알코올": 22,
+          "주점": 20
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2573,11 +2654,8 @@
       "must_contain_number": true,
       "allowed_numbers": [
         603,
-        22,
-        119,
-        105,
-        54,
-        39
+        19,
+        138
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2586,9 +2664,10 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
-    "notes": "F7(가평·카페·높음) 사용. 주말 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 주말 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
@@ -2600,6 +2679,8 @@
     "question": "연말에 강남 카페가 할 만한 이벤트는 뭐가 있을까요?",
     "input": {
       "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
         "total_count": 6691,
         "same_industry_count": 177,
         "nearest_distance_m": 65,
@@ -2608,7 +2689,8 @@
           "이용·미용": 33,
           "의원": 55
         }
-      }
+      },
+      "trend_fixture": null
     },
     "expected": {
       "action": "pass",
@@ -2627,10 +2709,7 @@
       "allowed_numbers": [
         6691,
         177,
-        65,
-        39,
-        33,
-        55
+        65
       ],
       "number_scope": "reasons",
       "hallucination_check": "strict",
@@ -2639,11 +2718,1127 @@
         "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
         "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
         "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
-      }
+      },
+      "trend_used": false
     },
     "notes": "F8(강남역·카페·높음) 사용. 연말 이벤트 문항. 트렌드 단정 없이 상권 근거 사용",
     "author": "김재헌",
     "reviewed_by": null,
     "created_at": "2026-08-18"
+  },
+  {
+    "id": "C-046",
+    "area": "consult",
+    "type": "strategy",
+    "question": "요즘 탕후루가 유행이라던데, 저희 카페 메뉴에 넣으면 반응이 좋을까요?",
+    "input": {
+      "store": {
+        "name": "청양 카페",
+        "type": "카페",
+        "address": "충남 청양군 청양읍",
+        "lat": 36.4587,
+        "lng": 126.8022
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 48,
+        "same_industry_count": 2,
+        "nearest_distance_m": 106,
+        "industry_breakdown": {
+          "한식": 8,
+          "기술 서비스": 8,
+          "자동차 수리·세차": 4
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": [
+          "구슬아이스크림",
+          "탕후루창업",
+          "마블스크림",
+          "탕후루프랜차이즈",
+          "탕후루체인점"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        48,
+        2,
+        106
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "trend_for_consult 경로 커버리지용(질문에 특정 메뉴 '탕후루' 명시 → keyword 추출 대상). 트렌드 실측: 2026-08-19 NAVER API HUB 검색어 트렌드, 방향 상승. market_fixture는 F2(청양) 재사용.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-047",
+    "area": "consult",
+    "type": "season",
+    "question": "환절기에 디지털펌 손님을 늘리려면 어떤 이벤트가 좋을까요?",
+    "input": {
+      "store": {
+        "name": "강남 미용실",
+        "type": "미용실",
+        "address": "서울 강남구 역삼동",
+        "lat": 37.498,
+        "lng": 127.0276
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 6691,
+        "same_industry_count": 9,
+        "nearest_distance_m": 154,
+        "industry_breakdown": {
+          "한식": 39,
+          "이용·미용": 33,
+          "의원": 55
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "디지털펌",
+        "direction": "유지",
+        "related": [
+          "워맥스머스트엑스",
+          "히피펌",
+          "와칸염색",
+          "긴머리히피펌",
+          "허쉬펌"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        6691,
+        9,
+        154
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "trend_for_consult 경로 커버리지용(질문에 특정 메뉴 '디지털펌' 명시 → keyword 추출 대상). 트렌드 실측: 2026-08-19 NAVER API HUB 검색어 트렌드, 방향 유지. market_fixture는 F6(강남 미용실) 재사용.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-048",
+    "area": "consult",
+    "type": "strategy",
+    "question": "순살치킨 메뉴를 강조하면 신규 손님을 끌 수 있을까요?",
+    "input": {
+      "store": {
+        "name": "홍천 치킨집",
+        "type": "치킨",
+        "address": "강원 홍천군 홍천읍",
+        "lat": 37.6971,
+        "lng": 127.8887
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 168,
+        "same_industry_count": 2,
+        "nearest_distance_m": 492,
+        "industry_breakdown": {
+          "한식": 33,
+          "기술 서비스": 26,
+          "부동산 서비스": 10
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "순살치킨",
+        "direction": "유지",
+        "related": [
+          "치킨",
+          "다이어트치킨",
+          "닭가슴살치킨",
+          "가라아게",
+          "냉동치킨"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        168,
+        2,
+        492
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "trend_for_consult 경로 커버리지용(질문에 특정 메뉴 '순살치킨' 명시 → keyword 추출 대상). 트렌드 실측: 2026-08-19 NAVER API HUB 검색어 트렌드, 방향 유지. market_fixture는 F3(홍천) 재사용.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-049",
+    "area": "consult",
+    "type": "market",
+    "question": "다운펌을 새로 선보이려는데 이 근처엔 경쟁할 만한 미용실이 없는 거 맞죠?",
+    "input": {
+      "store": {
+        "name": "대관령 미용실",
+        "type": "미용실",
+        "address": "강원 평창군 대관령면",
+        "lat": 37.6975,
+        "lng": 128.7186
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 6,
+        "same_industry_count": 0,
+        "nearest_distance_m": null,
+        "industry_breakdown": {
+          "기타 간이": 1,
+          "식료품 소매": 1,
+          "기타 교육": 2,
+          "일반 숙박": 2
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "다운펌",
+        "direction": "유지",
+        "related": [
+          "옆머리누르기",
+          "셀프다운펌",
+          "다운펌기계",
+          "남자옆머리누르기",
+          "다운펌약"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        6,
+        0
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 트렌드 경로 커버리지. same_industry_count=0(경쟁 없음) 케이스와 결합.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-050",
+    "area": "consult",
+    "type": "strategy",
+    "question": "애쉬브라운으로 갈아타는 게 나을까요, 지금 하는 염색 메뉴를 유지하는 게 나을까요?",
+    "input": {
+      "store": {
+        "name": "대관령 미용실",
+        "type": "미용실",
+        "address": "강원 평창군 대관령면",
+        "lat": 37.6975,
+        "lng": 128.7186
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 6,
+        "same_industry_count": 0,
+        "nearest_distance_m": null,
+        "industry_breakdown": {
+          "기타 간이": 1,
+          "식료품 소매": 1,
+          "기타 교육": 2,
+          "일반 숙박": 2
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "애쉬브라운",
+        "direction": "하락",
+        "related": [],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        6,
+        0
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F1 재설계(대관령 미용실, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F1(대관령·미용실·경쟁없음) 사용. 트렌드 경로 커버리지. related 없음(실측 그대로).",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-051",
+    "area": "consult",
+    "type": "season",
+    "question": "요즘 흑임자라떼가 뜬다던데 계절 메뉴로 넣으면 좋을까요?",
+    "input": {
+      "store": {
+        "name": "청양 카페",
+        "type": "카페",
+        "address": "충남 청양군 청양읍",
+        "lat": 36.4587,
+        "lng": 126.8022
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 48,
+        "same_industry_count": 2,
+        "nearest_distance_m": 106,
+        "industry_breakdown": {
+          "한식": 8,
+          "기술 서비스": 8,
+          "자동차 수리·세차": 4
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "흑임자라떼",
+        "direction": "상승",
+        "related": [
+          "베오베",
+          "블랙빈프로틴쉐이크",
+          "서리태가루",
+          "흑임자",
+          "검은콩가루"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        48,
+        2,
+        106
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F2 재사용. 트렌드 경로 커버리지.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-052",
+    "area": "consult",
+    "type": "market",
+    "question": "반반치킨을 밀면 주변 가게들이랑 차별화가 될까요?",
+    "input": {
+      "store": {
+        "name": "홍천 치킨집",
+        "type": "치킨",
+        "address": "강원 홍천군 홍천읍",
+        "lat": 37.6971,
+        "lng": 127.8887
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 168,
+        "same_industry_count": 2,
+        "nearest_distance_m": 492,
+        "industry_breakdown": {
+          "한식": 33,
+          "기술 서비스": 26,
+          "부동산 서비스": 10
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "반반치킨",
+        "direction": "유지",
+        "related": [],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        168,
+        2,
+        492
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F3 재사용. 트렌드 경로 커버리지. related 없음(실측 그대로).",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-053",
+    "area": "consult",
+    "type": "market",
+    "question": "즉석밥을 매대에 늘리려는데 요즘도 잘 나가는 상품인가요?",
+    "input": {
+      "store": {
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
+        "address": "전남 구례군",
+        "lat": 35.2027,
+        "lng": 127.463
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 78,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
+        "industry_breakdown": {
+          "중식": 2,
+          "한식": 9,
+          "비알코올": 5,
+          "이용·미용": 7,
+          "기타 간이": 7
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "즉석밥",
+        "direction": "유지",
+        "related": [
+          "곤약밥",
+          "오뚜기밥",
+          "햇반",
+          "현미밥",
+          "곤약현미밥"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        78,
+        3,
+        395
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 트렌드 경로 커버리지. 유지 방향 케이스.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-054",
+    "area": "consult",
+    "type": "strategy",
+    "question": "물티슈를 대용량으로 안 늘려도 괜찮을까요?",
+    "input": {
+      "store": {
+        "name": "구례 슈퍼마켓",
+        "type": "슈퍼마켓",
+        "address": "전남 구례군",
+        "lat": 35.2027,
+        "lng": 127.463
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 78,
+        "same_industry_count": 3,
+        "nearest_distance_m": 395,
+        "industry_breakdown": {
+          "중식": 2,
+          "한식": 9,
+          "비알코올": 5,
+          "이용·미용": 7,
+          "기타 간이": 7
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "물티슈",
+        "direction": "유지",
+        "related": [
+          "논산딸기",
+          "키친타올",
+          "휴지도매",
+          "판촉물제작",
+          "화장지도매"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        78,
+        3,
+        395
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F4 재설계(구례 슈퍼마켓, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F4(구례·슈퍼마켓·낮음) 사용. 트렌드 경로 커버리지.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-055",
+    "area": "consult",
+    "type": "market",
+    "question": "밀키트 코너를 늘리면 주변 상권에서 눈에 띌까요?",
+    "input": {
+      "store": {
+        "name": "가평 슈퍼마켓",
+        "type": "슈퍼마켓",
+        "address": "경기 가평군",
+        "lat": 37.8315,
+        "lng": 127.5095
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 603,
+        "same_industry_count": 6,
+        "nearest_distance_m": 171,
+        "industry_breakdown": {
+          "한식": 105,
+          "기타 간이": 54,
+          "이용·미용": 39
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "밀키트",
+        "direction": "유지",
+        "related": [
+          "굴림만두",
+          "갈비탕",
+          "식자재마트",
+          "생일상배달",
+          "식자재유통"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        603,
+        6,
+        171
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F5 재사용. 트렌드 경로 커버리지.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-056",
+    "area": "consult",
+    "type": "strategy",
+    "question": "제로슈거 음료 코너를 크게 만들면 손님이 늘까요?",
+    "input": {
+      "store": {
+        "name": "가평 슈퍼마켓",
+        "type": "슈퍼마켓",
+        "address": "경기 가평군",
+        "lat": 37.8315,
+        "lng": 127.5095
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 603,
+        "same_industry_count": 6,
+        "nearest_distance_m": 171,
+        "industry_breakdown": {
+          "한식": 105,
+          "기타 간이": 54,
+          "이용·미용": 39
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "제로슈거",
+        "direction": "하락",
+        "related": [
+          "물대신",
+          "물대용차",
+          "수분섭취",
+          "수분보충제",
+          "물많이마시기"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        603,
+        6,
+        171
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F5 재사용. 트렌드 경로 커버리지. 하락 방향 케이스.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-057",
+    "area": "consult",
+    "type": "strategy",
+    "question": "볼륨매직 시술을 더 홍보하려면 어떻게 해야 할까요?",
+    "input": {
+      "store": {
+        "name": "강남 미용실",
+        "type": "미용실",
+        "address": "서울 강남구 역삼동",
+        "lat": 37.498,
+        "lng": 127.0276
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 6691,
+        "same_industry_count": 9,
+        "nearest_distance_m": 154,
+        "industry_breakdown": {
+          "한식": 39,
+          "이용·미용": 33,
+          "의원": 55
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "볼륨매직",
+        "direction": "하락",
+        "related": [
+          "셀프매직",
+          "매직샴푸",
+          "곱슬머리샴푸",
+          "토소웅매직샴푸",
+          "스트레이트파마약"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        6691,
+        9,
+        154
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F6 재사용. 트렌드 경로 커버리지. 하락 방향 케이스.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-058",
+    "area": "consult",
+    "type": "market",
+    "question": "닭강정을 대표 메뉴로 밀어도 경쟁력이 있을까요?",
+    "input": {
+      "store": {
+        "name": "가평 치킨집",
+        "type": "치킨",
+        "address": "경기 가평군",
+        "lat": 37.8315,
+        "lng": 127.5095
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 603,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
+        "industry_breakdown": {
+          "한식": 105,
+          "이용·미용": 39,
+          "기타 간이": 54,
+          "비알코올": 22,
+          "주점": 20
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "닭강정",
+        "direction": "유지",
+        "related": [
+          "닭강정택배",
+          "치킨",
+          "닭강정맛집",
+          "멕시카나닭강정",
+          "속초중앙닭강정"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        603,
+        19,
+        138
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 트렌드 경로 커버리지. related 5개 포함(실측 그대로).",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-059",
+    "area": "consult",
+    "type": "season",
+    "question": "예산 크게 안 들이고 마늘치킨을 연말 특선으로 밀 수 있을까요?",
+    "input": {
+      "store": {
+        "name": "가평 치킨집",
+        "type": "치킨",
+        "address": "경기 가평군",
+        "lat": 37.8315,
+        "lng": 127.5095
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-19",
+        "total_count": 603,
+        "same_industry_count": 19,
+        "nearest_distance_m": 138,
+        "industry_breakdown": {
+          "한식": 105,
+          "이용·미용": 39,
+          "기타 간이": 54,
+          "비알코올": 22,
+          "주점": 20
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "마늘치킨",
+        "direction": "하락",
+        "related": [],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        603,
+        19,
+        138
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F7 재설계(가평 치킨집, 2026-08-19 실측 — 업종 편향 해소, 기존 카페에서 교체). F7(가평·치킨·높음) 사용. 트렌드 경로 커버리지. 하락 방향 케이스.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
+  },
+  {
+    "id": "C-060",
+    "area": "consult",
+    "type": "strategy",
+    "question": "흑당버블티 어때요, 메뉴에 넣을 만해요?",
+    "input": {
+      "store": {
+        "name": "카페 코드잇",
+        "type": "카페",
+        "address": "서울 강남구 역삼동",
+        "lat": 37.4979,
+        "lng": 127.0276
+      },
+      "market_fixture": {
+        "fixture_version": "v2-industry-code",
+        "captured_at": "2026-08-18",
+        "total_count": 6691,
+        "same_industry_count": 177,
+        "nearest_distance_m": 65,
+        "industry_breakdown": {
+          "한식": 39,
+          "이용·미용": 33,
+          "의원": 55
+        }
+      },
+      "trend_fixture": {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "흑당버블티",
+        "direction": "유지",
+        "related": [
+          "버블티",
+          "타로밀크티",
+          "흑당시럽",
+          "흑당밀크티",
+          "버블티펄"
+        ],
+        "weather": null
+      }
+    },
+    "expected": {
+      "action": "pass",
+      "must_have_fields": [
+        "title",
+        "strategy",
+        "reasons",
+        "sources",
+        "suggested_chips"
+      ],
+      "min_reasons": 1,
+      "must_include_sources": [
+        "상권분석",
+        "트렌드"
+      ],
+      "must_contain_number": true,
+      "allowed_numbers": [
+        6691,
+        177,
+        65
+      ],
+      "number_scope": "reasons",
+      "hallucination_check": "strict",
+      "trend_used": true,
+      "rubric": {
+        "근거_충실도": "reasons가 상권 수치와 trend_fixture의 검색 추이(direction)·연관 검색어를 정확히 인용하고, 그 근거가 왜 전략과 연결되는지 설득력 있게 설명하는가(숫자 자체의 일치 여부는 allowed_numbers가 별도 판정, trend_fixture.direction과 무관하게 지어낸 트렌드 단정은 인정하지 않는다)",
+        "실행_가능성": "actions가 무엇을·어떻게·언제 할지 명확해 소상공인이 오늘이나 다음 영업일부터 바로 시도할 수 있는가(fixture에 없는 예산·인력을 임의로 가정하지 않는다)",
+        "구체성": "summary·actions가 이 가게·이 상권의 조건과 연결되어 있는가(가게 이름만 언급하고 일반론을 말하면 낮은 점수)",
+        "자연스러움": "summary·actions·reasons 전체가 번역투·기계적 반복 없이 실제 컨설턴트의 설명처럼 명확하고 자연스러운가"
+      }
+    },
+    "notes": "F8 재사용. 트렌드 경로 커버리지.",
+    "author": "김재헌",
+    "reviewed_by": null,
+    "created_at": "2026-08-19"
   }
 ]

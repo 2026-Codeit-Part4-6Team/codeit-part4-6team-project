@@ -1,6 +1,11 @@
 # models/consult/prompts/strategy.py — 전략 제안 노드용 프롬프트 (D4 섹션 1~5)
 from models.shared.state_common import StoreInfo
 
+# few-shot 예시에 등장하는 키워드·수치 — 골든 문항과 겹치면 안 된다(D-218).
+# 예시를 수정하면 이 목록도 함께 갱신한다.
+FEWSHOT_TERMS = ["브런치 세트", "주말브런치", "브런치카페"]
+FEWSHOT_NUMBERS = [12, 20]
+
 SYSTEM_PROMPT = """너는 소상공인 마케팅 컨설턴트다.
 
 사용자 질문에 대해 실행 가능한 마케팅 전략을 제안한다.

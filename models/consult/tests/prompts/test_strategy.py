@@ -3,7 +3,13 @@
 # 프롬프트 내부 힌트로만 사용).
 import re
 
-from models.consult.prompts.strategy import RETRY_REASONS_HINT, SYSTEM_PROMPT, build_user_prompt
+from models.consult.prompts.strategy import (
+    FEWSHOT_NUMBERS,
+    FEWSHOT_TERMS,
+    RETRY_REASONS_HINT,
+    SYSTEM_PROMPT,
+    build_user_prompt,
+)
 
 _TIER_LABELS = ("높음", "보통", "낮음", "경쟁 없음", "판단 불가")
 
@@ -79,3 +85,17 @@ def test_system_prompt_examples_include_title() -> None:
     example_section = SYSTEM_PROMPT.split("예시:")[1]
 
     assert example_section.count('"title"') == 3
+
+
+def test_fewshot_constants_match_actual_example_content() -> None:
+    """FEWSHOT_NUMBERS/TERMS는 골든 문항 오염 검사(D-218)가 참조하는 상수다 — 실제
+    SYSTEM_PROMPT 예시 구간에 등장하는 값과 어긋나면 검사 자체가 무의미해진다."""
+    example_section = SYSTEM_PROMPT.split("예시:")[1]
+
+    assert FEWSHOT_NUMBERS == [12, 20]
+    for number in FEWSHOT_NUMBERS:
+        assert str(number) in example_section
+
+    assert FEWSHOT_TERMS == ["브런치 세트", "주말브런치", "브런치카페"]
+    for term in FEWSHOT_TERMS:
+        assert term in example_section
