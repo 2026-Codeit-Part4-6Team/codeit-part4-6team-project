@@ -1,6 +1,7 @@
 # cache/trend_repo.py — 검색어 트렌드 조회 Cache-Aside(§2.7) · 두 챗봇 공용
 import json
 import logging
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -130,10 +131,33 @@ def _is_valid_weather(weather: object) -> bool:
 
 
 def _write_cache(keyword: str, result: dict) -> None:
-    """캐시 적재는 최선 노력으로만 시도한다 — 실패해도 이미 확보한 실시간 결과 반환에는 영향 없다."""
+    """캐시 적재는 최선 노력으로만 시도한다 — 실패해도 이미 확보한 실시간 결과 반환에는 영향 없다.
+
+    같은 keyword 행이 이미 있으면 새로 추가하지 않고 갱신한다(upsert, D-053과 동일
+    패턴) — trend_cache에 UNIQUE 인덱스가 없어 DB가 직접 중복 삽입을 막아주지
+    않으므로, 애플리케이션 레벨에서 미리 방어해야 캐시 미스가 반복될 때마다 오래된
+    행이 계속 쌓이지 않는다.
+
+    created_at은 항상 명시적으로 지금 시각으로 갱신한다 — result_json이 이전과
+    같은 값이면 SQLAlchemy가 그 컬럼을 "변경 없음"으로 보고 UPDATE에서 빼버려서,
+    갱신이 안 되면 다음 조회도 계속 만료로 판정돼 매번 실시간 API를 다시 호출하게
+    된다(market_repo에서 Codex 리뷰로 발견된 것과 같은 유형).
+    """
+    payload = json.dumps(result, ensure_ascii=False)
+    now = datetime.now(UTC).replace(tzinfo=None)
     try:
         with SessionLocal() as session:
-            session.add(TrendCache(keyword=keyword, result_json=json.dumps(result, ensure_ascii=False)))
+            existing = (
+                session.query(TrendCache)
+                .filter_by(keyword=keyword)
+                .order_by(TrendCache.created_at.desc(), TrendCache.id.desc())
+                .first()
+            )
+            if existing is not None:
+                existing.result_json = payload
+                existing.created_at = now
+            else:
+                session.add(TrendCache(keyword=keyword, result_json=payload))
             session.commit()
     except SQLAlchemyError:
         logger.warning("trend cache write failed, live fetch result still returned (keyword=%s)", keyword)
