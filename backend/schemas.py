@@ -327,8 +327,26 @@ class BlockedResult(InboundModel):
 
     status: Literal["blocked"]
     action: Literal["block", "reask", "warn"]
-    reason: str = Field(min_length=1)
+    reason: Literal[
+        "illegal_or_injection",
+        "need_clarification",
+        "insufficient_info",
+        "prohibited_item",
+        "regulation_risk",
+        "sensitive_leak",
+    ]
     message: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_action_reason_pair(self) -> "BlockedResult":
+        allowed_reasons = {
+            "block": {"illegal_or_injection", "prohibited_item", "sensitive_leak"},
+            "reask": {"need_clarification", "insufficient_info"},
+            "warn": {"regulation_risk"},
+        }
+        if self.reason not in allowed_reasons[self.action]:
+            raise ValueError("blocked action과 reason 조합이 계약과 일치하지 않습니다.")
+        return self
 
 
 class ErrorResult(InboundModel):
