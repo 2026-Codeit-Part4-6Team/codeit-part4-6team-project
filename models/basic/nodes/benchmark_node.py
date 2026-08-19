@@ -6,7 +6,12 @@ def benchmark_node(state: BasicState) -> dict:
     """가게 업종(또는 질문)으로 벤치마크 사례를 검색해 context에 추가한다."""
     store = state["store"]
     query = store.get("type") or state["question"]
-    results = search_benchmark(query, k=3)
+
+    try:
+        results = search_benchmark(query, k=3)
+    # BLE001 억제 사유: 임베딩/인덱스 예외가 나도 벤치마크 없이 계속 진행하도록 개별 실패로 처리
+    except Exception:  # noqa: BLE001
+        results = []
 
     context = {**state.get("context", {})}
     if results:

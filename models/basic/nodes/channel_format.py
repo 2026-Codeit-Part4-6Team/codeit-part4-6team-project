@@ -20,7 +20,9 @@ def channel_format_node(state: BasicState) -> dict:
     if context.get("benchmark"):
         sources.append("벤치마크")
 
-    title = (state["question"] or "").strip()[:30] or f"{(state.get('store') or {}).get('name', '가게')} 광고 제안"  # 임시 제목 — 요약 로직으로 교체 필요 (D-209)
+    title = (state["question"] or "").strip()[
+        :30
+    ] or f"{(state.get('store') or {}).get('name', '가게')} 광고 제안"  # 임시 제목 — 요약 로직으로 교체 필요 (D-209)
 
     return {
         "status": "ok",

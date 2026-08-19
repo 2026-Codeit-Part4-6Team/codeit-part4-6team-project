@@ -55,3 +55,13 @@ def test_existing_context_keys_are_preserved(mock_search):
 
     assert result["context"]["market"] == {"info": "상권 데이터"}
     assert result["context"]["benchmark"] is None
+
+
+@patch("models.basic.nodes.benchmark_node.search_benchmark")
+def test_search_failure_falls_back_to_none_without_raising(mock_search):
+    mock_search.side_effect = RuntimeError("임베딩 모델 로드 실패")
+    state = {"store": _STORE, "question": "여름 신메뉴 카피 추천해줘"}
+
+    result = benchmark_node(state)
+
+    assert result["context"]["benchmark"] is None

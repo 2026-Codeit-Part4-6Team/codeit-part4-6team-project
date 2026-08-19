@@ -17,11 +17,13 @@ _KB_PATH = Path("shared_data/benchmark_kb.json")
 _MOCK_KB_PATH = Path(__file__).parent.parent / "retrieval" / "mock_benchmark_kb.json"
 _INDEX_DIR = Path(__file__).parent.parent / "retrieval" / "benchmark_index"
 
+
 def _resolve_kb_path() -> Path:
     if _KB_PATH.exists():
         return _KB_PATH
     print(f"{_KB_PATH}가 아직 없어 mock 데이터({_MOCK_KB_PATH})로 인덱싱합니다.")
     return _MOCK_KB_PATH
+
 
 def main() -> None:
     kb_path = _resolve_kb_path()
@@ -40,6 +42,7 @@ def main() -> None:
     )
 
     print(f"{len(entries)}건 인덱싱 완료 → {_INDEX_DIR}")
+
 
 if __name__ == "__main__":
     main()

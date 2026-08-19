@@ -56,6 +56,7 @@ def test_partial_decode_failure_still_passes():
 
     assert result["image_review_result"]["action"] == "pass"
 
+
 @patch("models.basic.nodes.image_review._clip_score")
 def test_clip_score_uses_matching_image_prompt_by_index(mock_clip_score):
     mock_clip_score.return_value = 0.5

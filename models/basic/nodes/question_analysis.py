@@ -93,5 +93,6 @@ def question_analysis_node(state: BasicState) -> dict:
     return {
         "status": "ok",
         "question": parsed.get("rewritten_question", state["question"]),
-        "keyword": parsed.get("keyword") or parsed.get("rewritten_question", state["question"]),
+        "keyword": parsed.get("keyword")
+        or parsed.get("rewritten_question", state["question"]),
     }

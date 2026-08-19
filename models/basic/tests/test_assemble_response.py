@@ -6,6 +6,7 @@
 ⚠️ backend import 는 이 테스트 파일에서만 한다 — 프로덕션 코드가 backend 를
    import 하면 배포 단위 분리(D-031)가 깨진다.
 """
+
 import pytest
 from pydantic import ValidationError
 
@@ -78,7 +79,7 @@ def test_ok_state_passes_service_contract():
 
     assert isinstance(result, BasicModelResult)
     assert len(result.proposals) == 3
-    assert result.suggested_chips == []          # Basic 은 반드시 빈 배열
+    assert result.suggested_chips == []  # Basic 은 반드시 빈 배열
 
 
 def test_basic_result_must_not_carry_suggested_chips():
@@ -133,7 +134,7 @@ def test_copy_failure_slot_must_null_both_copy_and_image():
     state["result"]["proposals"] = [
         {"copy": "정상1", "image_b64": None},
         {"copy": "정상2", "image_b64": None},
-        {**_COPY_FAILED_SLOT, "image_b64": "남아있는-이미지"},   # ← 위반
+        {**_COPY_FAILED_SLOT, "image_b64": "남아있는-이미지"},  # ← 위반
     ]
 
     with pytest.raises(ValidationError):
@@ -146,7 +147,7 @@ def test_image_failure_slot_must_keep_copy_and_clear_image():
     state["result"]["proposals"] = [
         {"copy": "정상1", "image_b64": None},
         {"copy": "정상2", "image_b64": None},
-        {**_IMAGE_FAILED_SLOT, "copy": None},                    # ← 위반
+        {**_IMAGE_FAILED_SLOT, "copy": None},  # ← 위반
     ]
 
     with pytest.raises(ValidationError):
@@ -159,7 +160,7 @@ def test_success_slot_must_have_nonblank_copy():
     state["result"]["proposals"] = [
         {"copy": "정상1", "image_b64": None},
         {"copy": "정상2", "image_b64": None},
-        {"copy": "   ", "image_b64": None},                       # ← 위반
+        {"copy": "   ", "image_b64": None},  # ← 위반
     ]
 
     with pytest.raises(ValidationError):
@@ -207,8 +208,12 @@ def test_internal_keys_do_not_leak_into_proposals():
         "question": "여름 신메뉴 홍보 문구 만들어줘",
         "ranked_copies": [
             {"copy": "카피1", "image_b64": None, "score": 4.8, "clip_score": 0.31},
-            {"copy": "카피2", "image_b64": None, "score": 4.2,
-             "regulation": {"action": "pass"}},
+            {
+                "copy": "카피2",
+                "image_b64": None,
+                "score": 4.2,
+                "regulation": {"action": "pass"},
+            },
             {"copy": "카피3", "image_b64": None, "score": 3.9},
         ],
         "context": {"market": "상권 요약"},
@@ -278,8 +283,12 @@ def test_blocked_state_becomes_blocked_result(source, action, reason):
     state = {
         "status": "blocked",
         "issues": [
-            {"source": source, "action": action, "reason": reason,
-             "message": "차단 사유 안내 문구"}
+            {
+                "source": source,
+                "action": action,
+                "reason": reason,
+                "message": "차단 사유 안내 문구",
+            }
         ],
     }
 
@@ -295,8 +304,14 @@ def test_blocked_action_must_be_within_contract_enum():
     """action 은 block·reask·warn 3종만 허용된다."""
     state = {
         "status": "blocked",
-        "issues": [{"source": "self_check", "action": "reject",   # ← enum 밖
-                    "reason": "self_check_failed", "message": "근거 부족"}],
+        "issues": [
+            {
+                "source": "self_check",
+                "action": "reject",  # ← enum 밖
+                "reason": "self_check_failed",
+                "message": "근거 부족",
+            }
+        ],
     }
 
     with pytest.raises(ValidationError):
@@ -307,8 +322,14 @@ def test_blocked_message_must_not_be_blank():
     """message 는 min_length=1 이라 빈 문자열이면 위반이다."""
     state = {
         "status": "blocked",
-        "issues": [{"source": "input", "action": "block",
-                    "reason": "input_blocked", "message": ""}],
+        "issues": [
+            {
+                "source": "input",
+                "action": "block",
+                "reason": "input_blocked",
+                "message": "",
+            }
+        ],
     }
 
     response = assemble_response(state)
@@ -324,8 +345,13 @@ def test_error_reason_inside_contract_enum_passes(reason):
     """ErrorResult.reason 은 계약 enum 4종만 허용된다."""
     state = {
         "status": "error",
-        "issues": [{"source": "copy_gen", "reason": reason,
-                    "message": "카피 생성 중 오류가 발생했습니다."}],
+        "issues": [
+            {
+                "source": "copy_gen",
+                "reason": reason,
+                "message": "카피 생성 중 오류가 발생했습니다.",
+            }
+        ],
     }
 
     result = MODEL_RESULT_ADAPTER.validate_python(
@@ -340,14 +366,22 @@ def test_copy_generation_failed_is_mapped_to_contract_reason():
     """내부 reason(copy_generation_failed)은 enum 밖이라 매핑돼야 한다(D-073)."""
     state = {
         "status": "error",
-        "issues": [{"source": "copy_gen", "reason": "copy_generation_failed",
-                    "message": "카피 생성에 반복적으로 실패했습니다."}],
+        "issues": [
+            {
+                "source": "copy_gen",
+                "reason": "copy_generation_failed",
+                "message": "카피 생성에 반복적으로 실패했습니다.",
+            }
+        ],
     }
 
     response = assemble_response(state)
 
     assert response["reason"] in {
-        "timeout", "rate_limit", "provider_error", "unknown"
+        "timeout",
+        "rate_limit",
+        "provider_error",
+        "unknown",
     }, "내부 reason 을 그대로 내보내면 502가 난다"
     MODEL_RESULT_ADAPTER.validate_python(response, chatbot_type="basic")
 
