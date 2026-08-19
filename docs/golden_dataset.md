@@ -165,7 +165,7 @@ LLM 모델이 상권 데이터를 전혀 읽지 않고 few-shot 을 그대로 �
 | **거부 (규제·보안)** | `R-` | **15** | **전민재 PM** |
 | **합계** | — | **60** | — |
 | *(별도)* 기본 챗봇 (카피 생성) | `B-` | 20 [SHOULD] | 기본 챗봇 담당 |
-| *(별도)* 컨설턴트 (전략 제안) | `C-` | 20 [SHOULD] | 컨설턴트 챗봇 담당 |
+| *(별도)* 컨설턴트 (전략 제안) | `C-` | 40 [SHOULD] | 컨설턴트 챗봇 담당 |
 | *(별도)* 거부 (규제·보안) | `R-` | 10 [SHOULD] | **전민재 PM** |
 | *(별도)* 검색 평가셋 | `RT-` | 10 [SHOULD] | 기본 챗봇 담당 (§6.1) |
 
@@ -1203,7 +1203,7 @@ LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
 
 ## 10. 측정 실행 방법
 
-### 10.1 ⚠️ 현재 구현 상태 (v1.1 정정)
+### 10.1 ⚠️ 현재 구현 상태 (v1.3 정정)
 
 > **v1.0은 아래 명령이 이미 동작하는 것처럼 적혀 있었으나 사실이 아니다.**
 > 문서가 실제와 다르면 담당자가 *"내 환경 문제인가"* 로 시간을 버린다.
@@ -1218,6 +1218,7 @@ LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
 | `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 추가)** | 컨설턴트 담당 | 8/19 |
 | `models/shared/eval/eval_refusal.py` | ⬜ **미구현** | 전민재 PM | 8/19 |
 | `shared_data/golden_dataset.json` | ⬜ **미생성** | 전원 | 8/19 파일럿 |
+| `models/shared/eval/compare_reports.py` | ⬜ **미구현(v1.3 신설, 선택)** | 전민재 PM | 8/20 |
 
 > ⚠️ **`tests/validation/test_contract.py` 는 거부 정확도를 측정하지 않는다.**
 > 그것은 검증 함수의 **반환 형식**만 확인하는 스모크 테스트이고,
@@ -1370,7 +1371,8 @@ models/shared/eval/reports/YYYY-MM-DD.json
 ④ 외부 API를 호출하지 않는다(LLM Judge 제외)
    상권·트렌드는 fixture 주입, 호출이 발생하면 실패 처리
 
-⑤ 결과 파일에 model·dataset_version·fixture_version 을 기록한다   ← v1.2 추가
+⑤ 결과 파일에 generation_model·judge_model·dataset_version·
+   fixture_version·trend_fixture_version 을 기록한다 ← v1.3 추가
 ```
 
 **결과 파일 형식**
@@ -1379,7 +1381,8 @@ models/shared/eval/reports/YYYY-MM-DD.json
 {
   "run_at": "2026-08-20T18:00:00+09:00",
   "area": "consult",
-  "model": "gpt-4o-mini",
+  "generation_model": "gpt-4o-mini",
+  "judge_model": "gpt-4.1-mini",
   "dataset_version": "v1.3",
   "fixture_version": "v2-industry-code",
   "trend_fixture_version": "v1-naver-apihub",
@@ -1439,26 +1442,180 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | LLM Judge (카피) | 3.2 / 5 | 4.1 / 5 | +0.9 |
 | LLM Judge (전략) | 3.5 / 5 | 4.0 / 5 | +0.5 |
 | **환각률(수치 기준)** | 22% | 5% | **-17%p** |
-| **경로 일치율(C-)** | 78% | 95% | **+17%p** |
 | 계약 준수율 | 88% | 100% | +12%p |
+| **경로 일치율(C-)** | 78% | 95% | **+17%p** |
+| **업종 매핑 커버리지** | 5% (카페만) | 85% | **+80%p** |
 | 차단 정확도 | 100% | 100% | — |
 | 과잉 차단률 | 40% | 8% | **-32%p** |
 | 생성 실패율 | 12% | 3% | -9%p |
 | 평균 응답시간 | 8.2s | 7.9s | -0.3s |
 
-**함께 반드시 기록할 것**
+**비교표에는 반드시 측정 조건을 함께 적는다.**
 
 ```
-· 측정에 쓴 모델명 (gpt-4o-mini / GPT-5.4 Mini 등)
-· dataset_version (v1.2)
-· fixture_version (v2-industry-code)
+측정 조건
+- generation_model : gpt-4o-mini        (전·후 동일)
+- judge_model      : gpt-4.1-mini       (전·후 동일)
+- dataset_version  : v1.3               (전·후 동일)
+- fixture_version  : v2-industry-code   (전·후 동일)
+- 바꾼 것          : strategy.py SYSTEM_PROMPT 의 few-shot 예시 2개 추가
+```
+
+> **"바꾼 것" 한 줄이 없으면 숫자는 "운이 좋았나"로 읽힌다.**
+> 근거가 있어야 **개선 노력**으로 인정된다.
+> 개선 사례는 **부록 D 템플릿**으로 기록한다.
+
+---
+
+### 11.2 ★ 비교 가능성 판정 — 한 번에 하나만 바꾼다 (v1.3 신설)
+
+> **두 결과 파일을 나란히 놓기 전에 반드시 확인한다.**
+> 조건이 둘 이상 다르면 그 표는 **아무것도 증명하지 못한다.**
+
+**11.2.1 비교 가능 여부 표**
+
+| 전 → 후에서 달라진 것 | 비교 가능? | 이 비교가 증명하는 것 |
+| --- | --- | --- |
+| **프롬프트만** (모든 필드 동일) | ✅ | **프롬프트 튜닝 효과** — 가장 흔한 비교 |
+| `generation_model` 만 | ✅ | **생성 모델 성능 차이** (D-048 A/B) |
+| `judge_model` 만 | ✅ | **채점자 성향 차이** — Judge 자체 검증용 |
+| `fixture_version` 만 | ✅ | **입력 데이터 정확도 개선 효과** (예: 16→177) |
+| **`generation_model` + `judge_model`** | ❌ | **해석 불가** — 생성이 좋아진 건지 자[尺]가 바뀐 건지 모른다 |
+| **프롬프트 + 모델** | ❌ | 해석 불가 — 원인 분리 불가 |
+| `dataset_version` 이 다름 | ❌ | 문항 자체가 다르다 |
+| `fixture_version` + 다른 무엇 | ❌ | 입력과 처리가 동시에 바뀌었다 |
+
+**11.2.2 왜 동시에 바꾸면 안 되나**
+
+```
+[잘못된 비교]
+  전: generation=gpt-4o-mini,   judge=gpt-4o-mini    → 4.1
+  후: generation=GPT-5.4 Mini,  judge=GPT-5.4 Mini   → 4.4
+  결론: "모델 교체로 +0.3"   ← ❌ 증명할 수 없다
+
+  · 생성이 실제로 좋아졌을 수도 있고
+  · 새 judge 가 원래 후하게 주는 것일 수도 있고
+  · 둘이 상쇄돼 실제 개선은 +0.8인데 -0.5만큼 깎였을 수도 있다
+  자[尺]와 대상을 동시에 바꾸면 눈금 자체를 신뢰할 수 없다.
+
+[올바른 비교]
+  judge=gpt-4.1-mini 로 고정
+  전: generation=gpt-4o-mini   → 4.1
+  후: generation=GPT-5.4 Mini  → 4.4
+  결론: "동일 채점자 기준, 생성 모델 교체로 +0.3"   ← ✅
+```
+
+**11.2.3 발표 자료 작성 전 3단계 확인**
+
+```
+① 두 결과 파일의 헤더를 나란히 놓는다
+   generation_model / judge_model / dataset_version / fixture_version /
+   trend_fixture_version
+
+② 다른 필드가 몇 개인지 센다
+   0개 → 프롬프트 비교 (✅ 그대로 사용)
+   1개 → 위 표에서 그 항목이 ✅ 인지 확인
+   2개 이상 → ❌ 비교하지 않는다. 조건을 맞춰 재측정한다
+
+③ 슬라이드 표 아래에 "측정 조건" 블록을 붙인다 (§11.1)
+```
+
+**비교 가능성 자동 확인 (선택)**
+
+```python
+# models/shared/eval/compare_reports.py
+"""두 결과 파일이 비교 가능한 조건인지 확인한다(§11.2).
+
+발표 자료를 만들기 전에 돌린다 — 조건이 둘 이상 다른 표는
+아무것도 증명하지 못하므로, 사람이 눈으로 대조하는 대신 기계가 막는다.
+"""
+import json
+from pathlib import Path
+
+# 한 번에 하나만 바뀌어야 비교가 성립하는 조건들
+_CONDITIONS = (
+    "generation_model",
+    "judge_model",
+    "dataset_version",
+    "fixture_version",
+    "trend_fixture_version",
+)
+
+# 이 조건은 단독으로 달라도 비교가 성립한다(§11.2.1)
+_COMPARABLE_ALONE = {
+    "generation_model": "생성 모델 성능 차이",
+    "judge_model": "채점자 성향 차이",
+    "fixture_version": "입력 데이터 정확도 개선 효과",
+}
+
+
+def compare_reports(before_path: str, after_path: str) -> dict:
+    """두 결과 파일의 비교 가능 여부와 그 비교의 의미를 반환한다."""
+    before = json.loads(Path(before_path).read_text(encoding="utf-8"))
+    after = json.loads(Path(after_path).read_text(encoding="utf-8"))
+
+    changed = [key for key in _CONDITIONS if before.get(key) != after.get(key)]
+
+    if not changed:
+        return {
+            "comparable": True, 
+            "means": "프롬프트 튜닝 효과", 
+            "changed": []
+        }
+
+    if len(changed) == 1 and changed[0] in _COMPARABLE_ALONE:
+        return {
+            "comparable": True,
+            "means": _COMPARABLE_ALONE[changed[0]],
+            "changed": changed,
+        }
+
+    return {
+        "comparable": False,
+        "means": None,
+        "changed": changed,
+        "reason": (
+            f"조건 {changed} 가 동시에 달라 원인을 분리할 수 없다 — "
+            f"한 번에 하나만 바꿔 재측정한다(§11.2)"
+        ),
+    }
+```
+
+```bash
+uv run python -m models.shared.eval.compare_reports \
+    models/consult/eval/reports/2026-08-20.json \
+    models/consult/eval/reports/2026-08-21.json
+```
+
+---
+
+### 11.3 함께 반드시 기록할 것
+
+```
+· generation_model  (생성에 쓴 모델)
+· judge_model       (채점에 쓴 모델)
+· dataset_version   (v1.3)
+· fixture_version   (v2-industry-code)
+· trend_fixture_version (v1-naver-apihub)
 · "무엇을 바꿔서 이렇게 됐는지" 한 줄
 ```
 
-> **"무엇을 바꿔서 이렇게 됐는지"를 반드시 함께 적는다.**
 > 숫자만 있으면 *"운이 좋았나"* 로 보이고, 근거가 있어야 **개선 노력**으로 인정된다.
-> 측정에 사용한 **모델명·데이터셋 버전·fixture 변경 여부**를 함께 기록한다.
 > 개선 사례는 **부록 D 템플릿**으로 기록한다.
+
+---
+
+### 11.4 ⚠️ 조건 변경 시점 규칙
+
+| 조건 | 확정 시점 | 본 평가 시작 후 |
+| --- | --- | --- |
+| `dataset_version` | 검수 완료(8/20 12:00) | **고정** |
+| `fixture_version` | 문항 작성 시(8/19) | **고정** |
+| `judge_model` | 파일럿(8/18) | **고정** (D-258) |
+| `generation_model` | — | **A/B 대상**이므로 변경 가능(단, 다른 조건 고정) |
+
+> **본 평가 시작 후 `judge_model`·`fixture_version`·`dataset_version` 을 바꾸면
+> 그때까지 낸 모든 점수를 버려야 한다.** 자[尺]가 바뀌면 이전 눈금은 무의미하다.
 
 ---
 
@@ -1474,6 +1631,8 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | **G-06** | **`market_fixture` 값의 출처** | 업종코드 교정(D-041) 후 실측값. 미교정 시 현재값 사용 후 재측정 | 컨설턴트 담당 | 8/18 |
 | **G-07** | **검색 평가셋 진행 여부** | 벤치마크 KB에 `bm_###` 문서 ID 부여 시에만. 미달 시 보고서 작성 대상 제외 | 기본 챗봇 담당 | 8/18 |
 | **G-08** | **`allowed_numbers` 반올림 허용 범위** | 정확 일치. 필요 시 ±5% 허용으로 완화 검토 | 컨설턴트 담당 | 8/19 |
+| **G-09** | **업종 매핑 커버리지 목표치(80%)** | 상위 20종 확장 후 실측해 재조정 | 컨설턴트 담당 | 8/19 |
+| G-10 | judge_model 상위 모델 전환 여부 | 파일럿 !usage 실측 후 결정(D-252) | 전민재 PM | 8/19 |
 
 > ⚠️ **본 문서에 코드 블록으로 실린 파일은 모두 §10.1 구현 상태 표에 등재돼 있어야 한다.**
 > 표에 있는데 코드가 없거나, 코드가 있는데 표에 없으면 담당자가 찾지 못한다.
