@@ -4,9 +4,12 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
+import httpx
+import openai
 import pytest
 
 from models.consult.eval.eval_strategy import (
+    DEFAULT_DATASET_PATH,
     DEFAULT_STORE,
     _build_model_request,
     _build_report,
@@ -14,11 +17,13 @@ from models.consult.eval.eval_strategy import (
     _check_number_rules,
     _evaluate_item,
     _judge_response,
+    _parse_args,
     _run_graph,
     _sanitize_trend_fixture,
     _trend_fixture_version,
     check_trend_path,
     evaluate_dataset,
+    main,
     trend_path_match_rate,
 )
 
@@ -244,7 +249,9 @@ def test_trend_fixture_version_uses_non_null_fixture_version() -> None:
 
 @patch("models.consult.eval.eval_strategy.assemble_response")
 @patch("models.consult.eval.eval_strategy.build_consultant")
+@patch("models.consult.eval.eval_strategy.build_initial_state")
 def test_run_graph_invokes_graph_once_and_returns_final_state_and_response(
+    mock_build_initial_state,
     mock_build_consultant,
     mock_assemble_response,
 ) -> None:
@@ -254,22 +261,23 @@ def test_run_graph_invokes_graph_once_and_returns_final_state_and_response(
     graph.invoke.return_value = final_state
     mock_build_consultant.return_value = graph
     mock_assemble_response.return_value = response
+    expected_initial_state = {
+        "chatbot_type": "consultant",
+        "user_id": 1,
+        "question": "주변 경쟁사는 얼마나 되나요?",
+        "store": DEFAULT_STORE,
+        "extra": {},
+        "tokens_used": 0,
+    }
+    mock_build_initial_state.return_value = expected_initial_state
     request = _build_model_request(_item())
 
     actual_state, actual_response = _run_graph(request)
 
     assert actual_state == final_state
     assert actual_response == response
-    graph.invoke.assert_called_once_with(
-        {
-            "chatbot_type": "consultant",
-            "user_id": 1,
-            "question": "주변 경쟁사는 얼마나 되나요?",
-            "store": DEFAULT_STORE,
-            "extra": {},
-            "tokens_used": 0,
-        }
-    )
+    mock_build_initial_state.assert_called_once_with(request)
+    graph.invoke.assert_called_once_with(expected_initial_state)
     mock_assemble_response.assert_called_once_with(final_state)
 
 
@@ -462,6 +470,8 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
     }
     assert result["_status_ok"] is True
     assert result["_contract_ok"] is True
+    assert result["_judge_ok"] is True
+    assert result["judge_error"] is None
     assert result["_latency_s"] >= 0
 
 
@@ -478,6 +488,8 @@ def test_evaluate_item_hides_graph_exception_and_skips_judge(
     assert result["passed"] is False
     assert result["scores"] == {}
     assert result["_status_ok"] is False
+    assert result["_judge_ok"] is None
+    assert result["judge_error"] is None
     assert result["trend_path"] is None
     assert result["response"] == {
         "status": "error",
@@ -486,6 +498,68 @@ def test_evaluate_item_hides_graph_exception_and_skips_judge(
     }
     assert "비밀" not in json.dumps(result, ensure_ascii=False)
     mock_call_llm.assert_not_called()
+
+
+@patch("models.shared.llm.call_llm")
+@patch("models.consult.eval.eval_strategy._run_graph")
+def test_evaluate_item_preserves_response_when_judge_returns_invalid_json(
+    mock_run_graph,
+    mock_call_llm,
+) -> None:
+    final_state = {
+        "context": {
+            "question_analysis": {"keyword": None},
+            "market": {
+                "total_count": 6691,
+                "same_industry_count": 177,
+                "nearest_distance_m": 65,
+                "density_tier": "높음",
+            },
+            "trend": None,
+        }
+    }
+    mock_run_graph.return_value = (final_state, _OK_RESPONSE)
+    mock_call_llm.return_value = ("JSON이 아닌 응답", 10)
+
+    result = _evaluate_item(_item())
+
+    assert result["passed"] is False
+    assert result["response"] == _OK_RESPONSE
+    assert result["scores"] == {}
+    assert result["judge_error"] == "invalid_response"
+    assert result["_status_ok"] is True
+    assert result["_contract_ok"] is True
+    assert result["_judge_ok"] is False
+
+
+@patch("models.shared.llm.call_llm")
+@patch("models.consult.eval.eval_strategy._run_graph")
+def test_evaluate_item_classifies_judge_rate_limit_and_continues(
+    mock_run_graph,
+    mock_call_llm,
+) -> None:
+    final_state = {
+        "context": {
+            "question_analysis": {"keyword": None},
+            "market": {"same_industry_count": 177},
+            "trend": None,
+        }
+    }
+    mock_run_graph.return_value = (final_state, _OK_RESPONSE)
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx.Response(429, request=request)
+    mock_call_llm.side_effect = openai.RateLimitError(
+        "rate limited",
+        response=response,
+        body=None,
+    )
+
+    result = _evaluate_item(_item())
+
+    assert result["passed"] is False
+    assert result["response"] == _OK_RESPONSE
+    assert result["judge_error"] == "rate_limit"
+    assert result["_judge_ok"] is False
 
 
 def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
@@ -504,8 +578,10 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
                 "keyword": None,
                 "trend_in_context": False,
             },
+            "judge_error": None,
             "_status_ok": True,
             "_contract_ok": True,
+            "_judge_ok": True,
             "_latency_s": 1.0,
         },
         {
@@ -522,8 +598,10 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
                 "keyword": None,
                 "trend_in_context": False,
             },
+            "judge_error": "invalid_response",
             "_status_ok": True,
             "_contract_ok": False,
+            "_judge_ok": False,
             "_latency_s": 3.0,
         },
         {
@@ -534,8 +612,10 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
             "response": {"status": "error"},
             "context_snapshot": {},
             "trend_path": None,
+            "judge_error": None,
             "_status_ok": False,
             "_contract_ok": False,
+            "_judge_ok": None,
             "_latency_s": 5.0,
         },
     ]
@@ -569,6 +649,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "hallucination_rate": pytest.approx(1 / 3),
         "contract_compliance": pytest.approx(1 / 3),
         "trend_path_match_rate": 0.5,
+        "judge_failure_rate": 0.5,
         "failure_rate": pytest.approx(1 / 3),
         "latency_p50_s": 3.0,
         "latency_p95_s": 4.8,
@@ -581,6 +662,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "response",
         "context_snapshot",
         "trend_path",
+        "judge_error",
     }
 
 
@@ -611,8 +693,10 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
                 "keyword": None,
                 "trend_in_context": False,
             },
+            "judge_error": None,
             "_status_ok": True,
             "_contract_ok": True,
+            "_judge_ok": True,
             "_latency_s": 1.0,
         }
 
@@ -630,7 +714,62 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     assert report["metrics"]["trend_path_match_rate"] == 1.0
     assert [item["id"] for item in report["items"]] == ["C-001", "C-002"]
     assert json.loads(report_path.read_text(encoding="utf-8"))["item_count"] == 2
+    assert report_path.name.endswith("_consult_limit-2.json")
     mock_sleep.assert_called_once_with(1.0)
+
+
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_keeps_two_reports_created_on_same_day(
+    mock_evaluate_item,
+    tmp_path,
+) -> None:
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps([_item()], ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.return_value = {
+        "id": "C-001",
+        "passed": True,
+        "scores": {"자연스러움": 4},
+        "unexpected_numbers": [],
+        "response": _OK_RESPONSE,
+        "context_snapshot": {"market": {"same_industry_count": 177}},
+        "trend_path": {
+            "expected": False,
+            "actual": False,
+            "matched": True,
+            "keyword": None,
+            "trend_in_context": False,
+        },
+        "judge_error": None,
+        "_status_ok": True,
+        "_contract_ok": True,
+        "_judge_ok": True,
+        "_latency_s": 1.0,
+    }
+    run_times = [
+        datetime(2026, 8, 20, 18, 0, 0, 123456, tzinfo=ZoneInfo("Asia/Seoul")),
+        datetime(2026, 8, 20, 18, 0, 1, 654321, tzinfo=ZoneInfo("Asia/Seoul")),
+    ]
+
+    with patch("models.consult.eval.eval_strategy.datetime") as mock_datetime:
+        mock_datetime.now.side_effect = run_times
+        _, first_path = evaluate_dataset(
+            dataset_path=dataset_path,
+            area="consult",
+            limit=1,
+            report_dir=tmp_path / "reports",
+        )
+        _, second_path = evaluate_dataset(
+            dataset_path=dataset_path,
+            area="consult",
+            limit=1,
+            report_dir=tmp_path / "reports",
+        )
+
+    assert first_path.name == "2026-08-20_180000_123456_consult_limit-1.json"
+    assert second_path.name == "2026-08-20_180001_654321_consult_limit-1.json"
+    assert first_path != second_path
+    assert first_path.exists()
+    assert second_path.exists()
 
 
 def test_evaluate_dataset_rejects_non_positive_limit(tmp_path) -> None:
@@ -639,3 +778,39 @@ def test_evaluate_dataset_rejects_non_positive_limit(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="양수"):
         evaluate_dataset(dataset_path=dataset_path, limit=0, report_dir=tmp_path)
+
+
+def test_parse_args_requires_explicit_limit_or_full() -> None:
+    with pytest.raises(SystemExit):
+        _parse_args([])
+
+    with pytest.raises(SystemExit):
+        _parse_args(["--limit", "2", "--full"])
+
+
+def test_parse_args_accepts_limit_and_full_as_separate_modes() -> None:
+    limited = _parse_args(["--limit", "2"])
+    full = _parse_args(["--full"])
+
+    assert limited.limit == 2
+    assert limited.full is False
+    assert full.limit is None
+    assert full.full is True
+
+
+@patch("models.consult.eval.eval_strategy.evaluate_dataset")
+def test_main_runs_full_evaluation_only_with_explicit_full_flag(
+    mock_evaluate_dataset,
+    tmp_path,
+) -> None:
+    report_path = tmp_path / "full.json"
+    mock_evaluate_dataset.return_value = ({}, report_path)
+
+    exit_code = main(["--full"])
+
+    assert exit_code == 0
+    mock_evaluate_dataset.assert_called_once_with(
+        dataset_path=DEFAULT_DATASET_PATH,
+        area="consult",
+        limit=None,
+    )

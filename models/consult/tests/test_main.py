@@ -4,7 +4,7 @@
 따로 검증하므로 여기서는 run()의 안전망 범위만 다룬다."""
 from unittest.mock import MagicMock, patch
 
-from models.consult.main import run
+from models.consult.main import build_initial_state, run
 
 _STORE = {"name": "카페 코드잇", "type": "카페", "address": "서울 강남구 역삼동",
           "lat": 37.4979, "lng": 127.0276}
@@ -18,6 +18,40 @@ def _request(**overrides) -> dict:
         "store": _STORE,
     }
     return {**base, **overrides}
+
+
+def test_build_initial_state_normalizes_optional_extra() -> None:
+    request = _request(extra=None)
+
+    assert build_initial_state(request) == {
+        "chatbot_type": "consultant",
+        "user_id": 1,
+        "question": "주변 경쟁사는 얼마나 되나요?",
+        "store": _STORE,
+        "extra": {},
+        "tokens_used": 0,
+    }
+
+
+@patch("models.consult.main.build_initial_state")
+@patch("models.consult.main.build_consultant")
+def test_run_invokes_graph_with_shared_initial_state(
+    mock_build_consultant,
+    mock_build_initial_state,
+) -> None:
+    initial_state = {"shared": "state"}
+    mock_build_initial_state.return_value = initial_state
+    mock_graph = MagicMock()
+    mock_graph.invoke.return_value = {
+        "status": "error",
+        "issues": [{"reason": "unknown", "message": "실패"}],
+    }
+    mock_build_consultant.return_value = mock_graph
+
+    run(_request())
+
+    mock_build_initial_state.assert_called_once_with(_request())
+    mock_graph.invoke.assert_called_once_with(initial_state)
 
 
 @patch("models.consult.main.build_consultant")

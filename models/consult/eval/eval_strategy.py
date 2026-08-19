@@ -13,8 +13,10 @@ from typing import Any
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+import openai
+
 from models.consult.graph.build_consultant import build_consultant
-from models.consult.main import assemble_response
+from models.consult.main import assemble_response, build_initial_state
 from models.shared import llm as shared_llm
 from models.shared.config import OPENAI_MODEL
 from models.shared.llm_errors import classify_llm_error
@@ -186,14 +188,7 @@ def _sanitize_trend_fixture(item: dict) -> dict | None:
 
 def _run_graph(request: dict) -> tuple[dict, dict]:
     """평가용으로 그래프를 한 번 실행해 최종 state와 서비스 응답을 함께 반환한다."""
-    initial_state = {
-        "chatbot_type": request["chatbot_type"],
-        "user_id": request["user_id"],
-        "question": request["question"],
-        "store": request["store"],
-        "extra": request.get("extra") or {},
-        "tokens_used": 0,
-    }
+    initial_state = build_initial_state(request)
     final_state = build_consultant().invoke(initial_state)
     return final_state, assemble_response(final_state)
 
@@ -301,25 +296,39 @@ def _evaluate_item(item: dict) -> dict:
             "response": response,
             "context_snapshot": context_snapshot,
             "trend_path": trend_path,
+            "judge_error": None,
             "_status_ok": False,
             "_contract_ok": False,
+            "_judge_ok": None,
             "_latency_s": latency_s,
         }
 
     expected = item.get("expected") or {}
     contract_ok = _check_contract(response, expected)
     number_ok, unexpected_numbers = _check_number_rules(response, expected)
-    scores = _judge_response(item, response, context_snapshot)
+    try:
+        scores = _judge_response(item, response, context_snapshot)
+        judge_error = None
+        judge_ok = True
+    except (TypeError, ValueError, openai.OpenAIError) as exc:
+        logger.exception("LLM Judge 평가 실패: %s", item["id"])
+        scores = {}
+        judge_error = (
+            classify_llm_error(exc) if isinstance(exc, openai.OpenAIError) else "invalid_response"
+        )
+        judge_ok = False
     return {
         "id": item["id"],
-        "passed": contract_ok and number_ok,
+        "passed": contract_ok and number_ok and judge_ok,
         "scores": scores,
         "unexpected_numbers": unexpected_numbers,
         "response": response,
         "context_snapshot": context_snapshot,
         "trend_path": trend_path,
+        "judge_error": judge_error,
         "_status_ok": True,
         "_contract_ok": contract_ok,
+        "_judge_ok": judge_ok,
         "_latency_s": latency_s,
     }
 
@@ -348,6 +357,7 @@ def _build_report(
     item_count = len(results)
     scores = [score for result in results for score in result["scores"].values()]
     latencies = [result["_latency_s"] for result in results]
+    judge_checks = [result["_judge_ok"] for result in results if result["_judge_ok"] is not None]
 
     def rate(count: int) -> float:
         return count / item_count if item_count else 0.0
@@ -358,6 +368,7 @@ def _build_report(
         "scores",
         "unexpected_numbers",
         "trend_path",
+        "judge_error",
         "response",
         "context_snapshot",
     )
@@ -376,6 +387,11 @@ def _build_report(
             ),
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
             "trend_path_match_rate": trend_path_match_rate(results),
+            "judge_failure_rate": (
+                sum(not judge_ok for judge_ok in judge_checks) / len(judge_checks)
+                if judge_checks
+                else 0.0
+            ),
             "failure_rate": rate(sum(not result["_status_ok"] for result in results)),
             "latency_p50_s": _percentile(latencies, 0.50),
             "latency_p95_s": _percentile(latencies, 0.95),
@@ -452,27 +468,34 @@ def evaluate_dataset(
         run_at=run_at,
     )
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{run_at.date().isoformat()}.json"
-    report_path.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    scope = f"limit-{processed_count}" if limit is not None else "full"
+    timestamp = run_at.strftime("%Y-%m-%d_%H%M%S_%f")
+    report_path = report_dir / f"{timestamp}_{area}_{scope}.json"
+    with report_path.open("x", encoding="utf-8") as report_file:
+        json.dump(
+            report,
+            report_file,
+            ensure_ascii=False,
+            indent=2,
+        )
     return report, report_path
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """평가 데이터셋, 대상 영역, 파일럿 제한 개수를 CLI에서 받는다."""
+    """평가 데이터셋, 대상 영역과 제한 또는 전체 실행 모드를 CLI에서 받는다."""
     parser = argparse.ArgumentParser(description="컨설턴트 골든 데이터셋 평가")
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET_PATH)
     parser.add_argument("--area", default="consult")
-    parser.add_argument("--limit", type=int)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--limit", type=int)
+    mode.add_argument("--full", action="store_true")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI 평가를 실행하고 성공 여부를 종료 코드로 반환한다."""
     args = _parse_args(argv)
-    if args.limit is None:
+    if args.full:
         print("전체 측정 전 전민재 PM에게 사전 공유하고 팀 디스코드방의 !usage를 확인해야 합니다.")
     try:
         _, report_path = evaluate_dataset(

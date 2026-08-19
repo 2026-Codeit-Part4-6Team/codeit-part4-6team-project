@@ -31,6 +31,18 @@ _VALID_ERROR_REASONS = {"timeout", "rate_limit", "provider_error", "unknown"}
 _VALID_BLOCKED_ACTIONS = {"block", "reask", "warn"}
 
 
+def build_initial_state(request: dict) -> dict:
+    """ModelRequest를 컨설턴트 그래프의 초기 state로 변환한다."""
+    return {
+        "chatbot_type": request["chatbot_type"],
+        "user_id": request["user_id"],
+        "question": request["question"],
+        "store": request["store"],
+        "extra": request.get("extra") or {},
+        "tokens_used": 0,
+    }
+
+
 def run(request: dict) -> dict:
     """ModelRequest dict를 받아 ModelResult dict를 반환한다.
 
@@ -40,14 +52,7 @@ def run(request: dict) -> dict:
     계약을 만족할 수 없다.
     """
     try:
-        initial_state = {
-            "chatbot_type": request["chatbot_type"],
-            "user_id": request["user_id"],
-            "question": request["question"],
-            "store": request["store"],
-            "extra": request.get("extra") or {},
-            "tokens_used": 0,
-        }
+        initial_state = build_initial_state(request)
         final_state = build_consultant().invoke(initial_state)
         return assemble_response(final_state)
     except Exception as exc:
