@@ -3,6 +3,7 @@
 실행: uv run python models/basic/eval/eval_retrieval.py --dataset shared_data/retrieval_eval.json
 
 """
+
 import argparse
 import json
 import sys
@@ -33,14 +34,18 @@ def run(dataset_path: Path) -> dict:
         retrieved = search_benchmark(item["query"], k=TOP_K)
         retrieved_ids = [r["id"] for r in retrieved]
 
-        results.append({
-            "id": item["id"],
-            "query": item["query"],
-            "retrieved_ids": retrieved_ids,
-            "relevant_document_ids": item["relevant_document_ids"],
-            "hit": _hit_at_k(item["relevant_document_ids"], retrieved_ids),
-            "reciprocal_rank": _reciprocal_rank(item["relevant_document_ids"], retrieved_ids),
-        })
+        results.append(
+            {
+                "id": item["id"],
+                "query": item["query"],
+                "retrieved_ids": retrieved_ids,
+                "relevant_document_ids": item["relevant_document_ids"],
+                "hit": _hit_at_k(item["relevant_document_ids"], retrieved_ids),
+                "reciprocal_rank": _reciprocal_rank(
+                    item["relevant_document_ids"], retrieved_ids
+                ),
+            }
+        )
 
     processed = len(results)
     if processed != len(items):
@@ -54,6 +59,7 @@ def run(dataset_path: Path) -> dict:
     report = {
         "run_at": datetime.now(UTC).isoformat(),
         "area": "retrieval",
+        "dataset_version": "v1.2",
         "item_count": processed,
         "metrics": {
             f"hit_rate_at_{TOP_K}": round(hit_rate, 3),
@@ -65,7 +71,9 @@ def run(dataset_path: Path) -> dict:
     out_dir = Path("models/basic/eval/reports")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"retrieval_{datetime.now(UTC).date()}.json"
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"결과 저장: {out_path}")
     return report
 

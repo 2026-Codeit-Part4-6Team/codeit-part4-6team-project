@@ -6,6 +6,7 @@
 rubric 점수만 LLM Judge(GPT-5.4 Mini)로 채점한다. 상권·트렌드는 고정 fixture로
 모킹해 평가 실행 중 외부 API를 호출하지 않는다(§1.4 재현성 원칙, §10.3 DoD ④).
 """
+
 import argparse
 import json
 import sys
@@ -21,7 +22,6 @@ from models.shared.llm import call_llm
 
 JUDGE_MODEL = "gpt-5.4-mini"
 
-# 8/18 강남역 실측값(업종코드 교정 후) — 재현성을 위해 평가 중엔 실시간 API 대신 고정값 사용
 _MARKET_FIXTURE = {
     "total_count": 6691,
     "same_industry_count": 177,
@@ -69,7 +69,9 @@ def _rule_based_checks(item: dict, response: dict) -> dict:
 
     all_copy = " ".join(p.get("copy") or "" for p in proposals)
     must_any = expected.get("must_include_any")
-    checks["must_include_any"] = (not must_any) or any(kw in all_copy for kw in must_any)
+    checks["must_include_any"] = (not must_any) or any(
+        kw in all_copy for kw in must_any
+    )
 
     must_not = expected.get("must_not_include", [])
     checks["must_not_include"] = not any(kw in all_copy for kw in must_not)
@@ -103,7 +105,8 @@ def _judge_rubric(item: dict, response: dict) -> dict:
 
 def run(dataset_path: Path, area: str) -> dict:
     items = [
-        i for i in json.loads(dataset_path.read_text(encoding="utf-8"))
+        i
+        for i in json.loads(dataset_path.read_text(encoding="utf-8"))
         if i["area"] == area
     ]
     if not items:
@@ -115,8 +118,13 @@ def run(dataset_path: Path, area: str) -> dict:
     latencies = []
 
     with (
-        patch("models.basic.nodes.market_for_copy.get_market", side_effect=_fake_get_market),
-        patch("models.basic.nodes.trend_for_copy.get_trend", side_effect=_fake_get_trend),
+        patch(
+            "models.basic.nodes.market_for_copy.get_market",
+            side_effect=_fake_get_market,
+        ),
+        patch(
+            "models.basic.nodes.trend_for_copy.get_trend", side_effect=_fake_get_trend
+        ),
     ):
         for item in items:
             request = build_model_request(item)
@@ -128,19 +136,23 @@ def run(dataset_path: Path, area: str) -> dict:
             checks = _rule_based_checks(item, response)
             scores = _judge_rubric(item, response) if all(checks.values()) else {}
 
-            results.append({
-                "id": item["id"],
-                "passed": all(checks.values()),
-                "checks": checks,
-                "scores": scores,
-                "response": response,
-                "context_snapshot": final_state.get("context"),
-            })
+            results.append(
+                {
+                    "id": item["id"],
+                    "passed": all(checks.values()),
+                    "checks": checks,
+                    "scores": scores,
+                    "response": response,
+                    "context_snapshot": final_state.get("context"),
+                }
+            )
             time.sleep(1)  # 직렬 실행 + 요청 간 sleep (§10.4 예산 주의)
 
     processed = len(results)
     if processed != len(items):
-        print(f"{area} {len(items)}문항 중 {processed}건 처리 — 불일치", file=sys.stderr)
+        print(
+            f"{area} {len(items)}문항 중 {processed}건 처리 — 불일치", file=sys.stderr
+        )
         sys.exit(1)
     print(f"{area} {len(items)}문항 중 {processed}건 처리")
 
@@ -151,8 +163,12 @@ def run(dataset_path: Path, area: str) -> dict:
         "model": JUDGE_MODEL,
         "item_count": processed,
         "metrics": {
-            "llm_judge_avg": round(sum(all_scores) / len(all_scores), 2) if all_scores else None,
-            "contract_compliance": round(sum(r["passed"] for r in results) / processed, 2),
+            "llm_judge_avg": (
+                round(sum(all_scores) / len(all_scores), 2) if all_scores else None
+            ),
+            "contract_compliance": round(
+                sum(r["passed"] for r in results) / processed, 2
+            ),
             "failure_rate": round(sum(not r["passed"] for r in results) / processed, 2),
             "latency_p50_s": round(sorted(latencies)[len(latencies) // 2], 2),
         },
@@ -162,7 +178,9 @@ def run(dataset_path: Path, area: str) -> dict:
     out_dir = Path("models/basic/eval/reports")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{datetime.now(UTC).date()}.json"
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"결과 저장: {out_path}")
     return report
 
