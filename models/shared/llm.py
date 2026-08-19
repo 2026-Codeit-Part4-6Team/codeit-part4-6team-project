@@ -34,7 +34,7 @@ from models.shared.config import (
 logger = logging.getLogger(__name__)
 
 _client: OpenAI | None = None
-_total_tokens = 0
+_total_tokens: dict[str, int] = {}
 
 
 def _get_client() -> OpenAI:
@@ -54,11 +54,21 @@ def reset_client() -> None:
     global _client
     _client = None
 
+def reset_total_tokens() -> None:
+    """테스트에서 누적 토큰 카운터를 비운다."""
+    _total_tokens.clear()
 
-def get_total_tokens() -> int:
-    """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용."""
-    return _total_tokens
 
+def get_total_tokens(model: str | None = None) -> int:
+    """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용.
+
+    model 을 지정하면 그 모델만, 생략하면 전체 합계를 반환한다(D-257).
+    생성 모델과 Judge 모델의 소비량을 나눠 보기 위해 모델별로 집계한다.
+    집계에 없는 모델을 조회해도 KeyError 가 아니라 0 을 반환한다.
+    """
+    if model is None:
+        return sum(_total_tokens.values())
+    return _total_tokens.get(model, 0)
 
 def call_llm(
     system: str,
@@ -84,10 +94,12 @@ def call_llm(
         openai.RateLimitError: 재시도 상한 도달 또는 남은 예산 부족.
         ValueError: 응답에 텍스트 content가 없을 때.
     """
-    global _total_tokens
-
     if deadline is None:
         deadline = time.monotonic() + LLM_DEADLINE_SECONDS
+
+    # ★ 한 번만 해석해서 호출·집계 양쪽에 같은 값을 쓴다.
+    #   raw model 을 집계 키로 쓰면 생략 시 None 이 키가 되어 집계가 깨진다(D-264).
+    resolved_model = model or OPENAI_MODEL
 
     kwargs = {"response_format": {"type": "json_object"}} if json_mode else {}
     messages = [
@@ -98,7 +110,7 @@ def call_llm(
     for attempt in range(LLM_MAX_RETRIES + 1):
         try:
             response = _get_client().chat.completions.create(
-                model=model or OPENAI_MODEL,
+                model=resolved_model,
                 temperature=LLM_TEMPERATURE,
                 messages=messages,
                 **kwargs,
@@ -106,8 +118,10 @@ def call_llm(
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI 응답에 텍스트 content가 없습니다.")
+
             tokens = response.usage.total_tokens if response.usage else 0
-            _total_tokens += tokens
+            # dict 는 없는 키에 += 가 KeyError 다 — get(k, 0) 으로 초기값을 준다.
+            _total_tokens[resolved_model] = _total_tokens.get(resolved_model, 0) + tokens
             return content, tokens
 
         except openai.RateLimitError:
