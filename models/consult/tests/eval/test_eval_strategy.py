@@ -27,6 +27,7 @@ from models.consult.eval.eval_strategy import (
     main,
     trend_path_match_rate,
 )
+from models.shared.config import OPENAI_JUDGE_MODEL, OPENAI_MODEL
 
 _OK_RESPONSE = {
     "status": "ok",
@@ -406,6 +407,10 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "related": ["구슬아이스크림"],
         "weather": None,
     }
+    assert mock_call_llm.call_args.kwargs == {
+        "json_mode": True,
+        "model": OPENAI_JUDGE_MODEL,
+    }
 
 
 @patch("models.shared.llm.call_llm")
@@ -657,7 +662,8 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
     assert list(report) == [
         "run_at",
         "area",
-        "model",
+        "generation_model",
+        "judge_model",
         "dataset_version",
         "fixture_version",
         "trend_fixture_version",
@@ -666,6 +672,8 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "items",
     ]
     assert report["run_at"] == "2026-08-20T18:00:00+09:00"
+    assert report["generation_model"] == OPENAI_MODEL
+    assert report["judge_model"] == OPENAI_JUDGE_MODEL
     assert report["dataset_version"] == "v1.3"
     assert report["trend_fixture_version"] == "v1-naver-apihub"
     assert report["item_count"] == 3
