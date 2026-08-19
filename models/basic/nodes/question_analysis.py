@@ -1,9 +1,9 @@
 import json
 
 from models.shared.llm import call_llm
+from models.shared.llm_errors import classify_llm_error
 
 from ..graph.state import BasicState
-from ..llm_errors import classify_llm_error
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어시스턴트다.
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
