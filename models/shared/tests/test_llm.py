@@ -18,9 +18,10 @@ from models.shared.config import (
     LLM_MAX_RETRIES,
     LLM_TIMEOUT_SECONDS,
     OPENAI_BASE_URL,
+    OPENAI_MODEL,
 )
-from models.shared.llm import call_llm, get_total_tokens, reset_total_tokens, reset_client
-from models.shared.config import OPENAI_MODEL
+from models.shared.llm import call_llm, get_total_tokens, reset_client, reset_total_tokens
+
 
 # ── 공통 헬퍼 ────────────────────────────────────────────────
 def _rate_limit_error() -> openai.RateLimitError:
