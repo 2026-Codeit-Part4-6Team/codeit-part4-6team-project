@@ -13,12 +13,14 @@ from typing import Any
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-from models.consult import main as consult_main
+from models.consult.graph.build_consultant import build_consultant
+from models.consult.main import assemble_response
 from models.shared import llm as shared_llm
 from models.shared.config import OPENAI_MODEL
+from models.shared.llm_errors import classify_llm_error
 
 EVAL_USER_ID = 1
-DATASET_VERSION = "v1.2"
+DATASET_VERSION = "v1.3"
 DEFAULT_DATASET_PATH = Path("shared_data/golden_dataset.json")
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 SLEEP_SECONDS = 1.0
@@ -169,14 +171,70 @@ def _sanitize_market_fixture(item: dict) -> dict:
     }
 
 
-def _judge_response(item: dict, response: dict) -> dict[str, int]:
+def _sanitize_trend_fixture(item: dict) -> dict | None:
+    """평가용 트렌드 fixture에서 결과 메타데이터를 제거하고 null은 유지한다."""
+    raw = item.get("input") or {}
+    fixture = raw.get("trend_fixture")
+    if not fixture:
+        return None
+    return {
+        key: value
+        for key, value in fixture.items()
+        if key not in {"fixture_version", "captured_at"}
+    }
+
+
+def _run_graph(request: dict) -> tuple[dict, dict]:
+    """평가용으로 그래프를 한 번 실행해 최종 state와 서비스 응답을 함께 반환한다."""
+    initial_state = {
+        "chatbot_type": request["chatbot_type"],
+        "user_id": request["user_id"],
+        "question": request["question"],
+        "store": request["store"],
+        "extra": request.get("extra") or {},
+        "tokens_used": 0,
+    }
+    final_state = build_consultant().invoke(initial_state)
+    return final_state, assemble_response(final_state)
+
+
+def check_trend_path(item: dict, final_state: dict) -> dict:
+    """기대된 트렌드 경로와 질문 분석 노드가 실제 선택한 경로를 비교한다."""
+    context = final_state.get("context") or {}
+    analysis = context.get("question_analysis") or {}
+    keyword = analysis.get("keyword")
+    expected = item["expected"]["trend_used"]
+    actual = keyword is not None
+    return {
+        "expected": expected,
+        "actual": actual,
+        "matched": expected == actual,
+        "keyword": keyword,
+        "trend_in_context": bool(context.get("trend")),
+    }
+
+
+def trend_path_match_rate(item_results: list[dict]) -> float:
+    """실행 결과 중 트렌드 경로 검사가 있는 문항의 일치율을 계산한다."""
+    checks = [result["trend_path"] for result in item_results if result.get("trend_path")]
+    if not checks:
+        return 1.0
+    return sum(check["matched"] for check in checks) / len(checks)
+
+
+def _judge_response(
+    item: dict,
+    response: dict,
+    context_snapshot: dict,
+) -> dict[str, int]:
     """문항의 rubric 전체를 LLM 한 번으로 채점하고 점수만 반환한다."""
     rubric = (item.get("expected") or {}).get("rubric") or {}
     judge_input = {
         "question": item["question"],
         "store": _build_model_request(item)["store"],
         "rubric": rubric,
-        "market_fixture": _sanitize_market_fixture(item),
+        "market_fixture": context_snapshot.get("market"),
+        "trend_fixture": context_snapshot.get("trend"),
         "response": response,
     }
     raw, _ = shared_llm.call_llm(
@@ -205,17 +263,33 @@ def _judge_response(item: dict, response: dict) -> dict[str, int]:
 
 def _evaluate_item(item: dict) -> dict:
     """한 문항의 모델 응답, 규칙 검사, Judge 점수와 내부 집계값을 만든다."""
-    context_snapshot = _sanitize_market_fixture(item)
+    market_fixture = _sanitize_market_fixture(item)
+    trend_fixture = _sanitize_trend_fixture(item)
+    started_at = time.perf_counter()
     with (
         patch(
             "models.consult.nodes.market_for_consult.get_market",
-            return_value=context_snapshot,
+            return_value=market_fixture,
         ),
-        patch("models.consult.nodes.trend_for_consult.get_trend", return_value=None),
+        patch(
+            "models.consult.nodes.trend_for_consult.get_trend",
+            return_value=trend_fixture,
+        ),
     ):
-        started_at = time.perf_counter()
-        response = consult_main.run(_build_model_request(item))
-        latency_s = time.perf_counter() - started_at
+        try:
+            final_state, response = _run_graph(_build_model_request(item))
+        except Exception as exc:
+            logger.exception("컨설턴트 평가 그래프 실행 실패")
+            final_state = {}
+            response = {
+                "status": "error",
+                "reason": classify_llm_error(exc),
+                "message": "전략 생성 중 오류가 발생했습니다.",
+            }
+    latency_s = time.perf_counter() - started_at
+
+    context_snapshot = final_state.get("context") or {}
+    trend_path = check_trend_path(item, final_state) if final_state else None
 
     status_ok = response.get("status") == "ok"
     if not status_ok:
@@ -226,6 +300,7 @@ def _evaluate_item(item: dict) -> dict:
             "unexpected_numbers": [],
             "response": response,
             "context_snapshot": context_snapshot,
+            "trend_path": trend_path,
             "_status_ok": False,
             "_contract_ok": False,
             "_latency_s": latency_s,
@@ -234,7 +309,7 @@ def _evaluate_item(item: dict) -> dict:
     expected = item.get("expected") or {}
     contract_ok = _check_contract(response, expected)
     number_ok, unexpected_numbers = _check_number_rules(response, expected)
-    scores = _judge_response(item, response)
+    scores = _judge_response(item, response, context_snapshot)
     return {
         "id": item["id"],
         "passed": contract_ok and number_ok,
@@ -242,6 +317,7 @@ def _evaluate_item(item: dict) -> dict:
         "unexpected_numbers": unexpected_numbers,
         "response": response,
         "context_snapshot": context_snapshot,
+        "trend_path": trend_path,
         "_status_ok": True,
         "_contract_ok": contract_ok,
         "_latency_s": latency_s,
@@ -265,6 +341,7 @@ def _build_report(
     *,
     area: str,
     fixture_version: str,
+    trend_fixture_version: str,
     run_at: datetime,
 ) -> dict:
     """문항별 결과를 §10.4 발표용 집계 스키마로 변환한다."""
@@ -280,6 +357,7 @@ def _build_report(
         "passed",
         "scores",
         "unexpected_numbers",
+        "trend_path",
         "response",
         "context_snapshot",
     )
@@ -289,6 +367,7 @@ def _build_report(
         "model": OPENAI_MODEL,
         "dataset_version": DATASET_VERSION,
         "fixture_version": fixture_version,
+        "trend_fixture_version": trend_fixture_version,
         "item_count": item_count,
         "metrics": {
             "llm_judge_avg": sum(scores) / len(scores) if scores else 0.0,
@@ -296,6 +375,7 @@ def _build_report(
                 sum(bool(result["unexpected_numbers"]) for result in results)
             ),
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
+            "trend_path_match_rate": trend_path_match_rate(results),
             "failure_rate": rate(sum(not result["_status_ok"] for result in results)),
             "latency_p50_s": _percentile(latencies, 0.50),
             "latency_p95_s": _percentile(latencies, 0.95),
@@ -314,6 +394,19 @@ def _fixture_version(items: list[dict]) -> str:
             versions.append(version)
     if len(versions) > 1:
         logger.warning("서로 다른 fixture_version이 섞였습니다: %s", versions)
+    return versions[0] if versions else "unknown"
+
+
+def _trend_fixture_version(items: list[dict]) -> str:
+    """실행 대상의 값 있는 트렌드 fixture 버전을 고르고 혼합 버전은 경고한다."""
+    versions = []
+    for item in items:
+        fixture = (item.get("input") or {}).get("trend_fixture") or {}
+        version = fixture.get("fixture_version")
+        if version and version not in versions:
+            versions.append(version)
+    if len(versions) > 1:
+        logger.warning("서로 다른 trend fixture_version이 섞였습니다: %s", versions)
     return versions[0] if versions else "unknown"
 
 
@@ -355,6 +448,7 @@ def evaluate_dataset(
         results,
         area=area,
         fixture_version=_fixture_version(selected),
+        trend_fixture_version=_trend_fixture_version(selected),
         run_at=run_at,
     )
     report_dir.mkdir(parents=True, exist_ok=True)

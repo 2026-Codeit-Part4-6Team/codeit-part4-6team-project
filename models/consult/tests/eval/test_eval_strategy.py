@@ -1,7 +1,7 @@
 # 컨설턴트 골든 데이터셋 평가기의 규칙 검사와 실행 흐름을 검증하는 테스트
 import json
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -14,7 +14,12 @@ from models.consult.eval.eval_strategy import (
     _check_number_rules,
     _evaluate_item,
     _judge_response,
+    _run_graph,
+    _sanitize_trend_fixture,
+    _trend_fixture_version,
+    check_trend_path,
     evaluate_dataset,
+    trend_path_match_rate,
 )
 
 _OK_RESPONSE = {
@@ -43,9 +48,11 @@ def _item(item_id: str = "C-001") -> dict:
                 "total_count": 6691,
                 "same_industry_count": 177,
                 "nearest_distance_m": 65,
-            }
+            },
+            "trend_fixture": None,
         },
         "expected": {
+            "trend_used": False,
             "must_have_fields": [
                 "title",
                 "strategy",
@@ -197,8 +204,134 @@ def test_check_number_rules_does_not_treat_bool_as_allowed_number() -> None:
     assert unexpected == [1]
 
 
+def test_sanitize_trend_fixture_removes_metadata_and_keeps_api_payload() -> None:
+    item = _item()
+    item["input"]["trend_fixture"] = {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": ["구슬아이스크림"],
+        "weather": None,
+    }
+
+    assert _sanitize_trend_fixture(item) == {
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": ["구슬아이스크림"],
+        "weather": None,
+    }
+
+
+def test_sanitize_trend_fixture_preserves_explicit_null() -> None:
+    assert _sanitize_trend_fixture(_item()) is None
+
+
+def test_trend_fixture_version_uses_non_null_fixture_version() -> None:
+    null_item = _item("C-001")
+    trend_item = _item("C-046")
+    trend_item["input"]["trend_fixture"] = {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": [],
+        "weather": None,
+    }
+
+    assert _trend_fixture_version([null_item, trend_item]) == "v1-naver-apihub"
+
+
+@patch("models.consult.eval.eval_strategy.assemble_response")
+@patch("models.consult.eval.eval_strategy.build_consultant")
+def test_run_graph_invokes_graph_once_and_returns_final_state_and_response(
+    mock_build_consultant,
+    mock_assemble_response,
+) -> None:
+    graph = MagicMock()
+    final_state = {"status": "ok", "context": {"market": {"total_count": 6691}}}
+    response = dict(_OK_RESPONSE)
+    graph.invoke.return_value = final_state
+    mock_build_consultant.return_value = graph
+    mock_assemble_response.return_value = response
+    request = _build_model_request(_item())
+
+    actual_state, actual_response = _run_graph(request)
+
+    assert actual_state == final_state
+    assert actual_response == response
+    graph.invoke.assert_called_once_with(
+        {
+            "chatbot_type": "consultant",
+            "user_id": 1,
+            "question": "주변 경쟁사는 얼마나 되나요?",
+            "store": DEFAULT_STORE,
+            "extra": {},
+            "tokens_used": 0,
+        }
+    )
+    mock_assemble_response.assert_called_once_with(final_state)
+
+
+def test_check_trend_path_compares_expected_keyword_path_and_context() -> None:
+    item = _item()
+    item["expected"]["trend_used"] = True
+
+    result = check_trend_path(
+        item,
+        {
+            "context": {
+                "question_analysis": {"keyword": "탕후루"},
+                "trend": {"keyword": "탕후루", "direction": "상승"},
+            }
+        },
+    )
+
+    assert result == {
+        "expected": True,
+        "actual": True,
+        "matched": True,
+        "keyword": "탕후루",
+        "trend_in_context": True,
+    }
+
+
+def test_check_trend_path_reports_mismatch_without_failing_item() -> None:
+    item = _item()
+
+    result = check_trend_path(
+        item,
+        {"context": {"question_analysis": {"keyword": "탕후루"}}},
+    )
+
+    assert result["matched"] is False
+    assert result["expected"] is False
+    assert result["actual"] is True
+    assert result["trend_in_context"] is False
+
+
+def test_trend_path_match_rate_ignores_results_without_path_check() -> None:
+    results = [
+        {"trend_path": {"matched": True}},
+        {"trend_path": None},
+        {"trend_path": {"matched": False}},
+    ]
+
+    assert trend_path_match_rate(results) == 0.5
+    assert trend_path_match_rate([{"trend_path": None}]) == 1.0
+
+
 @patch("models.shared.llm.call_llm")
 def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> None:
+    item = _item()
+    item["input"]["trend_fixture"] = {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": ["구슬아이스크림"],
+        "weather": None,
+    }
     mock_call_llm.return_value = (
         json.dumps(
             {
@@ -212,7 +345,17 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         80,
     )
 
-    scores = _judge_response(_item(), _OK_RESPONSE)
+    context_snapshot = {
+        "market": {"same_industry_count": 177},
+        "trend": {
+            "keyword": "탕후루",
+            "direction": "상승",
+            "related": ["구슬아이스크림"],
+            "weather": None,
+        },
+    }
+
+    scores = _judge_response(item, _OK_RESPONSE, context_snapshot)
 
     assert scores == {
         "근거_충실도": 5,
@@ -223,6 +366,13 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
     mock_call_llm.assert_called_once()
     judge_input = json.loads(mock_call_llm.call_args.args[1])
     assert judge_input["store"] == DEFAULT_STORE
+    assert judge_input["market_fixture"] == {"same_industry_count": 177}
+    assert judge_input["trend_fixture"] == {
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": ["구슬아이스크림"],
+        "weather": None,
+    }
 
 
 @patch("models.shared.llm.call_llm")
@@ -235,16 +385,43 @@ def test_judge_response_rejects_missing_reason(mock_call_llm) -> None:
     item["expected"]["rubric"] = {"자연스러움": "한국어가 자연스러운가"}
 
     with pytest.raises(ValueError, match="판정 근거"):
-        _judge_response(item, _OK_RESPONSE)
+        _judge_response(item, _OK_RESPONSE, {"market": {}, "trend": None})
 
 
 @patch("models.shared.llm.call_llm")
-@patch("models.consult.main.run")
+@patch("models.consult.eval.eval_strategy._run_graph")
 def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
-    mock_run,
+    mock_run_graph,
     mock_call_llm,
 ) -> None:
-    def fake_run(_request: dict) -> dict:
+    item = _item()
+    item["input"]["trend_fixture"] = {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": ["구슬아이스크림"],
+        "weather": None,
+    }
+    item["expected"]["trend_used"] = True
+    response = {**_OK_RESPONSE, "sources": ["상권분석", "트렌드"]}
+    context_snapshot = {
+        "question_analysis": {"keyword": "탕후루"},
+        "market": {
+            "total_count": 6691,
+            "same_industry_count": 177,
+            "nearest_distance_m": 65,
+            "density_tier": "높음",
+        },
+        "trend": {
+            "keyword": "탕후루",
+            "direction": "상승",
+            "related": ["구슬아이스크림"],
+            "weather": None,
+        },
+    }
+
+    def fake_run_graph(_request: dict) -> tuple[dict, dict]:
         from models.consult.nodes import market_for_consult, trend_for_consult
 
         assert market_for_consult.get_market(0, 0) == {
@@ -252,10 +429,15 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
             "same_industry_count": 177,
             "nearest_distance_m": 65,
         }
-        assert trend_for_consult.get_trend("카페") is None
-        return _OK_RESPONSE
+        assert trend_for_consult.get_trend("탕후루") == {
+            "keyword": "탕후루",
+            "direction": "상승",
+            "related": ["구슬아이스크림"],
+            "weather": None,
+        }
+        return {"context": context_snapshot}, response
 
-    mock_run.side_effect = fake_run
+    mock_run_graph.side_effect = fake_run_graph
     mock_call_llm.return_value = (
         json.dumps(
             {
@@ -267,13 +449,16 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
         50,
     )
 
-    result = _evaluate_item(_item())
+    result = _evaluate_item(item)
 
     assert result["passed"] is True
-    assert result["context_snapshot"] == {
-        "total_count": 6691,
-        "same_industry_count": 177,
-        "nearest_distance_m": 65,
+    assert result["context_snapshot"] == context_snapshot
+    assert result["trend_path"] == {
+        "expected": True,
+        "actual": True,
+        "matched": True,
+        "keyword": "탕후루",
+        "trend_in_context": True,
     }
     assert result["_status_ok"] is True
     assert result["_contract_ok"] is True
@@ -281,19 +466,25 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
 
 
 @patch("models.shared.llm.call_llm")
-@patch("models.consult.main.run")
-def test_evaluate_item_skips_judge_when_model_status_is_not_ok(mock_run, mock_call_llm) -> None:
-    mock_run.return_value = {
-        "status": "error",
-        "reason": "provider_error",
-        "message": "전략 생성 실패",
-    }
+@patch("models.consult.eval.eval_strategy._run_graph")
+def test_evaluate_item_hides_graph_exception_and_skips_judge(
+    mock_run_graph,
+    mock_call_llm,
+) -> None:
+    mock_run_graph.side_effect = RuntimeError("비밀 provider detail")
 
     result = _evaluate_item(_item())
 
     assert result["passed"] is False
     assert result["scores"] == {}
     assert result["_status_ok"] is False
+    assert result["trend_path"] is None
+    assert result["response"] == {
+        "status": "error",
+        "reason": "unknown",
+        "message": "전략 생성 중 오류가 발생했습니다.",
+    }
+    assert "비밀" not in json.dumps(result, ensure_ascii=False)
     mock_call_llm.assert_not_called()
 
 
@@ -306,6 +497,13 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
             "unexpected_numbers": [],
             "response": _OK_RESPONSE,
             "context_snapshot": {"same_industry_count": 177},
+            "trend_path": {
+                "expected": False,
+                "actual": False,
+                "matched": True,
+                "keyword": None,
+                "trend_in_context": False,
+            },
             "_status_ok": True,
             "_contract_ok": True,
             "_latency_s": 1.0,
@@ -317,6 +515,13 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
             "unexpected_numbers": [9],
             "response": _OK_RESPONSE,
             "context_snapshot": {"same_industry_count": 0},
+            "trend_path": {
+                "expected": True,
+                "actual": False,
+                "matched": False,
+                "keyword": None,
+                "trend_in_context": False,
+            },
             "_status_ok": True,
             "_contract_ok": False,
             "_latency_s": 3.0,
@@ -328,6 +533,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
             "unexpected_numbers": [],
             "response": {"status": "error"},
             "context_snapshot": {},
+            "trend_path": None,
             "_status_ok": False,
             "_contract_ok": False,
             "_latency_s": 5.0,
@@ -335,7 +541,13 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
     ]
     run_at = datetime(2026, 8, 20, 18, 0, tzinfo=ZoneInfo("Asia/Seoul"))
 
-    report = _build_report(results, area="consult", fixture_version="v2", run_at=run_at)
+    report = _build_report(
+        results,
+        area="consult",
+        fixture_version="v2",
+        trend_fixture_version="v1-naver-apihub",
+        run_at=run_at,
+    )
 
     assert list(report) == [
         "run_at",
@@ -343,16 +555,20 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "model",
         "dataset_version",
         "fixture_version",
+        "trend_fixture_version",
         "item_count",
         "metrics",
         "items",
     ]
     assert report["run_at"] == "2026-08-20T18:00:00+09:00"
+    assert report["dataset_version"] == "v1.3"
+    assert report["trend_fixture_version"] == "v1-naver-apihub"
     assert report["item_count"] == 3
     assert report["metrics"] == {
         "llm_judge_avg": 3.0,
         "hallucination_rate": pytest.approx(1 / 3),
         "contract_compliance": pytest.approx(1 / 3),
+        "trend_path_match_rate": 0.5,
         "failure_rate": pytest.approx(1 / 3),
         "latency_p50_s": 3.0,
         "latency_p95_s": 4.8,
@@ -364,6 +580,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "unexpected_numbers",
         "response",
         "context_snapshot",
+        "trend_path",
     }
 
 
@@ -387,6 +604,13 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
             "unexpected_numbers": [],
             "response": _OK_RESPONSE,
             "context_snapshot": {"same_industry_count": 177},
+            "trend_path": {
+                "expected": False,
+                "actual": False,
+                "matched": True,
+                "keyword": None,
+                "trend_in_context": False,
+            },
             "_status_ok": True,
             "_contract_ok": True,
             "_latency_s": 1.0,
@@ -402,6 +626,8 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     )
 
     assert report["item_count"] == 2
+    assert report["trend_fixture_version"] == "unknown"
+    assert report["metrics"]["trend_path_match_rate"] == 1.0
     assert [item["id"] for item in report["items"]] == ["C-001", "C-002"]
     assert json.loads(report_path.read_text(encoding="utf-8"))["item_count"] == 2
     mock_sleep.assert_called_once_with(1.0)
