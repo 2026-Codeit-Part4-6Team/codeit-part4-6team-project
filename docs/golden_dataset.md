@@ -1,15 +1,29 @@
-# 골든 데이터셋 기준 문서 (Golden Dataset Standard) v1.1
+# 골든 데이터셋 기준 문서 (Golden Dataset Standard) v1.2
 
-- **작성**: 전민재 PM
-- **작성일**: 2026-08-12
-- **개정일**: 2026-08-18
+- **작성**: 전민재 PM 
+- **작성일**: 2026-08-12 
+- **개정일**: 2026-08-19
 - **적용 대상**: 전민재 PM / 기본 챗봇(게시물 생성) 담당 / 컨설턴트 챗봇 담당 / 서비스 개발 담당
 - **파일 위치**: `docs/golden_dataset.md` (단일 소스)
 - **데이터 위치**: `shared_data/golden_dataset.json` · `shared_data/retrieval_eval.json`
 
 ---
 
-## 0. v1.1 변경 요약 (PR [#94](https://github.com/2026-Codeit-Part4-6Team/codeit-part4-6team-project/pull/94) 후속)
+## 0. 변경 요약
+
+### 0.1 v1.2 변경 (D4~D6·v0 컨설턴트 보고서 리뷰 반영)
+
+| # | 변경 | 절 | 결정 |
+| --- | --- | --- | --- |
+| 1 | **평가 오염(contamination) 차단** — 문항이 프롬프트 few-shot 예시와 겹치면 안 됨 | §1.5 · §5.4 | D-218 |
+| 2 | 겹침을 CI가 자동 검사 (`test_prompt_contamination.py`) | §10.2 | D-219 |
+| 3 | 겹칠 때는 **프롬프트 예시를 바꾼다** — 문항은 시연 시나리오와 묶여 있어 유지 | §5.4 | D-220 |
+| 4 | `market_fixture` 에 **`fixture_version`·`captured_at`** 필수화 | §4.4 | D-221 |
+| 5 | **"데이터 정확도" 지표 축 신설** — 모델 출력이 아닌 입력 품질 측정 | §6.3 | D-222 |
+| 6 | 컨설턴트 fixture 예시를 **D5 실측값 v2-industry-code(177곳/6,691곳)** 으로 정정, v1-text-match 사용 금지 | §4.4 | D-223 |
+| 7 | 개선 사례 기록 템플릿 신설 (첫 사례: 업종코드 필터 16→177) | 부록 D | D-224 |
+
+### 0.2 v1.1 변경 (PR [#94](https://github.com/2026-Codeit-Part4-6Team/codeit-part4-6team-project/pull/94) 후속)
 
 > PR #94 리뷰에서 지적된 6건과 PM 교차 확인 4건을 반영했다.
 > **v1.0으로 이미 문항을 쓰기 시작했다면 §4.2.1·§4.4를 먼저 읽는다.**
@@ -46,6 +60,7 @@
 | 거부 문항이 없음 | 검증 함수 4종을 **검증할 방법이 없음** |
 | **입력 조립 규칙이 없음** | **문항이 스키마 검증을 통과하지 못해 평가기가 못 씀** (v1.1 추가) |
 | **외부 API 응답에 의존** | **어제 4.1점, 오늘 3.4점 — 개선인지 데이터 변동인지 알 수 없음** (v1.1 추가) |
+| **문항이 프롬프트 예시와 겹침** | **LLM 모델이 예시를 베껴도 만점 — 환각률 0%라는 거짓 결과** (v1.2 추가) |
 
 ### 1.3 이 데이터셋으로 내리는 의사결정 3가지
 
@@ -55,7 +70,7 @@
 
 > 코드잇 평가 항목 *"성능을 적절한 평가 지표로 평가하였나요?"*, *"성능 개선을 위해 다양한 시도를 하였나요?"* 에 직접 대응한다.
 
-### 1.4 ★ 재현성이 제1 요건이다 (v1.1 신설)
+### 1.4 ★ 재현성이 제1 요건이다 (v1.1 추가)
 
 > **골든 데이터셋의 존재 이유는 "같은 입력에 같은 점수"다.**
 > 점수에 오차가 발생하면 *"프롬프트를 고쳐서 좋아졌다"* 를 증명할 수 없다.
@@ -69,6 +84,38 @@
 ```
 
 **따라서 평가 실행 중에는 외부 API를 호출하지 않는다.** 상권·트렌드 데이터는 문항에 고정한다(§4.4).
+
+### 1.5 ★ 평가 오염(contamination) 차단이 제2 요건이다 (v1.2 신설)
+
+> **문항의 수치·키워드가 프롬프트의 few-shot 예시와 겹치면,
+> LLM 모델이 데이터를 전혀 읽지 않고 예시를 베껴도 만점을 받는다.**
+
+**실제로 있었던 일 (D6 컨설턴트 보고서)**
+
+> 예시에 쓴 키워드는 실제 테스트에 반복적으로 써온 "아이스아메리카노" 대신
+> **"브런치 세트"로 바꿨다** — 예시 내용이 실제 요청 데이터와 우연히 겹쳐서
+> **LLM 모델이 실제 값 대신 예시를 그대로 베낄 위험**을 없애기 위함
+
+라이브 검증에서는 사람이 *"어? 이건 예시 문구인데?"* 하고 알아챈다.
+**하지만 평가는 자동 채점이라 아무도 못 알아챈다.**
+
+**골든 데이터셋에서 벌어지는 일**
+
+```
+[프롬프트 few-shot]  "반경 내 동일 업종이 12곳으로 경쟁이 치열합니다"
+[문항 fixture]       same_industry_count = 12          ← 겹침!
+[expected]           allowed_numbers = [12, 43, 55]
+
+LLM 모델이 상권 데이터를 전혀 읽지 않고 few-shot 을 그대로 베낌
+  → reasons: "반경 내 동일 업종이 12곳으로 경쟁이 치열합니다"
+  → allowed_numbers 에 12가 있으므로 환각 검증 통과 ✅
+  → LLM Judge 근거_충실도도 만점 ✅
+  → 환각률 0% 로 측정되지만, 실제로는 데이터를 읽지 않았다 ❌
+```
+
+**§4.4의 `allowed_numbers` 규칙이 통째로 무력화된다.**
+따라서 문항을 쓸 때 **프롬프트 예시와 겹치지 않는 값**을 써야 하고,
+사람이 매번 대조할 수 없으므로 **CI가 자동 검사한다**(§10.2).
 
 ---
 
@@ -89,8 +136,8 @@
               → 정답: action="block"                          ← 명확
 
 [컨설턴트]     "주변 경쟁사는 얼마나 되나요?"
-              → 정답: reasons에 "동일업종 105곳" 포함,
-                     그 105는 market_fixture에서 나온 값이어야 함  ← 조건 + 출처
+              → 정답: reasons에 "동일업종 177곳" 포함,
+                     그 177는 market_fixture에서 나온 값이어야 함  ← 조건 + 출처
 
 [기본 챗봇]    "강남역 카페 여름 신메뉴 인스타 문구"
               → 정답 문장 없음. 대신:
@@ -221,7 +268,7 @@ shared_data/retrieval_eval.json     ← 검색 평가셋 [SHOULD] (§6.1)
 | `reviewed_by` | string \| null | O | **전민재 PM 검수 후 채움** |
 | `created_at` | string | O | `YYYY-MM-DD` |
 
-### 4.2.1 ★ `input` 조립 규칙 (v1.1 신설 — 반드시 읽을 것)
+### 4.2.1 ★ `input` 조립 규칙 (v1.1 추가 — 반드시 읽을 것)
 
 > ⚠️ **v1.0의 가장 큰 결함이었다.** `input` 을 "ModelRequest 형태"라고만 적어
 > 모든 문항에서 필수 필드 `user_id` 가 빠지고 `R-` 문항은 `store` 도 없었다.
@@ -397,12 +444,14 @@ def test_required_keys_and_consult_fixture_present():
   "question": "주변 경쟁사는 얼마나 되나요?",
   "input": {
     "market_fixture": {
+      "fixture_version": "v2-industry-code",
+      "captured_at": "2026-08-14",
       "total_count": 6691,
-      "same_industry_count": 105,
+      "same_industry_count": 177,
       "nearest_distance_m": 80,
       "density_tier": "높음",
       "radius": 500,
-      "industry_breakdown": { "카페": 105, "편의점": 42, "한식": 88 }
+      "industry_breakdown": { "카페": 177, "편의점": 64, "한식": 231 }
     }
   },
   "expected": {
@@ -411,7 +460,7 @@ def test_required_keys_and_consult_fixture_present():
     "min_reasons": 1,
     "must_include_sources": ["상권분석"],
     "must_contain_number": true,
-    "allowed_numbers": [6691, 105, 80, 500, 42, 88],
+    "allowed_numbers": [6691, 177, 80, 500, 64, 231],
     "number_scope": "reasons",
     "hallucination_check": "strict",
     "rubric": {
@@ -419,24 +468,45 @@ def test_required_keys_and_consult_fixture_present():
       "실행_가능성": "소상공인이 내일 바로 할 수 있는 제안인가"
     }
   },
-  "notes": "스토리보드 추천질문. fixture 는 강남역 기준 실측값(업종코드 교정 후)",
+  "notes": "스토리보드 추천질문. fixture 는 강남역 500m 업종코드 교정 후 실측값(D5)",
   "author": "김재헌",
   "reviewed_by": null,
   "created_at": "2026-08-18"
 }
 ```
 
-**새 필드 4종**
+**필드 정의**
 
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | `input.market_fixture` | object | **O** | 이 문항에서 `get_market()` 이 반환할 값. **평가 실행 시 주입**되며 실제 API를 호출하지 않는다 |
+| `market_fixture.fixture_version` | string | **O** | fixture 산출 방식 식별자. **v1.2 신설** |
+| `market_fixture.captured_at` | string | **O** | 실측 날짜(`YYYY-MM-DD`). **v1.2 신설** |
 | `expected.allowed_numbers` | number[] | O | fixture에서 파생 가능한 수치 전체. 여기 없는 숫자가 나오면 **환각** |
 | `expected.number_scope` | string | O | 숫자 검사 범위. 기본 `"reasons"` — 근거 배열만 본다 |
 | `expected.hallucination_check` | string | O | `strict`(화이트리스트 밖 숫자 = 실패) \| `off` |
 
+**★ `fixture_version` 이 왜 필요한가 (v1.2 신설)**
+
+```
+[교정 전] fixture: same_industry_count = 12  (텍스트 매칭 + 페이지 상한 1000건)
+[교정 후] fixture: same_industry_count = 177 (업종코드 필터, D-041~043)
+
+같은 문항인데 fixture 가 바뀌면 점수도 바뀐다.
+버전 없이 비교하면 "프롬프트 튜닝으로 +0.5" 가 거짓말이 된다.
+```
+
+**현재 사용 중인 fixture 버전**
+
+| 버전 | 산출 방식 | 강남역 500m 카페 | 사용 시점 |
+| --- | --- | --- | --- |
+| `v1-text-match` | 텍스트 매칭 + 1000건 상한 | 16곳 | **사용 금지** (부정확, few-shot 과 겹침) |
+| **`v2-industry-code`** | 업종코드(`I21201`) 필터 2회 호출 | **177곳** | ✅ 현재 표준 |
+
+> **fixture 버전이 다른 결과끼리는 비교하지 않는다.** 결과 파일에도 버전을 기록한다(§11).
+
 > ★ **`환각_여부` 를 rubric에서 뺀 이유**: LLM Judge는 상권 API 실제 값을 모른다.
-> *"105곳이 맞나요?"* 를 물어도 판단 근거가 없어 **아무 답이나 한다.**
+> *"177곳이 맞나요?"* 를 물어도 판단 근거가 없어 **아무 답이나 한다.**
 > 대신 `allowed_numbers` 로 **규칙 기반 검증**한다 — LLM 모델 API 호출 0회, 재현 100%.
 
 **`number_scope` 를 `reasons` 로 좁힌 이유**
@@ -444,19 +514,25 @@ def test_required_keys_and_consult_fixture_present():
 ```
 strategy.summary  "20~30대 직장인을 3가지 방식으로 공략하세요"
                    → '3가지'는 근거 수치가 아니라 서술상의 숫자다
-reasons[]         "반경 500m 내 동일 업종 105곳, 가장 가까운 곳까지 80m"
+reasons[]         "반경 500m 내 동일 업종 177곳, 가장 가까운 곳까지 80m"
                    → 여기 숫자는 전부 데이터에서 나와야 한다  ← 검사 대상
 ```
 
 **fixture 주입 방식 (평가 스크립트 구현자용)**
 
 ```python
+# 코드 예시
 # models/consult/eval/eval_strategy.py 안에서
 from unittest.mock import patch
 
 def run_item(item: dict):
     """market_fixture 를 get_market 반환값으로 고정해 외부 API 없이 실행한다."""
-    fixture = item["input"]["market_fixture"]
+    # 아래 주석친 코드 필요 시 참고
+    # fixture = item["input"]["market_fixture"]
+    fixture = {
+        k: v for k, v in item["input"]["market_fixture"].items()
+        if k not in ("fixture_version", "captured_at")   # 메타는 제외
+    }
     with patch("models.consult.nodes.market_for_consult.get_market",
                return_value=fixture):
         return run_consultant_graph(build_model_request(item))
@@ -544,7 +620,7 @@ def run_item(item: dict):
 > ⚠️ **`R-` 문항에도 `store` 가 필요하다.** v1.0에서 빠져 있었으나,
 > §4.2.1 조립 규칙에 따라 평가기가 `DEFAULT_STORE` 를 주입하므로 문항에는 적지 않아도 된다.
 
-### 4.6 ★ `expected.action` ↔ 모델 응답 매핑 (v1.1 신설)
+### 4.6 ★ `expected.action` ↔ 모델 응답 매핑 (v1.1 추가)
 
 > **v1.0에는 이 매핑이 없어 평가기가 무엇과 비교할지 알 수 없었다.**
 > 모델은 성공 시 `status="ok"` 를 반환하고 `action` 필드는 **차단됐을 때만** 존재한다.
@@ -603,9 +679,12 @@ def judge_action(expected_action: str, response: dict) -> bool:
 
 ⑦ 컨설턴트 문항은 market_fixture 를 반드시 넣는다        ← v1.1 추가
    실시간 API 값에 의존하면 점수가 재현되지 않는다
+
+⑧ 프롬프트 few-shot 예시와 겹치는 수치·키워드를 쓰지 않는다   ← v1.2 신설
+   LLM 모델이 데이터를 안 읽고 예시를 베껴도 통과하게 된다(§1.5·§5.4)
 ```
 
-### 5.2 ⚠️ 안티패턴 6가지
+### 5.2 ⚠️ 안티패턴 7가지
 
 | 하지 말 것 | 왜 안 되나 |
 | --- | --- |
@@ -615,6 +694,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | **60문항을 하루에 몰아 쓰기** | 뒤로 갈수록 대충 써져 품질이 떨어진다 |
 | **실시간 외부 데이터에 기대기** (v1.1) | 데이터가 바뀌면 튜닝 효과를 증명할 수 없다 |
 | **`blog` 등 미지원 플랫폼 쓰기** (v1.1) | 계약이 `instagram`·`banner` 2종이라 요청 자체가 422 (D-083) |
+| **계약서·프롬프트 예시 값을 그대로 복사하기** (v1.2) | **예시 베끼기를 잡을 수 없게 된다.** `repo_contract.md` 의 `12곳`·`43곳`·`55m` 는 few-shot 과 겹치므로 문항에 쓰지 않는다 |
 
 ### 5.3 ★ 왜 만든 사람이 자기 채점 기준을 만들면 안 되는가
 
@@ -626,6 +706,46 @@ def judge_action(expected_action: str, response: dict) -> bool:
 - **문항 작성** → 각 영역 담당자 (자기 영역을 가장 잘 알기 때문)
 - **거부 문항** → 전민재 PM (검증 함수를 만든 사람이 아니라 **쓰는 사람**이 검증해야 하지만,
   이 경우 전민재 PM이 함수 관리자이므로 **작성 후 두 챗봇 담당자가 교차 검토**한다)
+
+### 5.4 ★ 겹침이 발견되면 프롬프트를 바꾼다 (v1.2 신설)
+
+> **문항이 아니라 프롬프트를 바꾼다.** 담당자가 D6에서 한 방향 그대로다.
+
+**왜 문항이 아니라 프롬프트인가**
+
+| | 골든 문항 | 프롬프트 few-shot |
+| --- | --- | --- |
+| 무엇인가 | **측정하고 싶은 것** | 답변 품질을 높이는 **보조 장치** |
+| 제약 | 시연 시나리오·스토리보드와 묶여 있음 | 자유롭게 교체 가능 |
+| 바꾸면 | **측정 대상이 달라짐** — 이전 점수와 비교 불가 | 품질에 영향은 있으나 재측정으로 확인 가능 |
+
+```
+[문항]  "강남역 카페 여름 신메뉴 홍보 문구"    ← 시연 시나리오. 못 바꾼다
+[예시]  "아이스아메리카노"                     ← 바꾼다 → "브런치 세트"
+```
+
+**프롬프트 담당자가 관리해야 할 것 — `FEWSHOT_TERMS` · `FEWSHOT_NUMBERS`**
+
+few-shot 에 등장하는 키워드·수치를 **모듈 상수로 노출**한다.
+CI 가 이 값을 읽어 골든 문항과 대조한다(§10.2).
+
+```python
+# models/consult/prompts/strategy.py
+# few-shot 예시에 등장하는 키워드·수치 — 골든 문항과 겹치면 안 된다(D-218).
+# 예시를 수정하면 이 목록도 함께 갱신한다.
+FEWSHOT_TERMS = ["브런치 세트", "주말 브런치", "여름음료 1+1", "냉커피"]
+FEWSHOT_NUMBERS = [12, 43, 55, 5]
+
+SYSTEM_PROMPT = """..."""
+```
+
+```python
+# models/basic/nodes/copy_gen.py
+FEWSHOT_TERMS: list[str] = []      # 현재 copy_gen 은 few-shot 예시를 쓰지 않는다
+FEWSHOT_NUMBERS: list[int] = []
+```
+
+> **예시를 바꾸면 상수도 같이 바꾼다.** 상수만 남고 예시가 바뀌면 CI 가 헛돈다.
 
 ---
 
@@ -641,12 +761,13 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | **환각률(수치 기준)** | `C-` 전체 | `reasons` 숫자 중 `allowed_numbers` 밖 비율 | 컨설턴트 담당 | MUST |
 | **계약 준수율** | `B-`·`C-` | `must_have_fields`·`proposal_count` 충족 비율 | 각 담당 | MUST |
 | **생성 실패율 · 응답시간** | 전체 | `status != "ok"` 비율, p50/p95 | 각 담당 | MUST |
+| **RAGAS-Score** | `B-`·`C-` | 종합 지표(검색, 성능) | 각 담당 | SHOULD |
 | **Faithfulness** | `B-`·`C-` | 런타임 캡처 컨텍스트 기준(§6.2) | 각 담당 | SHOULD |
 | **Answer Relevance** | `B-`·`C-` | 질문에 맞는 답인가 (LLM Judge) | 각 담당 | SHOULD |
 | **Hit Rate@5 · MRR** | **`RT-` 별도셋**(§6.1) | 벤치마크 RAG 검색 정확도 | 기본 챗봇 담당 | **SHOULD** |
 | **CLIP Score** | **별도**(§7) | 텍스트-이미지 정합성 | 기본 챗봇 담당 | SHOULD |
 
-### 6.1 ★ 검색 지표는 별도 평가셋으로 분리한다 (v1.1 신설)
+### 6.1 ★ 검색 지표는 별도 평가셋으로 분리한다 (v1.1 추가)
 
 > ⚠️ **v1.0은 `B-` 문항으로 Hit Rate@5·MRR을 측정한다고 썼지만 계산이 불가능했다.**
 > 검색 지표는 *"질문에 대해 **어느 문서**가 정답인가"* 를 알아야 하는데
@@ -684,7 +805,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 > 생성 지표(LLM Judge·환각률·계약 준수율)만으로 평가를 구성한다.
 > 못 만든 지표를 표에 남겨 두면 발표에서 *"측정했다는데 숫자가 없다"* 가 된다.
 
-### 6.2 Faithfulness 기준 컨텍스트는 런타임에 캡처한다 (v1.1 신설)
+### 6.2 Faithfulness 기준 컨텍스트는 런타임에 캡처한다 (v1.1 추가)
 
 > Faithfulness는 *"답변이 주어진 컨텍스트에 근거했는가"* 이므로 **기준 컨텍스트**가 필요하다.
 > 문항에 미리 적으면 파이프라인이 바뀔 때마다 60문항을 고쳐야 한다.
@@ -695,6 +816,44 @@ def judge_action(expected_action: str, response: dict) -> bool:
 ```
 
 **결과 파일에 `context_snapshot` 을 함께 남긴다.** 그래야 나중에 점수를 재검토할 수 있다.
+
+### 6.3 ★ 데이터 정확도 — 모델이 아니라 입력을 측정한다 (v1.2 신설)
+
+> **지금까지의 지표는 전부 "모델 출력"만 봤다.**
+> 그런데 이번 스프린트에서 가장 큰 품질 개선은 **모델을 하나도 안 바꾸고 입력 데이터를 고친 것**이었다.
+
+**실제 사례 (D5 컨설턴트)**
+
+```
+강남역 500m 카페 수:  16곳 → 177곳  (11배)
+바뀐 것: 업종코드 필터 적용 (D-041~043)
+안 바뀐 것: 프롬프트, LLM 모델, 파이프라인 구조
+```
+
+**기존 지표로는 이 개선이 보이지 않는다.** LLM Judge 는 *"근거에 숫자가 있는가"* 만 보지
+*"그 숫자가 맞는가"* 는 못 본다. 16곳이든 177곳이든 똑같이 만점이 나온다.
+
+**측정 항목 (LLM 호출 0회)**
+
+| 지표 | 계산 | 목표 |
+| --- | --- | --- |
+| **업종 매핑 커버리지** | `industry_code_map.json` 에 매핑된 업종 수 ÷ 서비스가 실제로 받는 업종 수 | **80% 이상** |
+| **정확 판정 비율** | 업종코드 필터로 판정한 요청 ÷ 전체 요청 (나머지는 텍스트 매칭 폴백) | **80% 이상** |
+| **캐시 적중률** | 캐시 히트 ÷ (히트 + 미스) — 로그 기반 | 참고 |
+
+**측정 방법**
+
+```bash
+# 매핑 커버리지 — 업종 목록과 매핑 파일 대조
+uv run python models/consult/eval/eval_data_quality.py
+
+# 캐시 적중률 — 로그 집계 (D-055)
+docker compose logs backend | grep -c "market cache hit"
+docker compose logs backend | grep -c "market cache miss"
+```
+
+> **이 지표는 발표에서 가장 설명하기 쉽다.** *"프롬프트를 고쳤더니 점수가 올랐다"* 보다
+> *"근거 데이터가 11배 틀렸던 걸 찾아 고쳤다"* 가 원인과 결과가 명확하다(부록 D).
 
 ---
 
@@ -707,7 +866,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | --- | --- | --- |
 | 단위 | 질문 ↔ 정답/기준 | 카피(프롬프트) ↔ 생성 이미지 |
 | 파일 | `shared_data/golden_dataset.json` | `models/basic/eval/image_samples/` |
-| 지표 | LLM Judge · Faithfulness · 환각률 | **CLIP Score** · Aesthetic Score |
+| 지표 | LLM Judge · RAGAS-Score · Faithfulness · 환각률 | **CLIP Score** · Aesthetic Score |
 | 분량 | 60문항 | **20~30장**(샘플) |
 
 **이미지 평가 방식**
@@ -787,8 +946,14 @@ def judge_action(expected_action: str, response: dict) -> bool:
 [자동 — CI 가 잡는다]
 □ tests/eval/test_golden_dataset_schema.py 통과
    · 60문항 전부 ModelRequest 조립 성공
-   · id 중복 없음, 영역별 25/20/15
-   · 컨설턴트 문항 전부 market_fixture 보유
+   · id 중복 없음, id 접두사와 area 일치, 영역별 25/20/15
+   · input 에 user_id·question 중복 기재 없음
+   · 컨설턴트 문항 전부 market_fixture + fixture_version(v2-industry-code)
+   · allowed_numbers 가 fixture 에서 실제로 파생 가능
+   · platform 이 instagram·banner 2종뿐
+□ tests/eval/test_prompt_contamination.py 통과            ← v1.2 신설
+   · fixture 수치가 FEWSHOT_NUMBERS 와 겹치지 않음
+   · must_include_any·question 이 FEWSHOT_TERMS 와 겹치지 않음
 
 [형식 — 육안]
 □ id 형식이 B-001 / C-001 / R-001 규칙을 따른다
@@ -804,6 +969,8 @@ def judge_action(expected_action: str, response: dict) -> bool:
 
 [컨설턴트]
 □ 모든 C- 문항에 market_fixture 가 있다
+□ fixture_version 이 전부 v2-industry-code 다                ← v1.2 신설
+□ captured_at 이 채워져 있다                                  ← v1.2 신설
 □ allowed_numbers 가 market_fixture 값에서 실제로 파생 가능하다
 □ number_scope 가 reasons 로 되어 있다
 
@@ -836,20 +1003,122 @@ def judge_action(expected_action: str, response: dict) -> bool:
 | --- | --- | --- | --- |
 | `models/shared/eval_fixtures.py` | ⬜ **미구현** | 전민재 PM | 8/18 |
 | `tests/eval/test_golden_dataset_schema.py` | ⬜ **미구현** | 전민재 PM | 8/18 |
+| `tests/eval/test_prompt_contamination.py` | ⬜ **미구현(v1.2 신설)** | 전민재 PM | 8/18 |
 | `models/basic/eval/eval_generation.py` | ⬜ **빈 파일(0바이트)** | 기본 챗봇 담당 | 8/19 |
 | `models/consult/eval/eval_strategy.py` | ⬜ **미구현** | 컨설턴트 담당 | 8/19 |
+| `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 신설)** | 컨설턴트 담당 | 8/19 |
 | `models/shared/eval/eval_refusal.py` | ⬜ **미구현** | 전민재 PM | 8/19 |
 | `shared_data/golden_dataset.json` | ⬜ **미생성** | 전원 | 8/19 파일럿 |
 
 > ⚠️ **`tests/validation/test_contract.py` 는 거부 정확도를 측정하지 않는다.**
 > 그것은 검증 함수의 **반환 형식**만 확인하는 스모크 테스트이고,
-> 골든 데이터셋을 읽지 않는다. **거부 정확도는 `eval_refusal.py` 가 측정한다**(D-174).
+> 골든 데이터셋을 읽지 않는다. **거부 정확도는 `models/shared/eval/eval_refusal.py` 가 측정한다**(D-174).
 
-### 10.2 명령 (구현 완료 후)
+### 10.2 ★ 오염 검사 테스트 (v1.2 신설)
+
+```python
+# tests/eval/test_prompt_contamination.py
+"""골든 문항이 프롬프트 few-shot 예시와 겹치지 않는지 확인한다(D-218·D-219).
+
+겹치면 LLM이 데이터를 읽지 않고 예시를 베껴도 환각 검증을 통과한다.
+사람이 매번 대조할 수 없으므로 CI 가 대신 본다.
+"""
+import json
+from pathlib import Path
+
+import pytest
+
+from models.basic.nodes.copy_gen import (
+    FEWSHOT_NUMBERS as BASIC_NUMBERS,
+    FEWSHOT_TERMS as BASIC_TERMS,
+)
+from models.consult.prompts.strategy import (
+    FEWSHOT_NUMBERS as CONSULT_NUMBERS,
+    FEWSHOT_TERMS as CONSULT_TERMS,
+)
+
+DATASET = Path("shared_data/golden_dataset.json")
+
+# 구조적 상수는 검사 대상에서 제외한다 — radius 500 은 모든 문항이 공유한다
+_STRUCTURAL_KEYS = {"radius", "fixture_version", "captured_at"}
+
+
+def load_dataset() -> list[dict]:
+    return json.loads(DATASET.read_text(encoding="utf-8"))
+
+
+@pytest.mark.skipif(not DATASET.exists(), reason="아직 데이터셋 파일이 없음")
+def test_consult_fixture_numbers_do_not_overlap_fewshot():
+    """market_fixture 수치가 few-shot 예시 수치와 겹치면 예시 베끼기를 못 잡는다."""
+    blocked = set(CONSULT_NUMBERS)
+
+    for item in load_dataset():
+        if item["area"] != "consult":
+            continue
+
+        fixture = item["input"]["market_fixture"]
+        values: set[int] = set()
+        for key, value in fixture.items():
+            if key in _STRUCTURAL_KEYS:
+                continue
+            if isinstance(value, int) and not isinstance(value, bool):
+                values.add(value)
+            elif isinstance(value, dict):          # industry_breakdown
+                values |= {v for v in value.values() if isinstance(v, int)}
+
+        overlap = values & blocked
+        assert not overlap, (
+            f"{item['id']}: fixture 수치 {sorted(overlap)} 가 "
+            f"strategy.py few-shot 예시와 겹칩니다 — "
+            f"문항이 아니라 프롬프트 예시 쪽 숫자를 바꾸세요(§5.4)"
+        )
+
+
+@pytest.mark.skipif(not DATASET.exists(), reason="아직 데이터셋 파일이 없음")
+def test_question_and_keywords_do_not_overlap_fewshot():
+    """질문·기대 키워드가 few-shot 예시 표현과 겹치면 안 된다."""
+    blocked_by_area = {
+        "basic": [t for t in BASIC_TERMS if t],
+        "consult": [t for t in CONSULT_TERMS if t],
+    }
+
+    for item in load_dataset():
+        terms = blocked_by_area.get(item["area"], [])
+        if not terms:
+            continue
+
+        haystack = " ".join(
+            [item["question"], *item["expected"].get("must_include_any", [])]
+        )
+        overlap = [t for t in terms if t in haystack]
+        assert not overlap, (
+            f"{item['id']}: {overlap} 가 few-shot 예시 표현과 겹칩니다 — "
+            f"프롬프트 예시 쪽을 바꾸세요(§5.4)"
+        )
+
+
+def test_fewshot_constants_are_declared():
+    """프롬프트 담당자가 상수를 노출했는지 확인한다(빈 리스트도 명시적 선언)."""
+    for name, value in [
+        ("consult FEWSHOT_TERMS", CONSULT_TERMS),
+        ("consult FEWSHOT_NUMBERS", CONSULT_NUMBERS),
+        ("basic FEWSHOT_TERMS", BASIC_TERMS),
+        ("basic FEWSHOT_NUMBERS", BASIC_NUMBERS),
+    ]:
+        assert isinstance(value, list), f"{name} 가 리스트로 선언되어 있지 않습니다"
+```
+
+> **`test_fewshot_constants_are_declared` 가 필요한 이유**: few-shot 을 나중에 추가하면서
+> 상수를 안 만들면 위 두 테스트가 **빈 목록으로 통과**한다. 선언 자체를 강제한다.
+
+### 10.3 명령 (구현 완료 후)
 
 ```bash
-# 0) 데이터셋 형식 검증 — 문항을 쓸 때마다 먼저 돌린다
+# 0) 데이터셋 검증 — 문항을 쓸 때마다 먼저 돌린다 (순서 중요)
 uv run --locked --all-groups pytest tests/eval/test_golden_dataset_schema.py
+uv run --locked --all-groups pytest tests/eval/test_prompt_contamination.py
+# 또는 한 번에
+uv run --locked --all-groups pytest tests/eval/
 
 # 1) 영역별 측정
 uv run python models/basic/eval/eval_generation.py \
@@ -859,7 +1128,10 @@ uv run python models/consult/eval/eval_strategy.py \
 uv run python models/shared/eval/eval_refusal.py \
     --dataset shared_data/golden_dataset.json --area refusal
 
-# 2) 검색 지표 [SHOULD] — 벤치마크 KB 구축 후에만
+# 2) 데이터 정확도 [MUST] — LLM 모델 호출 0회
+uv run python models/consult/eval/eval_data_quality.py
+
+# 3) 검색 지표 [SHOULD] — 벤치마크 KB 구축 후에만
 uv run python models/basic/eval/eval_retrieval.py \
     --dataset shared_data/retrieval_eval.json
 
@@ -869,7 +1141,10 @@ models/consult/eval/reports/YYYY-MM-DD.json
 models/shared/eval/reports/YYYY-MM-DD.json
 ```
 
-### 10.3 ★ 측정 스크립트 DoD (v1.1 신설)
+> **스키마 검사가 먼저 통과해야 오염 검사가 의미가 있다.**
+> 조립도 안 되는 문항의 겹침을 검사하는 건 순서가 뒤바뀐 것이다.
+
+### 10.4 ★ 측정 스크립트 DoD (v1.1 추가)
 
 > **"돌아간다"가 아니라 "믿을 수 있다"가 기준이다.** 아래 4가지를 만족해야 완료로 본다.
 
@@ -885,6 +1160,8 @@ models/shared/eval/reports/YYYY-MM-DD.json
 
 ④ 외부 API를 호출하지 않는다(LLM Judge 제외)
    상권·트렌드는 fixture 주입, 호출이 발생하면 실패 처리
+
+⑤ 결과 파일에 model·dataset_version·fixture_version 을 기록한다   ← v1.2 신설
 ```
 
 **결과 파일 형식**
@@ -894,6 +1171,8 @@ models/shared/eval/reports/YYYY-MM-DD.json
   "run_at": "2026-08-20T18:00:00+09:00",
   "area": "consult",
   "model": "gpt-4o-mini",
+  "dataset_version": "v1.2",
+  "fixture_version": "v2-industry-code",
   "item_count": 20,
   "metrics": {
     "llm_judge_avg": 4.1,
@@ -917,8 +1196,10 @@ models/shared/eval/reports/YYYY-MM-DD.json
 ```
 
 > **`model` 필드를 반드시 남긴다.** 어떤 모델로 낸 수치인지 모르면 비교표가 무의미하다.
+> **`fixture_version` 이 다른 결과끼리는 비교하지 않는다.**
+> 모수가 바뀐 것을 모델 개선으로 착각하게 된다(§4.4).
 
-### 10.4 ⚠️ OpenAI API 예산 주의
+### 10.5 ⚠️ OpenAI API 예산 주의
 
 > **LLM Judge는 문항 수만큼 API를 호출한다.** 60문항 × 2회(전후 비교) = **120회 이상**이다.
 
@@ -946,9 +1227,19 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | 생성 실패율 | 12% | 3% | -9%p |
 | 평균 응답시간 | 8.2s | 7.9s | -0.3s |
 
+**함께 반드시 기록할 것**
+
+```
+· 측정에 쓴 모델명 (gpt-4o-mini / GPT-5.4 Mini 등)
+· dataset_version (v1.2)
+· fixture_version (v2-industry-code)
+· "무엇을 바꿔서 이렇게 됐는지" 한 줄
+```
+
 > **"무엇을 바꿔서 이렇게 됐는지"를 반드시 함께 적는다.**
 > 숫자만 있으면 *"운이 좋았나"* 로 보이고, 근거가 있어야 **개선 노력**으로 인정된다.
 > 측정에 사용한 **모델명·데이터셋 버전·fixture 변경 여부**를 함께 기록한다.
+> 개선 사례는 **부록 D 템플릿**으로 기록한다.
 
 ---
 
@@ -959,11 +1250,15 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | G-01 | 총 문항 수(60 vs 55) | **60 확정**(과잉차단 가드 5 추가) | 전민재 PM | 종료 |
 | G-02 | LLM Judge 모델 선택 | GPT-5.4 Mini(비용) vs GPT-5.4(정확도) | 기본 챗봇 담당 | 8/19 |
 | G-03 | 이미지 평가 샘플 수(20 vs 30) | 20장 | 기본 챗봇 담당 | 8/19 |
-| G-04 | Faithfulness 측정 방식 | RAGAS vs 직접 구현. 런타임 컨텍스트 캡처는 확정(§6.2) | 각 담당 | 8/19 |
+| G-04 | Faithfulness 측정 방식 | RAGAS-Score vs 직접 구현. 런타임 컨텍스트 캡처는 확정(§6.2) | 각 담당 | 8/19 |
 | G-05 | 거부 문항 교차 검토 담당 | 두 챗봇 담당 각 5문항씩 | 전민재 PM | 8/19 |
 | **G-06** | **`market_fixture` 값의 출처** | 업종코드 교정(D-041) 후 실측값. 미교정 시 현재값 사용 후 재측정 | 컨설턴트 담당 | 8/18 |
 | **G-07** | **검색 평가셋 진행 여부** | 벤치마크 KB에 `bm_###` 문서 ID 부여 시에만. 미달 시 보고서 작성 대상 제외 | 기본 챗봇 담당 | 8/18 |
 | **G-08** | **`allowed_numbers` 반올림 허용 범위** | 정확 일치. 필요 시 ±5% 허용으로 완화 검토 | 컨설턴트 담당 | 8/19 |
+
+> ⚠️ **본 문서에 코드 블록으로 실린 파일은 모두 §10.1 구현 상태 표에 등재돼 있어야 한다.**
+> 표에 있는데 코드가 없거나, 코드가 있는데 표에 없으면 담당자가 찾지 못한다.
+> v1.2 개정 시 `test_golden_dataset_schema.py` 가 표에는 있고 코드는 빠지는 사고가 있었다.
 
 ---
 
@@ -1027,3 +1322,76 @@ R-015  [over_block_guard] 건강한 한 끼를 위한 샐러드                 
 | --- | --- | --- |
 | v1.0 | 2026-08-12 | 최초 작성. 60문항 구성·영역별 스키마·2단계 구축 |
 | **v1.1** | **2026-08-18** | PR [#94](https://github.com/2026-Codeit-Part4-6Team/codeit-part4-6team-project/pull/94) 후속. `input` 조립 규칙(§4.2.1)·컨설턴트 fixture(§4.4)·`expected.action` 매핑(§4.6)·검색 평가셋 분리(§6.1)·측정 구현 상태(§10)·B-004 교체·일정 정정 |
+| **v1.2** | **2026-08-19** | D4~D6·v0 리뷰 반영. **평가 오염 차단(§1.5·§5.4·§10.2)** · **데이터 정확도 지표 신설(§6.3)** · `fixture_version` 필수화 · fixture 예시를 실측값(177곳)으로 정정 · 개선 사례 템플릿(부록 D) |
+
+---
+
+## 부록 D. ★ 개선 사례 기록 템플릿 (v1.2 신설)
+
+> **발표에서 가장 점수가 되는 부분이다.** 코드잇 평가 항목
+> *"성능 개선을 위해 다양한 시도를 하였나요?"* 에 직접 대응한다.
+> 아래 4단계로 적으면 슬라이드 한 장이 그대로 나온다.
+
+### D.1 템플릿
+
+```markdown
+## [사례 N] 제목
+
+**① 가설** — 무엇이 이상하다고 생각했나 (근거 포함)
+**② 원인 규명** — 어떻게 확인했나 (실측·실험)
+**③ 개선** — 무엇을 바꿨나 (결정 ID 포함)
+**④ 재측정** — 숫자가 어떻게 바뀌었나
+
+**남은 과제** — 아직 해결 안 된 것
+```
+
+### D.2 사례 1 — 상권 동일업종 판정 정확도 (D5 컨설턴트)
+
+```markdown
+## [사례 1] 동일업종 매장 수가 11배 틀렸던 문제
+
+**① 가설**
+"강남역 반경 500m 카페 16곳"이라는 결과가 상식과 맞지 않았다.
+· 상권 API 명세상 numOfRows 최대 1000건인데 전체 매장은 6,691곳 — 15%만 집계된 것으로 의심
+· 참고 통계는 역세권 500m 카페 평균 68~69곳
+· 전체 대비 비율 0.24% 는 음식점업 중 비알코올 음료점업 비중과 맞지 않음
+→ 텍스트 매칭 + 페이지 상한 때문에 과소 집계됐다고 판단 (D-041)
+
+**② 원인 규명**
+실제 상권 API를 라이브 호출해 응답 필드를 직접 확인했다.
+· 업종 분류 체계가 신 2302 분류이고 카페 = I21201 임을 확인 (P-007 종료, D-086)
+· 기존 구현은 상호/업종명 텍스트 비교 → "독서실/스터디 카페"(R10202) 오탐,
+  "비알코올 음료점업" 누락이 동시에 발생
+
+**③ 개선**
+· shared_data/industry_code_map.json 신설 — 업종명 → 업종코드 단일 소스 (D-043)
+· market_api 가 업종코드로 필터링된 API를 한 번 더 호출하는 2회 호출 방식으로 변경 (D-042)
+· 매핑이 없는 업종은 기존 텍스트 매칭으로 폴백 (D-041)
+· market_repo 캐시를 (좌표, 업종코드) 단위로 확장
+
+**④ 재측정**
+| 항목 | 개선 전 | 개선 후 |
+| --- | --- | --- |
+| 강남역 500m 카페 | 16곳 | **177곳** (11배) |
+| 판정 방식 | 텍스트 매칭 | 업종코드 필터 |
+| 2차 조회 응답시간 | — | 0.04초 (캐시 히트) |
+
+프롬프트·LLM·파이프라인은 **하나도 바꾸지 않았다.**
+근거 데이터만 고쳤는데 전략의 근거 품질이 달라졌다.
+
+**남은 과제**
+· industry_code_map 에 현재 "카페"만 있음 → 상위 20종 확장 필요 (P-030)
+· 밀도 등급 경계값(1~3/4~8/9+)은 여전히 임의 근사치 (P-008)
+```
+
+> **이 사례가 좋은 이유**: 원인·조치·결과가 전부 **숫자와 결정 ID로 추적** 가능하다.
+> *"프롬프트를 고쳤더니 점수가 올랐다"* 보다 설명하기 쉽고 반박당하기 어렵다.
+
+### D.3 기록 규칙
+
+```
+· 사례는 docs/improvements.md 에 누적한다 (본 문서는 템플릿만 보유)
+· 측정 결과가 나올 때마다 "개선한 것"이 있으면 사례로 남긴다
+· 실패한 시도도 남긴다 — "해봤는데 효과 없었다"도 시도의 증거다
+· 각 사례는 decisions.md 의 결정 ID를 최소 1개 인용한다
+```
