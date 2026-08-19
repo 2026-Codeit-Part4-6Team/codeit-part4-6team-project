@@ -66,8 +66,12 @@ def call_llm(
     *,
     json_mode: bool = False,
     deadline: float | None = None,
+    model: str | None = None,          # ← None 이면 OPENAI_MODEL
 ) -> tuple[str, int]:
     """OpenAI를 호출해 (응답 텍스트, 사용 토큰 수)를 반환한다.
+    model 을 지정하면 그 모델로 호출한다 — LLM Judge 처럼 생성과 다른 모델을
+    써야 하는 경우에만 쓴다(D-251). 기본값 None 은 OPENAI_MODEL 이므로
+    기존 호출부(노드 전부)는 한 줄도 바뀌지 않는다.
 
     Args:
         system: 시스템 프롬프트.
@@ -94,7 +98,7 @@ def call_llm(
     for attempt in range(LLM_MAX_RETRIES + 1):
         try:
             response = _get_client().chat.completions.create(
-                model=OPENAI_MODEL,
+                model=model or OPENAI_MODEL,
                 temperature=LLM_TEMPERATURE,
                 messages=messages,
                 **kwargs,

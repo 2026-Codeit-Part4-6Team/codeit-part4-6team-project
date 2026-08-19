@@ -20,6 +20,10 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL") or None  # 대체 provider 교체점(D-078)
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 
+# LLM Judge 전용 모델 — 생성 모델과 분리해야 A/B 비교 시 "자[尺]"가 고정된다(D-251).
+# 기본값을 OPENAI_MODEL 과 같게 둬서, 명시적으로 설정하기 전까지는 비용이 변하지 않는다.
+OPENAI_JUDGE_MODEL = os.getenv("OPENAI_JUDGE_MODEL") or OPENAI_MODEL
+
 # ── 재시도(429) ────────────────────────────────────────────────
 # retry.py 를 따로 두지 않는다 — 사용처가 llm.py 하나뿐이라 파일만 늘어난다.
 LLM_MAX_RETRIES = 3                    # 최초 호출 포함 총 4회 시도
