@@ -236,6 +236,41 @@
 | D-226 | 8/18 | 데이터셋 검증은 스키마 → 오염 순서로 실행 | 조립도 안 되는 문항의 겹침을 검사하는 것은 순서가 뒤바뀐 것. 스키마 통과가 오염 검사의 전제 | 순서 무관 |
 | D-227 | 8/18 | 스키마 테스트에 검사 4종 추가 — id 접두사·area 일치, input의 user_id·question 중복 금지, fixture_version 고정, allowed_numbers의 fixture 파생 가능성 | allowed_numbers에 fixture에 없는 숫자를 넣으면 환각 검증이 무력화됨(D-170 우회 경로). 나머지 3종은 §4.2.1·§4.4 규칙을 코드로 강제 | v1.1 검사 3종 유지 |
 | D-228 | 8/18 | 문서에 실린 코드 블록과 §10.1 구현 상태 표를 양방향으로 일치시킨다 | 표에는 있는데 코드가 없거나 그 반대면 담당자가 찾지 못함. cache/db.py·sources·title과 동일한 "참조는 남았는데 실체가 없음" 유형이 문서에서 재현됨 | 표만 관리 |
+| D-229 | 8/18 | 코드 주석의 결정 ID는 decisions.md와 대조 후 커밋, PR 단위로 grep 전체 스캔 | search_ad_api.py가 D-179(title 반환)를 참조하나 실제는 D-185. 잘못된 ID는 역추적 시 엉뚱한 결정으로 안내해 없느니만 못함 | 주석 ID 자유 기재 |
+| D-230 | 8/18 | repo_contract.md의 weather 예시를 null + "(현재 미구현)"로 정정 (D-192 이행) | trend_api.fetch()가 weather=None을 하드코딩하는데 계약서 예시는 값이 채워져 있음. 동일 원인으로 기본 챗봇 trend_for_copy에 죽은 분기가 이미 생김(D-193) | 예시 유지 |
+| D-231 | 8/18 | repo_contract.md의 market 예시 수치를 실측값 기준으로 정정하거나 "문항 복사 금지" 주석 명시 | D-218(골든 문항의 few-shot 겹침 금지)에서 12곳·43곳·55m가 오염 대상인데 계약서가 그 값을 제시 중 | 현행 유지 |
+| D-232 | 8/18 | get_trend()의 industry 인자는 제거 확정, 실행은 D8 정리 PR (D-188 결론) | 트렌드는 최종 결과를 통째 캐싱하므로 industry를 캐시 키에 넣으면 같은 검색어가 업종별로 중복 캐싱돼 적중률 하락. 검색어 트렌드 API 자체가 업종을 받지 않음. 즉시 제거는 기본 챗봇 동시 수정이 필요해 D6·D7과 충돌 | 즉시 제거 / 의미 부여 |
+| D-233 | 8/18 | trend_repo._write_cache에 upsert 적용 (D-053 트렌드 확장) | market_repo만 upsert 적용됨. 반복 조회 시 행 누적 + 동일 payload TTL 미갱신 버그가 트렌드에서 재발 | INSERT 유지 |
+| D-234 | 8/18 | industry_breakdown은 원본 1000곳 한계가 있으므로 전략 프롬프트에서 제외 검토 | same_industry_count는 업종코드로 정확해졌으나 breakdown은 여전히 부분 집계 — 강남역 기준 15%만 반영된 분포가 LLM 근거로 사용됨. 16→177과 동일 문제의 잔여분 | 현행 유지(TODO만) |
+| D-235 | 8/18 | 캐시 관련 상수(_MAX_RELATED_KEYWORDS 등)는 models/consult/config.py로 집약 | TTL 상수는 이미 이관됨. 모듈 하드코딩이 남으면 조정 지점이 분산(D-047 취지) | 모듈 내 유지 |
+| D-236 | 8/18 | cache/db.py의 create_all 예외는 로그만 남기고 삼킨다 (승인) | 예외가 import 시점에 올라가면 market_repo·trend_repo import가 통째로 실패해 "DB 장애 시 실시간 API 폴백" 원칙 자체가 무력화. 담당자가 연결 불가 DB로 재현 후 회귀 테스트 추가 | 예외 전파 |
+| D-237 | 8/18 | 구버전 캐시 DB 스키마는 ALTER TABLE 경량 보정으로 처리 (Alembic 미도입 D-067과 일관) | create_all()은 기존 테이블에 컬럼을 추가하지 않아 industry_code 누락 시 캐시 전체가 no such column으로 실패 | Alembic 도입 / 수동 재생성 |
+| D-238 | 8/18 | 골든 문항의 fixture는 그 질문이 운영에서 실제로 만들어낼 상태와 일치해야 한다 | 평가 조건이 운영과 다르면 측정 점수가 운영 품질을 예측하지 못하고 튜닝이 "평가에서만" 효과를 낸다. trend=None 고정은 keyword 없는 질문에서는 운영과 일치하지만 특정 메뉴가 있는 질문에서는 불일치 | trend 전체 None 고정 / 전체 fixture 추가 |
+| D-239 | 8/18 | C- 문항에 input.trend_fixture 추가, 값이 없으면 명시적 null (생략 금지) | 생략과 "없는 게 맞음"을 구분해야 CI가 누락을 잡을 수 있다. market_fixture와 동일하게 fixture_version·captured_at 필수 | 필요한 문항에만 키 추가 |
+| D-240 | 8/18 | expected.trend_used(bool) 신설 — 경로 재현성 검증 + "경로 일치율" 지표 | keyword 추출이 LLM 산출물(temperature 0.3)이라 fixture를 고정해도 호출 여부가 실행마다 달라져 점수가 흔들림. 불일치는 실패가 아니라 질문 분석 노드 안정성 지표로 집계 | 데이터만 고정 |
+| D-241 | 8/18 | trend_fixture 도입 전에는 C- 본 평가를 실행하지 않는다 (파일럿만 허용) | 첫 측정이 baseline이 되어 이후 튜닝 비교가 조건 변경과 뒤섞임(D-221과 동일 구조). LLM Judge 유료라 폐기용 1회분 비용도 발생 | None 조건으로 1차 평가 선행 |
+| D-242 | 8/18 | trend_fixture.weather는 항상 null | get_trend()가 weather를 반환하지 않음(D-230). 값을 넣으면 운영에 존재하지 않는 조건을 평가하게 됨 | 계약서 예시대로 값 기입 |
+| D-243 | 8/18 | trend 도입으로 allowed_numbers는 변경하지 않는다 — 트렌드 필드에 수치가 없음 | keyword·direction·related 모두 텍스트. 텍스트 근거 검증이 필요해지면 allowed_terms를 별도 신설(현재 불필요) | allowed_numbers 확장 |
+| D-244 | 8/18 | fixture 주입은 eval 스크립트의 patch에서만 수행, eval_fixtures.py는 수정하지 않는다 | build_model_request()가 알려진 키만 담아 trend_fixture를 자동 무시. 담당자 예상보다 작업량이 작음을 확인 | eval_fixtures.py 확장 |
+| D-245 | 8/18 | C- 문항 수는 20 유지. 초과 작성분은 notes="extended" 표시 후 [SHOULD] 확장셋으로 분리 | §10.2 스키마 테스트가 consult:20을 assert하며 45면 즉시 실패. LLM Judge 비용 2.25배로 $30 한도 압박. 작성분을 버리지 않고 보존 | 45로 상향 / 초과분 폐기 |
+| D-246 | 8/18 | 경로 일치 판정은 context["trend"] 가 아니라 question_analysis.keyword 를 기준으로 한다 | trend 가 None 이 되는 경로가 둘("keyword 없음"·"keyword 있으나 fixture null")이라, trend 로 판정하면 trend_used=false 문항에서 LLM이 keyword를 뽑아버린 불일치를 놓친다 | context["trend"] 기준 |
+| D-247 | 8/18 | check_trend_path 는 bool 이 아니라 dict 반환 — keyword·trend_in_context 동봉 | 불일치 방향(과추출/미추출)에 따라 조치가 다르고, trend_in_context 는 fixture 주입 실패(하네스 버그)를 모델 성능 문제와 구분해준다 | bool 반환 |
+| D-248 | 8/18 | must_not_include_sources 필드는 만들지 않고 trend_used 에서 평가기가 유도 | 필드를 늘리면 작성자 실수 지점만 늘어난다. trend_used=false → sources 에 "트렌드" 없음은 기계적으로 도출 가능 | 별도 필드 신설 |
+| D-249 | 8/18 | trend_fixture 여부는 type 이 아니라 질문 문장의 특정 메뉴·상품명 유무로 판단 | type=strategy 안에서도 갈린다("어떻게 홍보?"=null / "아메리카노 프로모션?"=값). type 일괄 적용 시 절반이 어긋남 | type 기준 일괄 적용 |
+| D-250 | 8/18 | 경로 일치율 목표 90% — 미달 시 LLM Judge 점수 해석을 보류 | 경로가 흔들리면 프롬프트 구성이 달라져 점수 비교 자체가 성립하지 않는다 | 목표치 미설정 |
+| D-251 | 8/19 | LLM Judge 모델을 OPENAI_JUDGE_MODEL 로 구조 분리, call_llm()에 선택적 model 인자 추가 | D-051(LLM 모델 A/B 후 확정)이 현재 구조로는 불가능 — OPENAI_MODEL 변경 시 생성·채점이 동시에 바뀌어 점수 차이의 원인을 분리할 수 없다. fixture_version(D-221)·trend_used(D-240)와 동일한 "비교하려면 나머지를 고정" 원칙 | 공통 모델 유지 |
+| D-252 | 8/19 | OPENAI_JUDGE_MODEL 기본값은 OPENAI_MODEL 과 동일, 상위 모델 전환은 파일럿 !usage 확인 후 | Judge 대상이 45문항 × 전후 2회 = 90회 이상. $30 한도에 basic·refusal 측정과 D10 재측정이 남아 있어 구조 분리와 비용 발생을 분리한다 | 즉시 상위 모델 적용 |
+| D-253 | 8/19 | 결과 파일의 model 을 generation_model 로 개명하고 judge_model 과 병기 | judge_model 단독으로는 "무엇을 채점했는지" 알 수 없어 점수 해석 불가. model 이라는 이름도 judge_model 옆에서 모호해짐 | judge_model 만 추가 |
+| D-254 | 8/19 | generation_model 과 judge_model 을 동시에 바꾼 두 결과는 비교하지 않는다 | 한쪽만 다르면 각각 "생성 성능 차이"·"채점자 성향 차이"로 해석되지만, 둘 다 다르면 원인 분리 불가. fixture_version 규칙(D-221)의 확장 | 비교 허용 |
+| D-255 | 8/19 | Judge 호출에는 deadline 을 전달하지 않는다 | D-144 데드라인은 그래프 실행 예산이고 Judge 는 그래프 밖 평가 코드 — 전달 시 평가 배치가 중도 중단된다 | 동일 deadline 적용 |
+| D-256 | 8/19 | config 의 JUDGE 모델은 getenv(...) or OPENAI_MODEL 형태로 읽는다 | .env.example 에 빈 값으로 배포되므로 getenv 기본값이 발동하지 않고 빈 문자열이 모델명으로 전달된다 | getenv 기본값 인자 사용 |
+| D-257 | 8/19 | get_total_tokens() 를 모델별 집계로 변경(인자 생략 시 전체 합계) | 생성·채점 토큰이 합산되면 D-092(예산 모니터링) 목적을 달성할 수 없다. 기존 호출부는 무인자 호출이라 하위 호환 유지 | 단일 카운터 유지 |
+| D-258 | 8/19 | judge_model 은 파일럿(8/18)에 확정하고 본 평가(8/20) 이후 고정 | Judge 변경은 fixture 변경과 동일하게 baseline 을 무효화 — 본 평가 중 변경 시 기측정 점수 전량 폐기 | 상시 변경 허용 |
+| D-259 | 8/19 | §11에 비교 가능성 판정 표·3단계 확인 절차 신설 — 조건이 2개 이상 다르면 비교 금지 | §10.4는 기록 규칙이고 §11은 해석 규칙 — 잘못된 비교는 발표 자료 작성 시점(§11)에 발생한다. 기록 필드만 있고 해석 규칙이 없으면 아무도 안 보고 비교한다 | §10.4 기록 규칙으로 갈음 |
+| D-260 | 8/19 | 비교 규칙은 "generation·judge 동시 변경 금지"가 아니라 "달라진 조건 개수"로 일반화 | 금지문 하나만 두면 fixture_version·dataset_version 이 섞였을 때 못 잡는다. 조건이 늘어도 규칙이 그대로 작동해야 한다 | 모델 조합만 명시 |
+| D-261 | 8/19 | 비교표에는 "측정 조건" 블록과 "바꾼 것" 한 줄을 반드시 병기 | 숫자만 있으면 개선 노력이 아니라 우연으로 읽힌다. 평가항목 "성능 개선을 위해 다양한 시도"에 직결 | 지표 표만 기재 |
+| D-262 | 8/19 | compare_reports.py 로 비교 가능성 자동 확인 (선택, 8/20) | 지표 10종 × 3영역 × 다회차가 쌓이면 육안 대조에서 누락 발생. 3단계 확인 절차만으로도 최소 요건은 충족 | 육안 확인만 |
+| D-263 | 8/19 | §10.4 결과 파일 스키마와 DoD ⑤를 generation_model·judge_model 병기로 갱신, compare_reports.py 를 §10.1 상태표에 등재 | §11만 바꾸면 문서 내 필드명이 어긋난다. 문서에 실린 코드는 상태표에 등재해야 담당자가 찾을 수 있다(D-228) | §11만 수정 |
 
 ## 변경 이력
 > 뒤집힌 결정은 **원래 줄을 지우지 말고** 아래 추가.
@@ -267,7 +302,7 @@
 | P-005 | `self_check` 사실성 검증(B) | SHOULD, 예산 여유 시 | 전민재 PM | 8/21 |
 | P-006 | 캐시 TTL 최종 확정 | → **종료(D-053)** | — | 8/12 완료 |
 | P-007 | 상권 API 업종코드 체계 확인 | → **종료(D-086)** 신 2302 분류, 카페=I21201 | 컨설턴트 담당 | 8/14 완료 |
-| P-008 | 밀도 등급 경계값 + 트렌드 방향 임계값(10%) 재조정 | D9 실측 샘플링 [SHOULD] — 두 임계값을 함께 처리 | 컨설턴트 담당 | 8/20 |
+| P-008 | 밀도 등급 경계값 + 트렌드 방향 임계값(10%) 재조정 | 두 임계값 함께 처리, D9 [SHOULD] | 컨설턴트 담당 | 8/20 |
 | P-009 | LLM 모델 최종 확정(gpt-4o-mini vs GPT-5.4 Mini/Nano) | 3문항 A/B 후 결정 | 전민재 PM | 8/14 |
 | P-010 | Basic 응답의 suggested_chips 허용 여부 | 현행 빈 배열 고정(max_length=0) | 기본 챗봇 담당 | 8/14 |
 | P-011 | market_cache UNIQUE(lat,lng,radius) 추가 시점 | D7 통합 시 서비스 담당이 DDL 추가(그전까지 upsert로 방어, D-050) | 서비스 담당 | 8/18 |
@@ -289,8 +324,8 @@
 | P-027 | market_fixture 값의 출처(업종코드 교정 전/후) | 교정 후 실측값 사용, 미교정 시 현재값으로 파일럿 후 재측정 | 컨설턴트 담당 | 8/18 |
 | P-028 | 검색 평가셋 진행 여부 — 벤치마크 KB 문서 ID(bm_###) 부여 | 미부여 시 Hit Rate@5·MRR을 보고서에서 제외 | 기본 챗봇 담당 | 8/18 |
 | P-029 | allowed_numbers 반올림 허용 범위(정확 일치 vs ±5%) | 정확 일치로 시작, 파일럿 결과 보고 완화 검토 | 컨설턴트 담당 | 8/19 |
-| P-030 | industry_code_map 상위 20종 확장 완료 여부 | 시연 예비 계정도 매핑 업종으로 준비 | 컨설턴트 담당 | 8/18 |
-| P-031 | 신규 API 키 6종의 .env.example·.gitignore·CI 로그 노출 점검 | 프로젝트 가이드 API key 유출 주의 조항 | 전민재 PM | 8/18 |
+| P-030 | industry_code_map 상위 20종 확장 | 미착수 — 시연 Q&A 업종 변경 시 텍스트 매칭 폴백 | 컨설턴트 담당 | 8/19 |
+| P-031 | 신규 API 키 5종 노출 점검 (.env.example 완료, git 과거 커밋 확인 필요) | git log -p --all -- .env 로 실키 이력 확인 | 전민재 PM | 8/18 |
 | P-032 | 날씨 API 연동(기상청 단기예보 등) — add_sw_req_spec.md 추가 요구사항 명세서 5)번 사항 날씨 기반 카피 | [SHOULD]. 별도 함수·짧은 TTL(D-194). 외부 API 4번째라 전민재 PM 승인 후 착수(D-184) | 기본 챗봇 담당 | 8/20 |
 | P-033 | 기본 챗봇 로컬 mock 전반을 실제 get_market/get_trend 반환값과 대조 | weather 외 다른 필드에도 같은 불일치가 있는지 확인 | 기본 챗봇 담당 | 8/18 |
 | P-034 | image_gen이 image_prompt를 ranked_copies에 저장할지 | 현재 미저장이라 CLIP이 항상 copy로 폴백. 기록 전용 정책이라 우선순위 낮음 | 기본 챗봇 담당 | 8/20 |
@@ -301,3 +336,9 @@
 | P-039 | 각 프롬프트 모듈에 FEWSHOT_TERMS·FEWSHOT_NUMBERS 상수 노출 (D-219 선행조건) | 예시 수정 시 상수도 함께 갱신 | 각 프롬프트 담당 | 8/18 |
 | P-040 | eval_data_quality.py 구현 — 업종 매핑 커버리지·정확 판정 비율 산출 (D-222) | LLM 호출 0회라 예산 무관, 먼저 돌려도 됨 | 컨설턴트 담당 | 8/19 |
 | P-041 | docs/improvements.md 신설 및 사례 1(업종코드 필터) 기록 (D-224) | 부록 D 템플릿 사용 | 컨설턴트 담당 | 8/19 |
+| P-042 | 기본 챗봇 trend_for_copy의 keyword 전환 확인 (D-201 미이행) | 질문 원문 사용 시 캐시 적중률 0% + 문장 검색으로 fetch_raw가 None 반환 → 쿼터만 소모 | 기본 챗봇 담당 | 8/18 |
+| P-043 | C- 골든 데이터셋 문항 실제 작성 개수 확인(20 vs 45) 및 확장셋 분리 | 20을 본 평가용으로 선별, 나머지는 [SHOULD] 표시 | 컨설턴트 담당 | 8/18 |
+| P-044 | trend_fixture.related 와 FEWSHOT_TERMS 겹침 확인 (D-218) | strategy.py 실제 few-shot 값 확인 후 related 선정 | 컨설턴트 담당 | 8/18 |
+| P-045 | 트렌드 유무 ablation 측정(트렌드 포함/미포함 근거 충실도 비교) | [SHOULD] 예산 여유 시. D-224 개선 사례 템플릿에 적합 | 컨설턴트 담당 | 8/20 |
+| P-046 | OPENAI_JUDGE_MODEL 상위 모델 전환 여부 | 파일럿 후 !usage 실측 기준으로 판단(D-252) | 전민재 PM | 8/19 |
+| P-047 | D-051 LLM 모델 A/B 실행 — Judge 고정 후 generation_model 만 교체 | 구조 분리(D-251) 완료가 선행 조건 | 전민재 PM | 8/19 |
