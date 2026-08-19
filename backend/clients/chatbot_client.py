@@ -47,19 +47,25 @@ class ActualChatbotClient:
         self,
         basic_callable: SyncModelCallable,
         consultant_callable: SyncModelCallable,
+        timeout_seconds: int,
     ) -> None:
         self._basic = basic_callable
         self._consultant = consultant_callable
+        self._timeout_seconds = timeout_seconds
 
     async def generate(self, request: ModelRequest) -> ModelResult:
         payload = request.model_dump(mode="python", by_alias=True)
         if request.chatbot_type == "basic":
-            raw_result = await asyncio.to_thread(self._basic, payload)
+            model_callable = self._basic
         elif request.chatbot_type == "consultant":
-            raw_result = await asyncio.to_thread(self._consultant, payload)
+            model_callable = self._consultant
         else:
             raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
 
+        raw_result = await asyncio.wait_for(
+            asyncio.to_thread(model_callable, payload),
+            timeout=self._timeout_seconds,
+        )
         return MODEL_RESULT_ADAPTER.validate_python(
             raw_result,
             chatbot_type=request.chatbot_type,
@@ -82,5 +88,6 @@ def create_chatbot_client(settings: "Settings") -> ChatbotClient:
         return ActualChatbotClient(
             _load_model_entrypoint("models.basic.main"),
             _load_model_entrypoint("models.consult.main"),
+            timeout_seconds=settings.model_request_timeout_seconds,
         )
     raise ValueError("chatbot_mode는 mock 또는 actual이어야 합니다.")

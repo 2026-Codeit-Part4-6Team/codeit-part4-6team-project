@@ -7,7 +7,7 @@ from backend.clients import chatbot_client
 
 
 def _settings(mode: str):
-    return SimpleNamespace(chatbot_mode=mode)
+    return SimpleNamespace(chatbot_mode=mode, model_request_timeout_seconds=60)
 
 
 def test_factory_returns_mock_without_importing_actual_models(monkeypatch):
@@ -45,6 +45,7 @@ def test_factory_loads_both_actual_run_entrypoints(monkeypatch):
     assert isinstance(client, chatbot_client.ActualChatbotClient)
     assert client._basic is basic_run
     assert client._consultant is consultant_run
+    assert client._timeout_seconds == 60
     assert seen == ["models.basic.main", "models.consult.main"]
 
 

@@ -98,7 +98,7 @@ def test_actual_client_dispatches_basic_and_preserves_source_context():
     def consultant_run(_payload):
         raise AssertionError("consultant callable must not be called")
 
-    client = chatbot_client.ActualChatbotClient(basic_run, consultant_run)
+    client = chatbot_client.ActualChatbotClient(basic_run, consultant_run, timeout_seconds=60)
 
     result = asyncio.run(client.generate(_basic_request(with_source_context=True)))
 
@@ -120,7 +120,7 @@ def test_actual_client_dispatches_consultant():
         seen.append(payload)
         return _consultant_result()
 
-    client = chatbot_client.ActualChatbotClient(basic_run, consultant_run)
+    client = chatbot_client.ActualChatbotClient(basic_run, consultant_run, timeout_seconds=60)
 
     result = asyncio.run(client.generate(_consultant_request()))
 
@@ -141,7 +141,11 @@ def test_actual_client_executes_sync_callable_via_to_thread(monkeypatch):
     def basic_run(_payload):
         return _basic_result()
 
-    client = chatbot_client.ActualChatbotClient(basic_run, lambda _payload: _consultant_result())
+    client = chatbot_client.ActualChatbotClient(
+        basic_run,
+        lambda _payload: _consultant_result(),
+        timeout_seconds=60,
+    )
 
     asyncio.run(client.generate(_basic_request()))
 
@@ -154,6 +158,7 @@ def test_actual_client_validates_raw_output():
     client = chatbot_client.ActualChatbotClient(
         lambda _payload: {"status": "ok", "title": "broken"},
         lambda _payload: _consultant_result(),
+        timeout_seconds=60,
     )
 
     with pytest.raises(ValidationError):
@@ -167,7 +172,29 @@ def test_actual_client_propagates_model_exception():
     client = chatbot_client.ActualChatbotClient(
         basic_run,
         lambda _payload: _consultant_result(),
+        timeout_seconds=60,
     )
 
     with pytest.raises(RuntimeError, match="provider exploded"):
         asyncio.run(client.generate(_basic_request()))
+
+
+def test_actual_client_applies_configured_timeout_to_sync_run(monkeypatch):
+    captured = []
+    real_wait_for = asyncio.wait_for
+
+    async def fake_wait_for(awaitable, *, timeout):
+        captured.append(timeout)
+        return await real_wait_for(awaitable, timeout=1)
+
+    monkeypatch.setattr(chatbot_client.asyncio, "wait_for", fake_wait_for)
+
+    client = chatbot_client.ActualChatbotClient(
+        lambda _payload: _basic_result(),
+        lambda _payload: _consultant_result(),
+        timeout_seconds=73,
+    )
+
+    asyncio.run(client.generate(_basic_request()))
+
+    assert captured == [73]

@@ -71,6 +71,7 @@ def test_generate_traverses_actual_client_with_plain_dict(
     client.app.state.chatbot_client = ActualChatbotClient(
         basic_run,
         lambda _payload: {"status": "error", "reason": "unknown", "message": "unused"},
+        timeout_seconds=60,
     )
 
     response = client.post(
@@ -100,6 +101,7 @@ def test_invalid_actual_result_uses_existing_failure_compensation(
     client.app.state.chatbot_client = ActualChatbotClient(
         lambda _payload: {"status": "ok", "title": "broken"},
         lambda _payload: {"status": "error", "reason": "unknown", "message": "unused"},
+        timeout_seconds=60,
     )
 
     response = client.post(
