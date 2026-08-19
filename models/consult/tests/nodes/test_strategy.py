@@ -73,12 +73,18 @@ def _state_without_context(question: str = "우리 카페 어떻게 홍보하면
     }
 
 
-def _payload(summary: str = "전략 요약", actions=None, reasons=None) -> dict:
-    return {
+def _payload(summary: str = "전략 요약", actions=None, reasons=None, title="전략 제목") -> dict:
+    payload = {
         "summary": summary,
         "actions": _ACTIONS if actions is None else actions,
         "reasons": _REASONS if reasons is None else reasons,
     }
+    if title is not _OMIT:
+        payload["title"] = title
+    return payload
+
+
+_OMIT = object()
 
 
 def _response(payload, tokens: int = 100) -> tuple[str, int]:
@@ -94,6 +100,7 @@ def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
 
     assert result == {
         "result": {
+            "title": "전략 제목",
             "summary": "시즌 한정 메뉴로 신규 고객을 유입하세요.",
             "actions": _ACTIONS,
             "reasons": _REASONS,
@@ -102,6 +109,19 @@ def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
         "retry_count": 0,
         "sources": ["가게정보"],
     }
+
+
+@pytest.mark.parametrize("invalid_title", [_OMIT, None, "", "   ", 123, ["제목"]])
+@patch("models.consult.nodes.strategy.call_llm")
+def test_falls_back_to_default_title_when_missing_or_invalid(mock_call_llm, invalid_title) -> None:
+    """title은 summary/actions/reasons와 달리 형식 오류로 전체 응답을 실패시키지 않는다
+    — 제목 하나 때문에 좋은 전략을 버리면 안 된다(PM 리뷰, D7 계약 정합성).
+    가게 이름 기반 기본 제목으로 폴백한다(mock_chatbot.py와 동일 패턴)."""
+    mock_call_llm.return_value = _response(_payload(title=invalid_title))
+
+    result = strategy(_state())
+
+    assert result["result"]["title"] == "카페 코드잇 마케팅 전략"
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -222,7 +242,9 @@ def test_includes_market_data_when_available(mock_call_llm) -> None:
     assert "12" in user_prompt
     assert "55" in user_prompt
     assert "높음" in user_prompt
-    assert "편의점" in user_prompt
+    # industry_breakdown("업종 분포")은 프롬프트에서 뺀다 — 원본이 API 페이지 상한
+    # (1000곳)을 넘는 지역은 부분집합만 반영돼 부정확한 근거가 될 수 있다(PM 리뷰).
+    assert "편의점" not in user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")

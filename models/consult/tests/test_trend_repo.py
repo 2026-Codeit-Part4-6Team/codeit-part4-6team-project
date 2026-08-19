@@ -249,6 +249,58 @@ def test_cache_miss_is_logged(mock_fetch, session_factory, caplog) -> None:
 
 
 @patch("cache.trend_repo.trend_api.fetch")
+def test_repeated_cache_miss_upserts_instead_of_inserting_new_row(
+    mock_fetch, session_factory
+) -> None:
+    """같은 검색어로 반복 적재되면 새 행을 계속 추가하는 대신 기존 행을 갱신한다
+    (market_repo가 D-053으로 이미 적용한 것과 동일 패턴) — trend_cache에는 UNIQUE
+    인덱스가 없어 upsert로 미리 방어하지 않으면 같은 검색어가 조회될 때마다 행이
+    쌓인다(PM 리뷰)."""
+    mock_fetch.return_value = _TREND_RESULT
+    get_trend("아이스아메리카노")
+    with session_factory() as session:
+        assert session.query(TrendCache).count() == 1
+
+    with session_factory() as session:
+        row = session.query(TrendCache).one()
+        row.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=8)
+        session.commit()
+
+    other_result = {**_TREND_RESULT, "direction": "하락"}
+    mock_fetch.return_value = other_result
+    get_trend("아이스아메리카노")
+
+    with session_factory() as session:
+        assert session.query(TrendCache).count() == 1
+        row = session.query(TrendCache).one()
+        assert json.loads(row.result_json)["direction"] == "하락"
+
+
+@patch("cache.trend_repo.trend_api.fetch")
+def test_upsert_refreshes_ttl_even_when_payload_is_identical(mock_fetch, session_factory) -> None:
+    """만료된 캐시를 재적재할 때 새로 받아온 값이 기존 값과 동일해도 created_at이
+    갱신돼야 한다 — market_repo와 같은 이유로, 값이 안 바뀌면 SQLAlchemy가 UPDATE
+    대상에서 제외해 갱신이 안 되면 다음 조회도 계속 만료로 판정된다."""
+    old_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=8)
+    with session_factory() as session:
+        session.add(
+            TrendCache(
+                keyword="아이스아메리카노",
+                result_json=json.dumps(_TREND_RESULT),
+                created_at=old_time,
+            )
+        )
+        session.commit()
+    mock_fetch.return_value = _TREND_RESULT  # 기존 캐시와 동일한 payload
+
+    get_trend("아이스아메리카노")
+
+    with session_factory() as session:
+        row = session.query(TrendCache).one()
+        assert row.created_at > old_time + timedelta(days=7)
+
+
+@patch("cache.trend_repo.trend_api.fetch")
 def test_db_read_failure_logs_warning(mock_fetch, monkeypatch, caplog) -> None:
     broken_factory = sessionmaker(bind=create_engine("sqlite:////nonexistent_dir_xyz/cache.db"))
     monkeypatch.setattr("cache.trend_repo.SessionLocal", broken_factory)

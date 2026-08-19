@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,10 +15,12 @@ from backend.clients.geocoding_client import (
 )
 from backend.models import User
 from backend.schemas import RegisterRequest, UserResponse
+from backend.services.usage_service import (
+    effective_daily_usage,
+    next_seoul_midnight_utc,
+)
 
 logger = logging.getLogger(__name__)
-SEOUL_TIMEZONE = ZoneInfo("Asia/Seoul")
-
 
 @dataclass(frozen=True)
 class GeocodingPolicy:
@@ -38,19 +39,9 @@ class DuplicateEmailError(Exception):
     """이미 사용 중인 이메일 오류."""
 
 
-def as_utc(value: datetime) -> datetime:
-    """aware 시각은 UTC로 변환하고 SQLite naive 시각은 UTC로 간주합니다."""
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
 def next_daily_free_reset_at(now: datetime | None = None) -> datetime:
-    """다음 한국 시각 자정을 UTC 시각으로 반환합니다."""
-    current = as_utc(now or datetime.now(UTC))
-    local_date = current.astimezone(SEOUL_TIMEZONE).date() + timedelta(days=1)
-    local_midnight = datetime.combine(local_date, time.min, tzinfo=SEOUL_TIMEZONE)
-    return local_midnight.astimezone(UTC)
+    """D2 호환 wrapper: 다음 한국 시각 자정을 UTC로 반환합니다."""
+    return next_seoul_midnight_utc(now or datetime.now(UTC))
 
 
 def build_user_response(
@@ -63,16 +54,7 @@ def build_user_response(
     if daily_free_limit < 0:
         raise ValueError("daily_free_limit은 0 이상이어야 합니다.")
 
-    normalized_now = as_utc(now)
-    normalized_reset_at = (
-        None if user.daily_free_reset_at is None else as_utc(user.daily_free_reset_at)
-    )
-    if normalized_reset_at is None or normalized_now >= normalized_reset_at:
-        daily_free_used = 0
-        daily_free_reset_at = next_daily_free_reset_at(normalized_now)
-    else:
-        daily_free_used = user.daily_free_used
-        daily_free_reset_at = normalized_reset_at
+    daily_free_used, daily_free_reset_at = effective_daily_usage(user, now)
 
     return UserResponse(
         id=user.id,

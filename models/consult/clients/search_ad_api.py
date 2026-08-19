@@ -2,7 +2,7 @@
 #
 # SDP 외 자체 확장: get_trend()의 related 필드는 SDP mock에 값 형태만 나와 있을 뿐
 # 어떤 API로 채우라는 지시가 없다. 검색광고 API로 채우기로 자체 판단해 추가했고
-# PM에게 사전 공유함(docs/decisions.md D-179 참고).
+# PM에게 사전 공유함(docs/decisions.md D-185 참고).
 import base64
 import hashlib
 import hmac
