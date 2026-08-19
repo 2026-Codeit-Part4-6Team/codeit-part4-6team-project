@@ -40,7 +40,7 @@ describe("ResultCards", () => {
       />,
     );
 
-    expect(html).toContain("메뉴 구성");
+    expect(html).toContain("핵심 상품/서비스");
     expect(html).toContain("이렇게 제안한 이유");
     expect(html).toContain("참고 근거");
     expect(html).toContain("<details");

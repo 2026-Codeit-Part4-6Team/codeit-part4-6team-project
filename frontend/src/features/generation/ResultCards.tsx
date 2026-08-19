@@ -1,7 +1,7 @@
 import type { GenerationResponse } from "../../api";
 
 const actionMeta: Record<string, { label: string; visual: string }> = {
-  menu: { label: "메뉴 구성", visual: "🍽️" },
+  menu: { label: "핵심 상품/서비스", visual: "✦" },
   promotion: { label: "프로모션", visual: "📣" },
   target: { label: "타깃 고객", visual: "👥" },
   other: { label: "추가 제안", visual: "＋" },
