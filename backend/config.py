@@ -36,6 +36,7 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    chatbot_mode: str
     session_secret_key: str
     session_max_age_seconds: int
     session_cookie_secure: bool
@@ -68,6 +69,9 @@ def load_settings() -> Settings:
             raise ValueError("운영 환경에서는 SESSION_COOKIE_SECURE=true가 필요합니다.")
     else:
         secret_key = secret_key or "local-development-secret"
+    chatbot_mode = os.getenv("CHATBOT_MODE", "mock").strip().lower()
+    if chatbot_mode not in {"mock", "actual"}:
+        raise ValueError("CHATBOT_MODE는 mock 또는 actual이어야 합니다.")
     return Settings(
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         daily_free_limit=_read_int("DAILY_FREE_LIMIT", 10),
@@ -76,6 +80,7 @@ def load_settings() -> Settings:
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
         ),
+        chatbot_mode=chatbot_mode,
         session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
         session_cookie_secure=session_cookie_secure,
