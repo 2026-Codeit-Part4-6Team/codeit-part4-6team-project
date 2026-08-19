@@ -21,6 +21,7 @@ def image_gen_node(state: BasicState) -> dict:
     store = state["store"]
     updated = []
     images = []
+    prompts = []
 
     for c in state["ranked_copies"]:
         if not c.get("copy"):
@@ -35,6 +36,7 @@ def image_gen_node(state: BasicState) -> dict:
             image_b64 = generate_image(prompt)
             updated.append({**c, "image_b64": image_b64})
             images.append(image_b64)
+            prompts.append(prompt)
         # BLE001 억제 사유: 항목 하나 실패가 배치 전체를 죽이지 않도록 모든 예외를 잡아 개별 에러로 기록
         except Exception as exc:  # noqa: BLE001
             reason = _classify_error(exc)
@@ -45,5 +47,6 @@ def image_gen_node(state: BasicState) -> dict:
                     "error": {"field": "image", "reason": reason, "message": str(exc)},
                 }
             )
+            prompts.append(None)
 
-    return {"ranked_copies": updated, "image_results": images}
+    return {"ranked_copies": updated, "image_results": images, "image_prompts": prompts}
