@@ -34,7 +34,9 @@ from models.shared.config import (
 logger = logging.getLogger(__name__)
 
 _client: OpenAI | None = None
-_total_tokens = 0
+# 주석친 코드 필요 시 참고(2026.08.19 minjae)
+# _total_tokens = 0
+_total_tokens: dict[str, int] = {}
 
 
 def _get_client() -> OpenAI:
@@ -54,10 +56,18 @@ def reset_client() -> None:
     global _client
     _client = None
 
+# 주석친 코드 필요 시 참고(2026.08.19 minjae)
+# def get_total_tokens() -> int:
+#     """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용."""
+#     return _total_tokens
 
-def get_total_tokens() -> int:
-    """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용."""
-    return _total_tokens
+def get_total_tokens(model: str | None = None) -> int:
+    """프로세스 시작 이후 모델별 누적 토큰 수. model 을 생략하면 전체 합계.
+        — $30 예산 모니터링·평가 스크립트용.
+    """
+    if model is None:
+        return sum(_total_tokens.values())
+    return _total_tokens.get(model, 0)
 
 
 def call_llm(
@@ -107,7 +117,8 @@ def call_llm(
             if content is None:
                 raise ValueError("OpenAI 응답에 텍스트 content가 없습니다.")
             tokens = response.usage.total_tokens if response.usage else 0
-            _total_tokens += tokens
+            # _total_tokens += tokens
+            _total_tokens[model] += tokens  # 프로세스 시작 이후 모델별 누적 토큰 수 계산
             return content, tokens
 
         except openai.RateLimitError:
