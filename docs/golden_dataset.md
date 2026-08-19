@@ -1,4 +1,4 @@
-# 골든 데이터셋 기준 문서 (Golden Dataset Standard) v1.2
+# 골든 데이터셋 기준 문서 (Golden Dataset Standard) v1.3
 
 - **작성**: 전민재 PM 
 - **작성일**: 2026-08-12 
@@ -85,7 +85,7 @@
 
 **따라서 평가 실행 중에는 외부 API를 호출하지 않는다.** 상권·트렌드 데이터는 문항에 고정한다(§4.4).
 
-### 1.5 ★ 평가 오염(contamination) 차단이 제2 요건이다 (v1.2 신설)
+### 1.5 ★ 평가 오염(contamination) 차단이 제2 요건이다 (v1.2 추가)
 
 > **문항의 수치·키워드가 프롬프트의 few-shot 예시와 겹치면,
 > LLM 모델이 데이터를 전혀 읽지 않고 예시를 베껴도 만점을 받는다.**
@@ -164,6 +164,9 @@ LLM 모델이 상권 데이터를 전혀 읽지 않고 few-shot 을 그대로 �
 | **컨설턴트 (전략 제안)** | `C-` | **20** | 컨설턴트 챗봇 담당 |
 | **거부 (규제·보안)** | `R-` | **15** | **전민재 PM** |
 | **합계** | — | **60** | — |
+| *(별도)* 기본 챗봇 (카피 생성) | `B-` | 20 [SHOULD] | 기본 챗봇 담당 |
+| *(별도)* 컨설턴트 (전략 제안) | `C-` | 20 [SHOULD] | 컨설턴트 챗봇 담당 |
+| *(별도)* 거부 (규제·보안) | `R-` | 10 [SHOULD] | **전민재 PM** |
 | *(별도)* 검색 평가셋 | `RT-` | 10 [SHOULD] | 기본 챗봇 담당 (§6.1) |
 
 > **근거**: 프로젝트 가이드 권장치가 **50~100개**다. 60은 하한을 넘기면서
@@ -391,6 +394,44 @@ def test_required_keys_and_consult_fixture_present():
         if item["area"] == "consult":
             assert "market_fixture" in item["input"], \
                 f"{item['id']} market_fixture 없음 — 실시간 API 의존은 금지(§4.4)"
+
+@pytest.mark.skipif(not DATASET.exists(), reason="아직 데이터셋 파일이 없음")
+def test_consult_items_declare_trend_fixture_and_expected_path():
+    """trend_fixture 는 생략이 아니라 명시적 null 이어야 하고,
+    trend_used 와 서로 모순되면 안 된다(§4.4)."""
+    for item in load_dataset():
+        if item["area"] != "consult":
+            continue
+
+        assert "trend_fixture" in item["input"], (
+            f"{item['id']}: trend_fixture 키가 없다 — null 이라도 명시한다(§4.4)"
+        )
+        assert "trend_used" in item["expected"], (
+            f"{item['id']}: expected.trend_used 누락 — 경로 검증이 불가능하다(§6.4)"
+        )
+
+        fixture = item["input"]["trend_fixture"]
+        expected_used = item["expected"]["trend_used"]
+
+        assert bool(fixture) == expected_used, (
+            f"{item['id']}: trend_fixture 유무({bool(fixture)})와 "
+            f"expected.trend_used({expected_used})가 어긋난다"
+        )
+
+        if fixture:
+            assert fixture.get("fixture_version"), f"{item['id']}: fixture_version 누락"
+            assert fixture.get("captured_at"), f"{item['id']}: captured_at 누락"
+            assert fixture.get("weather") is None, (
+                f"{item['id']}: weather 는 항상 null 이다 — "
+                f"get_trend()가 값을 반환하지 않는다(D-230)"
+            )
+            assert "트렌드" in item["expected"]["must_include_sources"], (
+                f"{item['id']}: trend_used=true 면 sources 에 '트렌드'가 있어야 한다"
+            )
+        else:
+            assert "트렌드" not in item["expected"]["must_include_sources"], (
+                f"{item['id']}: trend_used=false 인데 sources 에 '트렌드'를 기대하고 있다"
+            )
 ```
 
 ### 4.3 `expected` — 기본 챗봇 (rubric 방식)
@@ -436,6 +477,7 @@ def test_required_keys_and_consult_fixture_present():
 > ① 데이터가 바뀌면 점수가 바뀌어 **튜닝 효과를 증명할 수 없고**
 > ② 근거 없는 숫자 하나만 있어도 통과해 **환각을 못 잡는다.**
 
+> CASE 1: trend_fixture 키 제외된 골든 데이터셋 문항 — C-001 (market)
 ```json
 {
   "id": "C-001",
@@ -452,10 +494,12 @@ def test_required_keys_and_consult_fixture_present():
       "density_tier": "높음",
       "radius": 500,
       "industry_breakdown": { "카페": 177, "편의점": 64, "한식": 231 }
-    }
+    },
+    "trend_fixture": null
   },
   "expected": {
     "action": "pass",
+    "trend_used": false,
     "must_have_fields": ["title", "strategy", "reasons", "sources", "suggested_chips"],
     "min_reasons": 1,
     "must_include_sources": ["상권분석"],
@@ -468,7 +512,57 @@ def test_required_keys_and_consult_fixture_present():
       "실행_가능성": "소상공인이 내일 바로 할 수 있는 제안인가"
     }
   },
-  "notes": "스토리보드 추천질문. fixture 는 강남역 500m 업종코드 교정 후 실측값(D5)",
+  "notes": "스토리보드 추천질문. 질문에 특정 메뉴·상품이 없어 keyword가 추출되지 않으므로 운영에서도 get_trend()를 호출하지 않는다 — trend_fixture는 null이 정상 상태이지 누락이 아니다(D-239). market_fixture는 강남역 500m 업종코드 교정 후 실측값(D5).",
+  "author": "김재헌",
+  "reviewed_by": null,
+  "created_at": "2026-08-18"
+}
+```
+
+> CASE 2: trend_fixture 키 포함된 골든 데이터셋 문항 — C-011 (season)
+```json
+{
+  "id": "C-011",
+  "area": "consult",
+  "type": "season",
+  "question": "아이스아메리카노 요즘 잘 나갈까요?",
+  "input": {
+    "market_fixture": {
+      "fixture_version": "v2-industry-code",
+      "captured_at": "2026-08-14",
+      "total_count": 6691,
+      "same_industry_count": 177,
+      "nearest_distance_m": 80,
+      "density_tier": "높음",
+      "radius": 500,
+      "industry_breakdown": { "카페": 177, "편의점": 64, "한식": 231 }
+    },
+    "trend_fixture": {
+      "fixture_version": "v1-naver-apihub",
+      "captured_at": "2026-08-14",
+      "keyword": "아이스아메리카노",
+      "direction": "상승",
+      "related": ["커피쿠폰", "커피종류", "에스프레소", "컴포즈커피쿠폰", "커피쿠폰이벤트"],
+      "weather": null
+    }
+  },
+  "expected": {
+    "action": "pass",
+    "trend_used": true,
+    "must_have_fields": ["title", "strategy", "reasons", "sources", "suggested_chips"],
+    "min_reasons": 1,
+    "must_include_sources": ["상권분석", "트렌드"],
+    "must_contain_number": true,
+    "allowed_numbers": [6691, 177, 80, 500, 64, 231],
+    "number_scope": "reasons",
+    "hallucination_check": "strict",
+    "must_include_any": ["커피쿠폰", "커피종류", "에스프레소", "상승"],
+    "rubric": {
+      "근거_충실도": "reasons에 상권 수치(반경·업종 수)와 검색 추이가 모두 근거로 들어 있는가",
+      "실행_가능성": "소상공인이 내일 바로 할 수 있는 제안인가"
+    }
+  },
+  "notes": "질문에 '아이스아메리카노'라는 구체적 대상이 있어 운영에서 keyword가 추출되고 get_trend()가 호출된다. trend_fixture는 D5 라이브 검증 실측값. related를 '냉커피'·'여름음료' 대신 '커피쿠폰' 계열로 고른 이유는 앞의 두 단어가 strategy.py few-shot 예시에 있어 예시 베끼기를 못 잡게 되기 때문(D-218).",
   "author": "김재헌",
   "reviewed_by": null,
   "created_at": "2026-08-18"
@@ -480,13 +574,16 @@ def test_required_keys_and_consult_fixture_present():
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | `input.market_fixture` | object | **O** | 이 문항에서 `get_market()` 이 반환할 값. **평가 실행 시 주입**되며 실제 API를 호출하지 않는다 |
-| `market_fixture.fixture_version` | string | **O** | fixture 산출 방식 식별자. **v1.2 신설** |
-| `market_fixture.captured_at` | string | **O** | 실측 날짜(`YYYY-MM-DD`). **v1.2 신설** |
+| `market_fixture.fixture_version` | string | **O** | fixture 산출 방식 식별자. **v1.2 추가** |
+| `market_fixture.captured_at` | string | **O** | 실측 날짜(`YYYY-MM-DD`). **v1.2 추가** |
 | `expected.allowed_numbers` | number[] | O | fixture에서 파생 가능한 수치 전체. 여기 없는 숫자가 나오면 **환각** |
 | `expected.number_scope` | string | O | 숫자 검사 범위. 기본 `"reasons"` — 근거 배열만 본다 |
 | `expected.hallucination_check` | string | O | `strict`(화이트리스트 밖 숫자 = 실패) \| `off` |
+| `input.trend_fixture` | object \| **null** | **O** | `get_trend()` 반환값. **질문에 특정 대상이 없으면 명시적으로 `null`** — 생략하지 않는다. **v1.3 신설** |
+| `trend_fixture.fixture_version` | string | 값 있을 때 O | `v1-naver-apihub`. `weather` 는 항상 `null`(D-230) |
+| `expected.trend_used` | bool | **O** | 이 질문이 운영에서 `get_trend()` 를 호출하는지. 경로 재현성 검증용(§6.4). **v1.3 신설** |
 
-**★ `fixture_version` 이 왜 필요한가 (v1.2 신설)**
+**★ `fixture_version` 이 왜 필요한가 (v1.2 추가)**
 
 ```
 [교정 전] fixture: same_industry_count = 12  (텍스트 매칭 + 페이지 상한 1000건)
@@ -525,21 +622,72 @@ reasons[]         "반경 500m 내 동일 업종 177곳, 가장 가까운 곳까
 # models/consult/eval/eval_strategy.py 안에서
 from unittest.mock import patch
 
+_FIXTURE_META = ("fixture_version", "captured_at")
+
+
+def _strip_meta(fixture: dict | None) -> dict | None:
+    """버전 메타는 주입 대상이 아니다 — 실제 함수는 이 키를 반환하지 않는다."""
+    if fixture is None:
+        return None
+    return {k: v for k, v in fixture.items() if k not in _FIXTURE_META}
+
 def run_item(item: dict):
-    """market_fixture 를 get_market 반환값으로 고정해 외부 API 없이 실행한다."""
-    # 아래 주석친 코드 필요 시 참고
-    # fixture = item["input"]["market_fixture"]
-    fixture = {
-        k: v for k, v in item["input"]["market_fixture"].items()
-        if k not in ("fixture_version", "captured_at")   # 메타는 제외
-    }
-    with patch("models.consult.nodes.market_for_consult.get_market",
-               return_value=fixture):
+    """market·trend 를 모두 고정해 외부 API 없이 실행한다.
+
+    trend_fixture 가 null 이면 get_trend() 가 None 을 반환하도록 고정한다 —
+    질문에 특정 대상이 없어 keyword 가 안 나오는 정상 경로를 재현하기 위함이다.
+    """
+    market = _strip_meta(item["input"]["market_fixture"])
+    trend = _strip_meta(item["input"].get("trend_fixture"))
+
+    with (
+        patch("models.consult.nodes.market_for_consult.get_market", return_value=market),
+        patch("models.consult.nodes.trend_for_consult.get_trend", return_value=trend),
+    ):
         return run_consultant_graph(build_model_request(item))
+
+    # 아래 주석친 코드 필요 시 참고
+    # """market_fixture 를 get_market 반환값으로 고정해 외부 API 없이 실행한다."""
+    # fixture = item["input"]["market_fixture"]
+    # fixture = {
+    #     k: v for k, v in item["input"]["market_fixture"].items()
+    #     if k not in ("fixture_version", "captured_at")   # 메타는 제외
+    # }
+    # with patch("models.consult.nodes.market_for_consult.get_market",
+    #            return_value=fixture):
+    #     return run_consultant_graph(build_model_request(item))
 ```
 
 > **평가 실행 중 외부 API 호출은 금지한다**(D-169). 상권 API 30 TPS·NAVER 월 5만건 한도를
 > 평가로 소모하지 않기 위해서이기도 하다.
+
+**★ `trend_used` 가 왜 필요한가 (v1.3 신설)**
+
+`market_fixture` 는 **데이터**를 고정하지만, 트렌드는 **경로 자체가 비결정적**이다.
+
+```
+question_analysis (LLM, temperature 0.3)
+  → keyword 추출됨   → trend_for_consult 가 get_trend() 호출  → 트렌드 근거 포함
+  → keyword = null   → get_trend() 미호출                      → 트렌드 근거 없음
+```
+
+같은 질문이라도 **실행마다 갈릴 수 있다.** fixture 를 아무리 고정해도
+프롬프트에 들어가는 섹션 수가 달라져 점수가 흔들린다(§1.4 위반).
+
+`expected.trend_used` 는 *"이 질문은 운영에서 어느 쪽이어야 정상인가"* 를 못 박고,
+평가기가 실제 실행과 대조해 **경로 일치율**(§6.4)로 집계한다.
+불일치는 실패로 처리하지 않는다 — **질문 분석 노드의 안정성 지표**로 따로 쓴다.
+
+**작성 기준: `type` 이 아니라 질문 문장을 본다**
+
+| 질문에 특정 메뉴·상품명이 | `trend_fixture` | `trend_used` |
+| --- | --- | --- |
+| 있다 ("아이스아메리카노 요즘 잘 나갈까요?") | 값 | `true` |
+| 없다 ("주변 경쟁사는 얼마나 되나요?") | `null` | `false` |
+
+> `type: strategy` 안에서도 갈린다. **`type` 으로 일괄 결정하지 않는다.**
+> `trend_used: false` 인 문항은 평가기가 `sources` 에 `"트렌드"` 가 없는지도
+> 자동으로 확인한다 — 별도 필드로 적지 않는다.
 
 ### 4.5 `expected` — 거부 (정답 일치)
 
@@ -680,7 +828,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 ⑦ 컨설턴트 문항은 market_fixture 를 반드시 넣는다        ← v1.1 추가
    실시간 API 값에 의존하면 점수가 재현되지 않는다
 
-⑧ 프롬프트 few-shot 예시와 겹치는 수치·키워드를 쓰지 않는다   ← v1.2 신설
+⑧ 프롬프트 few-shot 예시와 겹치는 수치·키워드를 쓰지 않는다   ← v1.2 추가
    LLM 모델이 데이터를 안 읽고 예시를 베껴도 통과하게 된다(§1.5·§5.4)
 ```
 
@@ -707,7 +855,7 @@ def judge_action(expected_action: str, response: dict) -> bool:
 - **거부 문항** → 전민재 PM (검증 함수를 만든 사람이 아니라 **쓰는 사람**이 검증해야 하지만,
   이 경우 전민재 PM이 함수 관리자이므로 **작성 후 두 챗봇 담당자가 교차 검토**한다)
 
-### 5.4 ★ 겹침이 발견되면 프롬프트를 바꾼다 (v1.2 신설)
+### 5.4 ★ 겹침이 발견되면 프롬프트를 바꾼다 (v1.2 추가)
 
 > **문항이 아니라 프롬프트를 바꾼다.** 담당자가 D6에서 한 방향 그대로다.
 
@@ -761,11 +909,13 @@ FEWSHOT_NUMBERS: list[int] = []
 | **환각률(수치 기준)** | `C-` 전체 | `reasons` 숫자 중 `allowed_numbers` 밖 비율 | 컨설턴트 담당 | MUST |
 | **계약 준수율** | `B-`·`C-` | `must_have_fields`·`proposal_count` 충족 비율 | 각 담당 | MUST |
 | **생성 실패율 · 응답시간** | 전체 | `status != "ok"` 비율, p50/p95 | 각 담당 | MUST |
+| **★ 경로 일치율** | `C-` 전체 | `expected.trend_used` 와 실제 keyword 추출 여부 대조(§6.4) | 컨설턴트 담당 | MUST |
 | **RAGAS-Score** | `B-`·`C-` | 종합 지표(검색, 성능) | 각 담당 | SHOULD |
 | **Faithfulness** | `B-`·`C-` | 런타임 캡처 컨텍스트 기준(§6.2) | 각 담당 | SHOULD |
 | **Answer Relevance** | `B-`·`C-` | 질문에 맞는 답인가 (LLM Judge) | 각 담당 | SHOULD |
 | **Hit Rate@5 · MRR** | **`RT-` 별도셋**(§6.1) | 벤치마크 RAG 검색 정확도 | 기본 챗봇 담당 | **SHOULD** |
 | **CLIP Score** | **별도**(§7) | 텍스트-이미지 정합성 | 기본 챗봇 담당 | SHOULD |
+
 
 ### 6.1 ★ 검색 지표는 별도 평가셋으로 분리한다 (v1.1 추가)
 
@@ -817,7 +967,7 @@ FEWSHOT_NUMBERS: list[int] = []
 
 **결과 파일에 `context_snapshot` 을 함께 남긴다.** 그래야 나중에 점수를 재검토할 수 있다.
 
-### 6.3 ★ 데이터 정확도 — 모델이 아니라 입력을 측정한다 (v1.2 신설)
+### 6.3 ★ 데이터 정확도 — 모델이 아니라 입력을 측정한다 (v1.2 추가)
 
 > **지금까지의 지표는 전부 "모델 출력"만 봤다.**
 > 그런데 이번 스프린트에서 가장 큰 품질 개선은 **모델을 하나도 안 바꾸고 입력 데이터를 고친 것**이었다.
@@ -854,6 +1004,62 @@ docker compose logs backend | grep -c "market cache miss"
 
 > **이 지표는 발표에서 가장 설명하기 쉽다.** *"프롬프트를 고쳤더니 점수가 올랐다"* 보다
 > *"근거 데이터가 11배 틀렸던 걸 찾아 고쳤다"* 가 원인과 결과가 명확하다(부록 D).
+
+### 6.4 ★ 경로 일치율 — 데이터가 아니라 "실행 경로"를 잰다 (v1.3 신설)
+
+> fixture 는 **무엇이 들어왔는가**를 고정하지만, **어느 길로 갔는가**는 고정하지 못한다.
+> `keyword` 추출이 LLM 산출물이라 같은 문항도 실행마다 경로가 달라질 수 있다.
+
+**측정 코드**
+
+```python
+def check_trend_path(item: dict, final_state: dict) -> dict:
+    """운영에서 트렌드를 쓰는 질문인지, 실제 실행이 그와 같았는지 대조한다.
+
+    keyword 추출은 LLM 산출물(temperature 0.3)이라 실행마다 달라질 수 있다 —
+    불일치 자체가 "질문 분석 노드의 keyword 추출 일관성" 지표가 된다.
+
+    ⚠️ context["trend"] 가 아니라 keyword 를 본다. trend 가 None 이 되는 경로는
+    "keyword 없음(미호출)"과 "keyword 있음 + fixture 가 null" 둘인데, 뒤쪽은
+    경로를 탄 것이라 trend 로 판정하면 불일치를 놓친다.
+    """
+    context = final_state.get("context") or {}
+    analysis = context.get("question_analysis") or {}
+    keyword = analysis.get("keyword")
+
+    expected = item["expected"]["trend_used"]
+    actual = keyword is not None
+
+    return {
+        "expected": expected,
+        "actual": actual,
+        "matched": expected == actual,
+        "keyword": keyword,                       # 불일치 시 원인 추적용
+        "trend_in_context": bool(context.get("trend")),  # fixture 주입 확인용
+    }
+
+
+def trend_path_match_rate(item_results: list[dict]) -> float:
+    """경로 일치율 — C- 문항 중 실제 경로가 expected 와 같았던 비율."""
+    checks = [r["trend_path"] for r in item_results if r.get("trend_path")]
+    if not checks:
+        return 1.0
+    return sum(c["matched"] for c in checks) / len(checks)
+```
+
+**결과 해석 — 불일치 방향마다 뜻이 다르다**
+
+| 불일치 | 뜻 | 조치 |
+| --- | --- | --- |
+| `expected=false`, `actual=true` | 질문 분석이 **과하게** keyword 를 뽑음 | 운영에서 불필요한 NAVER 호출 → **월 5만 건 한도 소모.** 프롬프트에 "구체적 대상이 없으면 null" 지시 강화 |
+| `expected=true`, `actual=false` | keyword 를 **못 뽑음** | 트렌드 근거가 빠져 답변 품질 저하. 추출 예시 보강 |
+| `actual=true` + `trend_in_context=false` | **fixture 주입 실패** | 평가 스크립트 patch 경로 오류 — 데이터 문제가 아니라 하네스 버그 |
+
+**목표: 90% 이상.** 그보다 낮으면 트렌드 관련 점수 자체를 신뢰할 수 없으므로,
+LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
+
+> 마지막 행은 **모델 성능이 아니라 평가 코드 버그**를 잡는다. 지표에 함께 넣어두면
+> "점수가 이상한데 원인이 모델인지 하네스인지" 를 구분할 수 있다.
 
 ---
 
@@ -951,7 +1157,7 @@ docker compose logs backend | grep -c "market cache miss"
    · 컨설턴트 문항 전부 market_fixture + fixture_version(v2-industry-code)
    · allowed_numbers 가 fixture 에서 실제로 파생 가능
    · platform 이 instagram·banner 2종뿐
-□ tests/eval/test_prompt_contamination.py 통과            ← v1.2 신설
+□ tests/eval/test_prompt_contamination.py 통과            ← v1.2 추가
    · fixture 수치가 FEWSHOT_NUMBERS 와 겹치지 않음
    · must_include_any·question 이 FEWSHOT_TERMS 와 겹치지 않음
 
@@ -968,11 +1174,14 @@ docker compose logs backend | grep -c "market cache miss"
 □ must_have_fields 에 title 이 포함되어 있다
 
 [컨설턴트]
-□ 모든 C- 문항에 market_fixture 가 있다
-□ fixture_version 이 전부 v2-industry-code 다                ← v1.2 신설
-□ captured_at 이 채워져 있다                                  ← v1.2 신설
+□ 모든 C- 문항에 market_fixture, trend_fixture 키가 있다 (null 이라도 명시)
+□ fixture_version 이 전부 v2-industry-code 다                ← v1.2 추가
+□ captured_at 이 채워져 있다                                  ← v1.2 추가
 □ allowed_numbers 가 market_fixture 값에서 실제로 파생 가능하다
 □ number_scope 가 reasons 로 되어 있다
+□ trend_fixture 유무와 expected.trend_used 가 서로 일치한다
+□ trend_fixture.weather 가 전부 null 이다 (get_trend()는 값을 반환하지 않음, D-230)
+□ trend_fixture.related 가 FEWSHOT_TERMS 와 겹치지 않는다 (D-218)
 
 [거부 영역]
 □ 과잉 차단 가드가 5문항 있다
@@ -1003,10 +1212,10 @@ docker compose logs backend | grep -c "market cache miss"
 | --- | --- | --- | --- |
 | `models/shared/eval_fixtures.py` | ⬜ **미구현** | 전민재 PM | 8/18 |
 | `tests/eval/test_golden_dataset_schema.py` | ⬜ **미구현** | 전민재 PM | 8/18 |
-| `tests/eval/test_prompt_contamination.py` | ⬜ **미구현(v1.2 신설)** | 전민재 PM | 8/18 |
+| `tests/eval/test_prompt_contamination.py` | ⬜ **미구현(v1.2 추가)** | 전민재 PM | 8/18 |
 | `models/basic/eval/eval_generation.py` | ⬜ **빈 파일(0바이트)** | 기본 챗봇 담당 | 8/19 |
 | `models/consult/eval/eval_strategy.py` | ⬜ **미구현** | 컨설턴트 담당 | 8/19 |
-| `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 신설)** | 컨설턴트 담당 | 8/19 |
+| `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 추가)** | 컨설턴트 담당 | 8/19 |
 | `models/shared/eval/eval_refusal.py` | ⬜ **미구현** | 전민재 PM | 8/19 |
 | `shared_data/golden_dataset.json` | ⬜ **미생성** | 전원 | 8/19 파일럿 |
 
@@ -1014,7 +1223,7 @@ docker compose logs backend | grep -c "market cache miss"
 > 그것은 검증 함수의 **반환 형식**만 확인하는 스모크 테스트이고,
 > 골든 데이터셋을 읽지 않는다. **거부 정확도는 `models/shared/eval/eval_refusal.py` 가 측정한다**(D-174).
 
-### 10.2 ★ 오염 검사 테스트 (v1.2 신설)
+### 10.2 ★ 오염 검사 테스트 (v1.2 추가)
 
 ```python
 # tests/eval/test_prompt_contamination.py
@@ -1161,7 +1370,7 @@ models/shared/eval/reports/YYYY-MM-DD.json
 ④ 외부 API를 호출하지 않는다(LLM Judge 제외)
    상권·트렌드는 fixture 주입, 호출이 발생하면 실패 처리
 
-⑤ 결과 파일에 model·dataset_version·fixture_version 을 기록한다   ← v1.2 신설
+⑤ 결과 파일에 model·dataset_version·fixture_version 을 기록한다   ← v1.2 추가
 ```
 
 **결과 파일 형식**
@@ -1171,23 +1380,32 @@ models/shared/eval/reports/YYYY-MM-DD.json
   "run_at": "2026-08-20T18:00:00+09:00",
   "area": "consult",
   "model": "gpt-4o-mini",
-  "dataset_version": "v1.2",
+  "dataset_version": "v1.3",
   "fixture_version": "v2-industry-code",
+  "trend_fixture_version": "v1-naver-apihub",
   "item_count": 20,
   "metrics": {
     "llm_judge_avg": 4.1,
     "hallucination_rate": 0.05,
     "contract_compliance": 1.0,
+    "trend_path_match_rate": 0.95,
     "failure_rate": 0.0,
     "latency_p50_s": 6.2,
     "latency_p95_s": 11.8
   },
   "items": [
     {
-      "id": "C-001",
+      "id": "C-011",
       "passed": true,
       "scores": { "근거_충실도": 5, "실행_가능성": 4 },
       "unexpected_numbers": [],
+      "trend_path": {
+        "expected": true,
+        "actual": true,
+        "matched": true,
+        "keyword": "아이스아메리카노",
+        "trend_in_context": true
+      },
       "response": { "...": "..." },
       "context_snapshot": { "...": "..." }
     }
@@ -1221,6 +1439,7 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | LLM Judge (카피) | 3.2 / 5 | 4.1 / 5 | +0.9 |
 | LLM Judge (전략) | 3.5 / 5 | 4.0 / 5 | +0.5 |
 | **환각률(수치 기준)** | 22% | 5% | **-17%p** |
+| **경로 일치율(C-)** | 78% | 95% | **+17%p** |
 | 계약 준수율 | 88% | 100% | +12%p |
 | 차단 정확도 | 100% | 100% | — |
 | 과잉 차단률 | 40% | 8% | **-32%p** |
@@ -1326,7 +1545,7 @@ R-015  [over_block_guard] 건강한 한 끼를 위한 샐러드                 
 
 ---
 
-## 부록 D. ★ 개선 사례 기록 템플릿 (v1.2 신설)
+## 부록 D. ★ 개선 사례 기록 템플릿 (v1.2 추가)
 
 > **발표에서 가장 점수가 되는 부분이다.** 코드잇 평가 항목
 > *"성능 개선을 위해 다양한 시도를 하였나요?"* 에 직접 대응한다.
