@@ -20,9 +20,10 @@ export function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}`}>
       <button
         type="button"
         className="mobile-menu-button"
@@ -37,8 +38,10 @@ export function DashboardLayout({
         user={user}
         route={route}
         open={menuOpen}
+        collapsed={sidebarCollapsed}
         onClose={() => setMenuOpen(false)}
         onNavigate={onNavigate}
+        onToggle={() => setSidebarCollapsed((current) => !current)}
         onLogout={onLogout}
       />
       {menuOpen && <button type="button" className="sidebar-backdrop" aria-label="메뉴 닫기" onClick={() => setMenuOpen(false)} />}

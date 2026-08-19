@@ -42,6 +42,7 @@ describe("D5 dashboard", () => {
     expect(html).toContain("7회 남음");
     expect(html).toContain("컨설턴트 챗봇");
     expect(html).toContain("게시물 생성");
+    expect(html).toContain("사이드바 접기");
     expect(html).not.toContain("블로그");
   });
 

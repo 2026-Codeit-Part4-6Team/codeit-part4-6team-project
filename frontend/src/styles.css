@@ -198,6 +198,8 @@ select:focus-visible {
 }
 .sidebar-brand strong { font-size: clamp(22px, 2.1vw, 30px); letter-spacing: -0.03em; }
 .sidebar-close { display: none; margin-left: auto; border: 0; background: transparent; color: #fff; font-size: 32px; }
+.sidebar-collapse { margin-left: auto; width: 30px; height: 30px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; }
+.sidebar-collapse:hover { color: #fff; border-color: rgba(255,255,255,.4); }
 
 .store-card {
   margin: 28px clamp(18px, 1.75vw, 25px);
@@ -250,6 +252,17 @@ select:focus-visible {
 .sidebar-nav-item img { width: 22px; height: 22px; object-fit: contain; }
 
 .dashboard-content { min-width: 0; min-height: 100vh; padding: clamp(38px, 6vw, 86px); }
+.dashboard-shell.is-sidebar-collapsed { grid-template-columns: 92px minmax(0, 1fr); }
+.sidebar.is-collapsed .sidebar-brand { justify-content: center; padding-inline: 12px; }
+.sidebar.is-collapsed .sidebar-brand strong,
+.sidebar.is-collapsed .store-card,
+.sidebar.is-collapsed .sidebar-section,
+.sidebar.is-collapsed .sidebar-nav-item span { display: none; }
+.sidebar.is-collapsed .sidebar-brand .sidebar-collapse { margin-left: 0; }
+.sidebar.is-collapsed .sidebar-navigation,
+.sidebar.is-collapsed .sidebar-footer { padding-inline: 14px; }
+.sidebar.is-collapsed .sidebar-nav-item { justify-content: center; padding-inline: 8px; }
+.sidebar.is-collapsed .sidebar-nav-item img { width: 24px; height: 24px; }
 .dashboard-home { min-height: calc(100vh - clamp(76px, 12vw, 172px)); display: grid; align-content: center; justify-items: center; }
 .dashboard-greeting { text-align: center; }
 .greeting-mark { width: 80px; height: 80px; display: block; margin: 0 auto 20px; border-radius: 20px; background: var(--accent); }
@@ -389,6 +402,14 @@ select:focus-visible {
     box-shadow: 18px 0 45px rgba(24, 22, 40, 0.24);
   }
   .sidebar.is-open { transform: translateX(0); }
+  .sidebar-collapse { display: none; }
+  .dashboard-shell.is-sidebar-collapsed { display: block; }
+  .sidebar.is-collapsed .sidebar-brand { justify-content: flex-start; padding-inline: 28px; }
+  .sidebar.is-collapsed .sidebar-brand strong,
+  .sidebar.is-collapsed .store-card,
+  .sidebar.is-collapsed .sidebar-section,
+  .sidebar.is-collapsed .sidebar-nav-item span { display: block; }
+  .sidebar.is-collapsed .sidebar-nav-item { justify-content: flex-start; padding-inline: 16px; }
   .sidebar-brand { min-height: 100px; }
   .sidebar-close { display: block; }
   .mobile-menu-button {
