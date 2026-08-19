@@ -946,8 +946,11 @@ docker compose logs backend | grep -c "market cache miss"
 [자동 — CI 가 잡는다]
 □ tests/eval/test_golden_dataset_schema.py 통과
    · 60문항 전부 ModelRequest 조립 성공
-   · id 중복 없음, 영역별 25/20/15
-   · 컨설턴트 문항 전부 market_fixture 보유
+   · id 중복 없음, id 접두사와 area 일치, 영역별 25/20/15
+   · input 에 user_id·question 중복 기재 없음
+   · 컨설턴트 문항 전부 market_fixture + fixture_version(v2-industry-code)
+   · allowed_numbers 가 fixture 에서 실제로 파생 가능
+   · platform 이 instagram·banner 2종뿐
 □ tests/eval/test_prompt_contamination.py 통과            ← v1.2 신설
    · fixture 수치가 FEWSHOT_NUMBERS 와 겹치지 않음
    · must_include_any·question 이 FEWSHOT_TERMS 와 겹치지 않음
@@ -1111,7 +1114,10 @@ def test_fewshot_constants_are_declared():
 ### 10.3 명령 (구현 완료 후)
 
 ```bash
-# 0) 데이터셋 형식·오염 검증 — 문항을 쓸 때마다 먼저 돌린다
+# 0) 데이터셋 검증 — 문항을 쓸 때마다 먼저 돌린다 (순서 중요)
+uv run --locked --all-groups pytest tests/eval/test_golden_dataset_schema.py
+uv run --locked --all-groups pytest tests/eval/test_prompt_contamination.py
+# 또는 한 번에
 uv run --locked --all-groups pytest tests/eval/
 
 # 1) 영역별 측정
@@ -1134,6 +1140,9 @@ models/basic/eval/reports/YYYY-MM-DD.json
 models/consult/eval/reports/YYYY-MM-DD.json
 models/shared/eval/reports/YYYY-MM-DD.json
 ```
+
+> **스키마 검사가 먼저 통과해야 오염 검사가 의미가 있다.**
+> 조립도 안 되는 문항의 겹침을 검사하는 건 순서가 뒤바뀐 것이다.
 
 ### 10.4 ★ 측정 스크립트 DoD (v1.1 추가)
 
@@ -1246,6 +1255,10 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | **G-06** | **`market_fixture` 값의 출처** | 업종코드 교정(D-041) 후 실측값. 미교정 시 현재값 사용 후 재측정 | 컨설턴트 담당 | 8/18 |
 | **G-07** | **검색 평가셋 진행 여부** | 벤치마크 KB에 `bm_###` 문서 ID 부여 시에만. 미달 시 보고서 작성 대상 제외 | 기본 챗봇 담당 | 8/18 |
 | **G-08** | **`allowed_numbers` 반올림 허용 범위** | 정확 일치. 필요 시 ±5% 허용으로 완화 검토 | 컨설턴트 담당 | 8/19 |
+
+> ⚠️ **본 문서에 코드 블록으로 실린 파일은 모두 §10.1 구현 상태 표에 등재돼 있어야 한다.**
+> 표에 있는데 코드가 없거나, 코드가 있는데 표에 없으면 담당자가 찾지 못한다.
+> v1.2 개정 시 `test_golden_dataset_schema.py` 가 표에는 있고 코드는 빠지는 사고가 있었다.
 
 ---
 
