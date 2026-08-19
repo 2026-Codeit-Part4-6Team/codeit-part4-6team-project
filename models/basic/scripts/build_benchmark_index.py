@@ -29,6 +29,9 @@ def main() -> None:
     kb_path = _resolve_kb_path()
     entries = json.loads(kb_path.read_text(encoding="utf-8"))
 
+    if not entries:
+        raise ValueError(f"{kb_path}에 항목이 없습니다 — 인덱싱할 데이터가 없습니다.")
+
     vectors = np.array([embed(e["copy"]) for e in entries], dtype="float32")
     faiss.normalize_L2(vectors)
 
