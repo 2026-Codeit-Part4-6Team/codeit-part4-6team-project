@@ -258,6 +258,8 @@ Mock을 쓰면 **첫날부터 마지막 날까지 개발 계획서 대로 작업
 
 > **계약 기준**: ① 위 요청은 Service→Model 내부 `ModelRequest` 예시이며, Frontend→Service Public 요청에는 `user_id`와 StoreContext를 넣지 않는다. ② Basic 제안은 3개 slot을 유지하고 부분 실패는 `error` field로 표시한다. ③ 이미지는 base64 응답을 사용할 수 있지만 `result_json` 저장에서는 제외한다. ④ Consultant 응답은 Basic proposals로 평탄화하지 않고 `strategy`, `reasons`, `sources`, `suggested_chips` 구조를 유지한다.
 
+Basic은 `platform=instagram|banner`를 사용하고 Consultant는 `platform=null`을 사용한다. 두 챗봇의 `extra`는 `purpose`, `price_range`, `target_age`, `strength`, `clarification` 다섯 필드만 허용한다.
+
 ### 6.4 REST API 명세
 
 | # | 메서드 | 경로 | 기능 | 우선순위 |
