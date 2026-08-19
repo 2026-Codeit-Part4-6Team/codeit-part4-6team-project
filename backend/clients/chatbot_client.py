@@ -1,8 +1,12 @@
 import asyncio
+import importlib
 from collections.abc import Callable
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from backend.schemas import MODEL_RESULT_ADAPTER, ModelRequest, ModelResult
+
+if TYPE_CHECKING:
+    from backend.config import Settings
 
 SyncModelCallable = Callable[[dict[str, Any]], object]
 
@@ -60,3 +64,23 @@ class ActualChatbotClient:
             raw_result,
             chatbot_type=request.chatbot_type,
         )
+
+
+def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
+    module = importlib.import_module(module_name)
+    run = getattr(module, "run", None)
+    if not callable(run):
+        raise RuntimeError(f"{module_name}.run callable을 찾을 수 없습니다.")
+    return run
+
+
+def create_chatbot_client(settings: "Settings") -> ChatbotClient:
+    """런타임 설정에 따라 Mock 또는 Actual 모델 Client를 조립합니다."""
+    if settings.chatbot_mode == "mock":
+        return MockChatbotClient()
+    if settings.chatbot_mode == "actual":
+        return ActualChatbotClient(
+            _load_model_entrypoint("models.basic.main"),
+            _load_model_entrypoint("models.consult.main"),
+        )
+    raise ValueError("chatbot_mode는 mock 또는 actual이어야 합니다.")
