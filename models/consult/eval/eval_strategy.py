@@ -217,6 +217,19 @@ def trend_path_match_rate(item_results: list[dict]) -> float:
     return sum(check["matched"] for check in checks) / len(checks)
 
 
+def _judge_market_fixture(market: dict | None) -> dict | None:
+    """Judge에게는 생성 모델이 실제로 본 필드만 넘긴다.
+
+    industry_breakdown은 strategy.py의 _market_section()에서 제외돼 있어(D5, 1000건
+    페이지 상한으로 대형 상권에서 부정확) 생성 모델이 본 적 없는 정보다 — 그대로 Judge에게
+    넘기면 생성 모델과 Judge가 서로 다른 입력을 보게 된다. density_tier는 실제로
+    프롬프트에 포함되므로(밀도 등급) 그대로 둔다.
+    """
+    if not market:
+        return market
+    return {key: value for key, value in market.items() if key != "industry_breakdown"}
+
+
 def _judge_response(
     item: dict,
     response: dict,
@@ -228,7 +241,7 @@ def _judge_response(
         "question": item["question"],
         "store": _build_model_request(item)["store"],
         "rubric": rubric,
-        "market_fixture": context_snapshot.get("market"),
+        "market_fixture": _judge_market_fixture(context_snapshot.get("market")),
         "trend_fixture": context_snapshot.get("trend"),
         "response": response,
     }

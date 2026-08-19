@@ -453,26 +453,28 @@ def test_raises_when_summary_field_missing(mock_call_llm) -> None:
 
 
 @pytest.mark.parametrize(
-    "invalid_actions",
+    ("invalid_actions", "expected_reason"),
     [
-        [],  # 0개
-        [{"type": "menu", "content": "a"}] * 4,  # 4개(3개 초과)
-        "actions 아님",  # 리스트가 아님
-        [{"type": "invalid_type", "content": "내용"}],  # enum 밖
-        [{"type": ["menu"], "content": "내용"}],  # type이 리스트(해시 불가능 → TypeError 회귀 방지)
-        [{"type": {"menu": True}, "content": "내용"}],  # type이 dict(해시 불가능 → TypeError 회귀 방지)
-        [{"type": "menu"}],  # content 누락
-        [{"type": "menu", "content": ""}],  # content 빈 문자열
-        [{"type": "menu", "content": "   "}],  # content 공백뿐
-        [{"content": "type 누락"}],  # type 누락
-        ["문자열 항목"],  # 항목이 dict가 아님
+        ([], "actions_wrong_length"),  # 0개
+        ([{"type": "menu", "content": "a"}] * 4, "actions_wrong_length"),  # 4개(3개 초과)
+        ("actions 아님", "actions_not_list"),  # 리스트가 아님
+        ([{"type": "invalid_type", "content": "내용"}], "invalid_type"),  # enum 밖
+        ([{"type": ["menu"], "content": "내용"}], "invalid_type"),  # type이 리스트(해시 불가능 → TypeError 회귀 방지)
+        ([{"type": {"menu": True}, "content": "내용"}], "invalid_type"),  # type이 dict(해시 불가능 → TypeError 회귀 방지)
+        ([{"type": "menu"}], "missing_content"),  # content 누락
+        ([{"type": "menu", "content": ""}], "missing_content"),  # content 빈 문자열
+        ([{"type": "menu", "content": "   "}], "missing_content"),  # content 공백뿐
+        ([{"content": "type 누락"}], "invalid_type"),  # type 누락
+        (["문자열 항목"], "actions_not_list"),  # 항목이 dict가 아님
     ],
 )
 @patch("models.consult.nodes.strategy.call_llm")
-def test_raises_on_invalid_actions(mock_call_llm, invalid_actions) -> None:
+def test_raises_on_invalid_actions(mock_call_llm, invalid_actions, expected_reason) -> None:
+    """실패 사유를 구분해 예외 메시지에 남긴다 — C-001 같은 회귀에서 배열 길이·타입·
+    content 중 무엇이 원인인지 로그만 보고 알 수 있어야 한다."""
     mock_call_llm.return_value = _response(_payload(actions=invalid_actions))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=expected_reason):
         strategy(_state())
 
 
@@ -487,7 +489,7 @@ def test_raises_on_invalid_actions(mock_call_llm, invalid_actions) -> None:
 def test_raises_when_actions_field_missing_or_null(mock_call_llm, payload) -> None:
     mock_call_llm.return_value = _response(payload)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="actions_not_list"):
         strategy(_state())
 
 

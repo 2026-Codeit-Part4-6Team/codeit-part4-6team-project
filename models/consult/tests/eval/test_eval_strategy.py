@@ -16,6 +16,7 @@ from models.consult.eval.eval_strategy import (
     _check_contract,
     _check_number_rules,
     _evaluate_item,
+    _judge_market_fixture,
     _judge_response,
     _parse_args,
     _run_graph,
@@ -327,6 +328,30 @@ def test_trend_path_match_rate_ignores_results_without_path_check() -> None:
 
     assert trend_path_match_rate(results) == 0.5
     assert trend_path_match_rate([{"trend_path": None}]) == 1.0
+
+
+def test_judge_market_fixture_strips_industry_breakdown_but_keeps_density_tier() -> None:
+    """생성 모델은 industry_breakdown을 본 적이 없다(D5, strategy.py _market_section에서
+    제외) — Judge에게 그대로 넘기면 둘의 입력 조건이 달라진다. density_tier는 실제로
+    프롬프트에 포함되므로(strategy.py:106) 그대로 유지한다."""
+    market = {
+        "total_count": 6691,
+        "same_industry_count": 177,
+        "nearest_distance_m": 65,
+        "density_tier": "높음",
+        "industry_breakdown": {"한식": 39, "카페": 33},
+    }
+
+    filtered = _judge_market_fixture(market)
+
+    assert "industry_breakdown" not in filtered
+    assert filtered["density_tier"] == "높음"
+    assert filtered["total_count"] == 6691
+
+
+def test_judge_market_fixture_passes_through_none_and_empty() -> None:
+    assert _judge_market_fixture(None) is None
+    assert _judge_market_fixture({}) == {}
 
 
 @patch("models.shared.llm.call_llm")

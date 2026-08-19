@@ -78,9 +78,9 @@ def strategy(state: ConsultState) -> dict:
         if not isinstance(summary, str) or not summary.strip():
             raise ValueError("LLM이 빈 전략 요약을 반환했습니다.")
 
-        actions = _parse_actions(parsed.get("actions"))
+        actions, actions_error = _parse_actions(parsed.get("actions"))
         if actions is None:
-            raise ValueError("LLM이 유효한 actions 배열을 반환하지 않았습니다.")
+            raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
 
         reasons = _parse_reasons(parsed.get("reasons"))
         if reasons is not None:
@@ -108,25 +108,29 @@ def strategy(state: ConsultState) -> dict:
     }
 
 
-def _parse_actions(actions: object) -> list[dict] | None:
+def _parse_actions(actions: object) -> tuple[list[dict] | None, str | None]:
     """actions가 API 계약(type 4종 enum, content 1개 이상, 1~3개)을 지키는지 검증하고
-    공백을 정리한 새 리스트를 반환한다. 형식이 안 맞으면 None을 반환한다."""
-    if not isinstance(actions, list) or not (1 <= len(actions) <= 3):
-        return None
+    공백을 정리한 새 리스트를 반환한다. 형식이 안 맞으면 (None, 실패 사유)를 반환한다 —
+    사유를 구분해야 로그만 보고 배열 길이·항목 형태·enum·content 중 무엇이 원인인지
+    알 수 있다(Codex 리뷰: 전부 같은 메시지로 뭉뚱그려져 있었음)."""
+    if not isinstance(actions, list):
+        return None, "actions_not_list"
+    if not (1 <= len(actions) <= 3):
+        return None, "actions_wrong_length"
 
     normalized = []
     for action in actions:
         if not isinstance(action, dict):
-            return None
+            return None, "actions_not_list"
         action_type = action.get("type")
         content = action.get("content")
         if not isinstance(action_type, str) or action_type not in _VALID_ACTION_TYPES:
-            return None
+            return None, "invalid_type"
         if not isinstance(content, str) or not content.strip():
-            return None
+            return None, "missing_content"
         normalized.append({"type": action_type, "content": content.strip()})
 
-    return normalized
+    return normalized, None
 
 
 def _parse_reasons(reasons: object) -> list[str] | None:
