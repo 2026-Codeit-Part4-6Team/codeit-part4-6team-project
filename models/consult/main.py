@@ -9,9 +9,6 @@ D1+D2에서 "서비스에 응답할 때만 변환한다"로 정했고 D4에 구�
 
 import logging
 
-# TODO(D7): PM이 models/shared/llm_errors.py로 이관 예정(PR 진행 중, 2026-08-18).
-# 이관 완료되면 아래 import만 models.shared.llm_errors로 바꾸면 된다(로직 변경 없음).
-from models.basic.llm import classify_llm_error
 from models.consult.graph.build_consultant import build_consultant
 
 # strategy.py가 파싱 직후 쓰는 것과 동일한 검증 수준으로 title을 정규화한다 —
@@ -22,6 +19,7 @@ from models.consult.nodes.strategy import normalize_title
 # 문구를 새로 만들면, 폴백이 노드 안/최종 조립 중 어디서 걸리느냐에 따라
 # 사용자가 다른 질문을 보게 된다.
 from models.consult.nodes.suggested_chips import _FALLBACK_CHIPS
+from models.shared.llm_errors import classify_llm_error
 
 logger = logging.getLogger(__name__)
 

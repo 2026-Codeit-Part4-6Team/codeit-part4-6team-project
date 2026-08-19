@@ -14,7 +14,7 @@ from models.consult.config import CACHE_TTL_TREND_DAYS
 logger = logging.getLogger(__name__)
 
 
-def get_trend(keyword: str) -> dict | None:
+def get_trend(keyword: str, industry: str | None = None) -> dict | None:
     """검색어 트렌드 조회 — Cache-Aside(캐시 우선, 캐시 미스 시 API 실시간 호출 후 적재). 실패 시 None.
 
     검색어는 캐시 키로 쓰기 전에 정규화(공백 제거)한다 — "아이스아메리카노"와
@@ -22,6 +22,9 @@ def get_trend(keyword: str) -> dict | None:
     적중률이 떨어지고 네이버 트렌드 API 월 5만 건 한도를 불필요하게 더 쓰게 된다.
     실제 API 호출에도 정규화된 값을 그대로 써서, 캐시에 저장된 값과 실제로 조회한
     값이 항상 일치하게 한다.
+
+    industry는 계약(docs/repo_contract.md)상 시그니처에는 있지만 아직 결과에
+    영향을 주지 않는다(TODO: 실제 쓰임이 정해지면 캐시 키·API 호출에 반영 검토).
 
     캐시 DB 조회·적재가 실패해도 API 실시간 호출로 폴백한다 — 캐시는 최적화일 뿐
     필수 의존성이 아니므로, DB 장애가 곧바로 컨설팅 응답 실패로 이어지면 안 된다.
