@@ -19,6 +19,7 @@ class BasicState(CommonState):
     image_review_result: NotRequired[
         dict
     ]  # CLIP Score, 금지요소 검수 결과 (validation과 별도)
+    image_captions_en: NotRequired[list]  # CLIP 채점용 영문 캡션
 
     copy_retry_count: NotRequired[int]  # 카피 생성 / 규제 재시도 루프 카운터
     image_retry_count: NotRequired[int]  # 이미지 재생성 루프 카운터

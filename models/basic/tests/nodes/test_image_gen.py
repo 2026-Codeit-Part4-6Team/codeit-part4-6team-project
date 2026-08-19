@@ -124,3 +124,56 @@ def test_generation_failure_records_classified_error_and_keeps_batch_going(
     assert result["image_prompts"][0]
     assert result["image_prompts"][1] is None
     assert result["image_prompts"][2]
+
+
+@patch("models.basic.nodes.image_gen.call_llm")
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_prompts_and_captions_stay_aligned_when_middle_item_has_no_copy(
+    mock_generate_image, mock_call_llm
+):
+    """카피 없는 항목이 중간에 섞여도 image_prompts/image_captions_en이
+    ranked_copies와 같은 인덱스를 유지해야 한다(정렬 버그 회귀 방지)."""
+    mock_generate_image.return_value = "base64imagedata"
+    mock_call_llm.return_value = ("An iced coffee ad photo", 5)
+    failed = {
+        "copy": None,
+        "error": {"field": "copy", "reason": "parse_failed", "message": "실패"},
+    }
+    state = {
+        "store": _STORE,
+        "ranked_copies": [
+            {"copy": "카피1", "score": 4.5},
+            failed,
+            {"copy": "카피3", "score": 3.8},
+        ],
+    }
+
+    result = image_gen_node(state)
+
+    assert len(result["image_prompts"]) == 3
+    assert len(result["image_captions_en"]) == 3
+    assert result["image_prompts"][1] is None
+    assert result["image_captions_en"][1] is None
+    assert result["image_prompts"][0] is not None
+    assert result["image_prompts"][2] is not None
+    assert result["image_captions_en"][0] == "An iced coffee ad photo"
+    assert result["image_captions_en"][2] == "An iced coffee ad photo"
+
+
+@patch("models.basic.nodes.image_gen.call_llm")
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_caption_generation_failure_does_not_block_image_generation(
+    mock_generate_image, mock_call_llm
+):
+    """영문 캡션 생성이 실패해도 이미지 생성 자체는 성공해야 한다."""
+    mock_generate_image.return_value = "base64imagedata"
+    mock_call_llm.side_effect = RuntimeError("번역 실패")
+    state = {
+        "store": _STORE,
+        "ranked_copies": [{"copy": "카피1", "score": 4.5}],
+    }
+
+    result = image_gen_node(state)
+
+    assert result["ranked_copies"][0]["image_b64"] == "base64imagedata"
+    assert result["image_captions_en"][0] is None
