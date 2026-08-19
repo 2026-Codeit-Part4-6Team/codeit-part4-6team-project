@@ -505,6 +505,53 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
     assert result["_latency_s"] >= 0
 
 
+@patch("models.consult.clients.trend_api.fetch")
+@patch("models.consult.clients.market_api.fetch")
+@patch("models.shared.llm.call_llm")
+@patch("models.consult.eval.eval_strategy._run_graph")
+def test_evaluate_item_never_reaches_live_market_or_trend_api(
+    mock_run_graph,
+    mock_call_llm,
+    mock_market_fetch,
+    mock_trend_fetch,
+) -> None:
+    """market_for_consult/trend_for_consult 노드 패치가 걸려 있으면 그 아래 실제
+    API 클라이언트(market_api.fetch/trend_api.fetch)는 절대 호출되지 않아야 한다.
+    나중에 패치 대상 경로가 바뀌어도(예: 캐시 계층을 우회하는 리팩터링) 이 테스트가
+    실제 네트워크 호출을 규제한다(D-169 — 평가 중 외부 API 호출 금지)."""
+    item = _item()
+    item["input"]["trend_fixture"] = {
+        "fixture_version": "v1-naver-apihub",
+        "captured_at": "2026-08-19",
+        "keyword": "탕후루",
+        "direction": "상승",
+        "related": [],
+        "weather": None,
+    }
+    item["expected"]["trend_used"] = True
+
+    def fake_run_graph(_request: dict) -> tuple[dict, dict]:
+        from models.consult.nodes import market_for_consult, trend_for_consult
+
+        market_for_consult.get_market(0, 0)
+        trend_for_consult.get_trend("탕후루")
+        return {"context": {"market": {}, "trend": {}}}, _OK_RESPONSE
+
+    mock_run_graph.side_effect = fake_run_graph
+    mock_call_llm.return_value = (
+        json.dumps(
+            {key: {"score": 4, "reason": "근거"} for key in _item()["expected"]["rubric"]},
+            ensure_ascii=False,
+        ),
+        50,
+    )
+
+    _evaluate_item(item)
+
+    mock_market_fetch.assert_not_called()
+    mock_trend_fetch.assert_not_called()
+
+
 @patch("models.shared.llm.call_llm")
 @patch("models.consult.eval.eval_strategy._run_graph")
 def test_evaluate_item_hides_graph_exception_and_skips_judge(
@@ -805,6 +852,53 @@ def test_evaluate_dataset_keeps_two_reports_created_on_same_day(
     assert second_path.exists()
 
 
+@patch("models.consult.eval.eval_strategy.time.sleep")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_keeps_prior_item_result_after_later_judge_failure(
+    mock_evaluate_item,
+    _mock_sleep,
+    tmp_path,
+) -> None:
+    """한 문항의 Judge 호출이 실패해도(_evaluate_item이 예외를 던지지 않고 실패
+    dict를 반환하는 실제 계약) 배치 전체가 죽지 않고, 앞서 성공한 문항 결과가
+    리포트에 그대로 남아 있어야 한다 — 여기서 죽으면 그때까지 쓴 LLM 비용이 전부
+    버려진다(§10.5)."""
+    dataset = [_item("C-001"), _item("C-002")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+
+    def fake_evaluate_item(item: dict) -> dict:
+        base = {
+            "id": item["id"],
+            "scores": {"자연스러움": 4},
+            "unexpected_numbers": [],
+            "response": _OK_RESPONSE,
+            "context_snapshot": {"market": {"same_industry_count": 177}},
+            "trend_path": None,
+            "_status_ok": True,
+            "_contract_ok": True,
+            "_latency_s": 1.0,
+        }
+        if item["id"] == "C-001":
+            return {**base, "passed": True, "judge_error": None, "_judge_ok": True}
+        return {**base, "passed": False, "judge_error": "rate_limit", "_judge_ok": False}
+
+    mock_evaluate_item.side_effect = fake_evaluate_item
+
+    report, report_path = evaluate_dataset(
+        dataset_path=dataset_path,
+        area="consult",
+        limit=2,
+        report_dir=tmp_path / "reports",
+    )
+
+    assert [item["id"] for item in report["items"]] == ["C-001", "C-002"]
+    assert report["items"][0]["passed"] is True
+    assert report["items"][1]["judge_error"] == "rate_limit"
+    assert report["item_count"] == 2
+    assert report_path.exists()
+
+
 def test_evaluate_dataset_rejects_non_positive_limit(tmp_path) -> None:
     dataset_path = tmp_path / "golden.json"
     dataset_path.write_text("[]", encoding="utf-8")
@@ -847,3 +941,16 @@ def test_main_runs_full_evaluation_only_with_explicit_full_flag(
         area="consult",
         limit=None,
     )
+
+
+@patch("models.consult.eval.eval_strategy.evaluate_dataset")
+def test_main_returns_one_and_logs_when_evaluation_fails(
+    mock_evaluate_dataset,
+    caplog,
+) -> None:
+    mock_evaluate_dataset.side_effect = RuntimeError("evaluation failed")
+
+    exit_code = main(["--limit", "1"])
+
+    assert exit_code == 1
+    assert "컨설턴트 골든 데이터셋 평가 실패" in caplog.text
