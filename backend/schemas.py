@@ -1,6 +1,15 @@
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 
 ChatbotType = Literal["basic", "consultant"]
 Platform = Literal["instagram", "banner"]
@@ -17,6 +26,86 @@ class PreviewGenerateRequest(StrictModel):
     """초기 컨테이너 연결 검증용 생성 요청."""
 
     prompt: str = Field(min_length=1, max_length=2_000)
+
+
+class RegisterRequest(StrictModel):
+    """서비스 회원가입 요청."""
+
+    username: str = Field(min_length=3, max_length=100)
+    password: SecretStr
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    email: EmailStr | None = None
+    business_name: str = Field(min_length=1, max_length=200)
+    business_type: str = Field(min_length=1, max_length=100)
+    address: str = Field(min_length=1, max_length=500)
+    address_detail: str | None = Field(default=None, max_length=500)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        """사용자명의 공백과 대소문자를 정규화합니다."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
+
+
+class LoginRequest(StrictModel):
+    """서비스 로그인 요청."""
+
+    username: str = Field(min_length=3, max_length=100)
+    password: SecretStr
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: object) -> object:
+        """로그인 사용자명을 회원가입과 같은 방식으로 정규화합니다."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: SecretStr) -> SecretStr:
+        """bcrypt가 허용하는 UTF-8 바이트 길이를 검증합니다."""
+        length = len(value.get_secret_value().encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError("비밀번호는 UTF-8 기준 8~72바이트여야 합니다.")
+        return value
+
+
+class UserResponse(StrictModel):
+    """민감정보를 제외한 사용자 응답."""
+
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+
+    id: int
+    username: str
+    name: str | None
+    email: EmailStr | None
+    business_name: str | None
+    business_type: str | None
+    address: str | None
+    address_detail: str | None
+    road_address: str | None
+    lat: float | None
+    lng: float | None
+    credits: int = Field(ge=0)
+    daily_free_used: int = Field(ge=0)
+    daily_free_reset_at: datetime | None
+    daily_free_remaining: int = Field(ge=0)
+
+    @field_validator("daily_free_reset_at", mode="before")
+    @classmethod
+    def normalize_reset_at_to_utc(cls, value: object) -> object:
+        """SQLite가 timezone을 제거한 UTC 시각을 API offset으로 복원합니다."""
+        if isinstance(value, datetime) and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
 
 
 class PreviewGenerationResult(StrictModel):
@@ -43,8 +132,8 @@ class GenerateExtra(StrictModel):
     clarification: str | None = Field(default=None, max_length=500)
 
 
-class GenerateRequest(StrictModel):
-    """Frontend가 Service에 보내는 생성 요청."""
+class GenerateEstimateRequest(StrictModel):
+    """Frontend가 생성 전 Estimate에 보내는 요청."""
 
     chatbot_type: ChatbotType
     question: str = Field(min_length=1, max_length=2_000)
@@ -53,13 +142,19 @@ class GenerateRequest(StrictModel):
     source_gen_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
-    def validate_platform(self) -> "GenerateRequest":
+    def validate_platform(self) -> "GenerateEstimateRequest":
         """챗봇 종류에 따라 플랫폼 사용 여부를 검증합니다."""
         if self.chatbot_type == "basic" and self.platform is None:
             raise ValueError("Basic 요청에는 platform이 필요합니다.")
         if self.chatbot_type == "consultant" and self.platform is not None:
             raise ValueError("Consultant 요청은 platform을 사용하지 않습니다.")
         return self
+
+
+class GenerateRequest(GenerateEstimateRequest):
+    """실제 생성 요청. Estimate 이후 사용자가 승인한 Credit 상한을 포함합니다."""
+
+    max_accepted_credits: int = Field(ge=0)
 
 
 class GenerateEstimateResponse(StrictModel):
@@ -153,6 +248,8 @@ class BasicProposal(StrictModel):
 class BasicModelResult(StrictModel):
     """기본 챗봇의 성공 또는 부분 성공 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["ok"]
     title: str = Field(min_length=1)
     proposals: list[BasicProposal] = Field(min_length=3, max_length=3)
@@ -178,6 +275,8 @@ class ConsultantStrategy(StrictModel):
 class ConsultantModelResult(StrictModel):
     """컨설턴트 챗봇의 성공 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["ok"]
     title: str = Field(min_length=1)
     strategy: ConsultantStrategy
@@ -192,6 +291,8 @@ class ConsultantModelResult(StrictModel):
 class BlockedResult(StrictModel):
     """정책 검증으로 생성이 중단된 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["blocked"]
     action: Literal["block", "reask", "warn"]
     reason: str = Field(min_length=1)
@@ -201,13 +302,51 @@ class BlockedResult(StrictModel):
 class ErrorResult(StrictModel):
     """모델 또는 외부 제공자 실행 실패 결과."""
 
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     status: Literal["error"]
     reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
     message: str = Field(min_length=1)
 
 
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
-MODEL_RESULT_ADAPTER: TypeAdapter[ModelResult] = TypeAdapter(ModelResult)
+
+
+class _ModelResultEnvelope(BaseModel):
+    """명시적 ModelResult 분기에 필요한 최상위 status만 검증합니다."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    status: Literal["ok", "blocked", "error"]
+
+
+class ModelResultAdapter:
+    """status와 이미 알고 있는 chatbot_type으로 ModelResult를 명시적으로 검증합니다."""
+
+    def validate_python(
+        self, value: object, *, chatbot_type: ChatbotType
+    ) -> ModelResult:
+        """성공 결과는 요청 chatbot_type의 Schema 하나만 검증합니다."""
+        if chatbot_type not in ("basic", "consultant"):
+            raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
+
+        payload = (
+            value.model_dump(mode="python", by_alias=True)
+            if isinstance(value, BaseModel)
+            else value
+        )
+        status = _ModelResultEnvelope.model_validate(payload).status
+
+        if status == "blocked":
+            return BlockedResult.model_validate(payload)
+        if status == "error":
+            return ErrorResult.model_validate(payload)
+        if chatbot_type == "basic":
+            return BasicModelResult.model_validate(payload)
+        return ConsultantModelResult.model_validate(payload)
+
+
+MODEL_RESULT_ADAPTER = ModelResultAdapter()
 
 
 class GenerationResponse(StrictModel):

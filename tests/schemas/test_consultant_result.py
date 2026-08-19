@@ -48,17 +48,19 @@ def test_consultant_action_type_is_limited():
 
 
 def test_consultant_result_rejects_basic_payload():
-    """Consultant 결과에는 Basic Proposal을 넣을 수 없습니다."""
+    """Basic 성공 payload 전체를 Consultant 결과로 오인하지 않습니다."""
     with pytest.raises(ValidationError):
         ConsultantModelResult.model_validate(
             {
                 "status": "ok",
-                "title": "상권 전략",
-                "strategy": make_strategy().model_dump(),
-                "reasons": ["근거"],
+                "title": "광고 제안",
+                "proposals": [
+                    {"copy": "a", "image_b64": None, "error": None},
+                    {"copy": "b", "image_b64": None, "error": None},
+                    {"copy": "c", "image_b64": None, "error": None},
+                ],
                 "sources": ["상권분석"],
                 "tokens_used": 1,
-                "suggested_chips": ["a", "b", "c"],
-                "proposals": [],
+                "suggested_chips": [],
             }
         )
