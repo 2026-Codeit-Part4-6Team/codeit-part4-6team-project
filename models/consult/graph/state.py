@@ -17,3 +17,7 @@ class ConsultState(CommonState):
 
     retry_count: NotRequired[int]  # 근거 부족 재생성 루프 카운터 (SDP §6.5, 최대 2회)
     suggested_chips: NotRequired[list[str]]  # 추천 질문 칩 3종 (SDP §2.1, D1 회의에서 응답 계약 추가 합의)
+    # 그래프 진입 시(security_input) 1회 세팅, 모든 call_llm 호출이 공유하는 절대 마감
+    # (time.monotonic() 기준). 안 넘기면 매 call_llm 호출이 각자 새 예산을 받아, strategy의
+    # 재시도(최대 3회)+429 백오프가 겹치면 서비스 60초 타임아웃에 근접할 수 있다(D-144, PM 리뷰 PR #93).
+    deadline: NotRequired[float]
