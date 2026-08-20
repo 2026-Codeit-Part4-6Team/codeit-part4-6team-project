@@ -7,7 +7,7 @@ OpenAI Chat Completion 공통 래퍼.
 컨설턴트 구현본(D-035)을 토대로, 기본 챗봇이 필요로 한 두 기능을 합쳤다.
   · (text, tokens) 반환 — 계약상 tokens_used가 두 챗봇 모두 필수 필드다
   · json_mode — response_format으로 JSON을 강제해 파싱 실패를 줄인다
-여기에 D-049(요청 데드라인)를 추가했다. 재시도 백오프(최대 14초)가
+여기에 D-052(요청 데드라인)를 추가했다. 재시도 백오프(최대 14초)가
 서비스 타임아웃 60초를 잠식하지 않도록, 남은 예산이 다음 대기시간보다
 짧으면 재시도를 포기하고 즉시 예외를 올린다.
 
@@ -70,6 +70,7 @@ def get_total_tokens(model: str | None = None) -> int:
         return sum(_total_tokens.values())
     return _total_tokens.get(model, 0)
 
+
 def call_llm(
     system: str,
     user: str,
@@ -77,6 +78,7 @@ def call_llm(
     json_mode: bool = False,
     deadline: float | None = None,
     model: str | None = None,          # ← None 이면 OPENAI_MODEL
+    temperature: float | None = None,  # ← None 이면 LLM_TEMPERATURE
 ) -> tuple[str, int]:
     """OpenAI를 호출해 (응답 텍스트, 사용 토큰 수)를 반환한다.
     model 을 지정하면 그 모델로 호출한다 — LLM Judge 처럼 생성과 다른 모델을
@@ -89,6 +91,8 @@ def call_llm(
         json_mode: True면 JSON 객체 응답을 강제한다.
         deadline: time.monotonic() 기준 절대 마감 시각.
             생략하면 호출 시점부터 LLM_DEADLINE_SECONDS를 예산으로 쓴다.
+        temperature: 생략하면 LLM_TEMPERATURE. LLM Judge 는 반드시 0 을 넘긴다 —
+            채점 재현성이 골든 데이터셋의 제1 요건이다(§1.4 · D-275).
 
     Raises:
         openai.RateLimitError: 재시도 상한 도달 또는 남은 예산 부족.
@@ -100,6 +104,9 @@ def call_llm(
     # ★ 한 번만 해석해서 호출·집계 양쪽에 같은 값을 쓴다.
     #   raw model 을 집계 키로 쓰면 생략 시 None 이 키가 되어 집계가 깨진다(D-264).
     resolved_model = model or OPENAI_MODEL
+    # ⚠️ temperature 는 0.0 이 유효값이라 `or` 를 쓰면 안 된다 — 0.0 이 falsy 여서
+    #    조용히 0.3 으로 되돌아간다. model 과 달리 None 비교가 필수다.
+    resolved_temperature = LLM_TEMPERATURE if temperature is None else temperature
 
     kwargs = {"response_format": {"type": "json_object"}} if json_mode else {}
     messages = [
@@ -111,7 +118,7 @@ def call_llm(
         try:
             response = _get_client().chat.completions.create(
                 model=resolved_model,
-                temperature=LLM_TEMPERATURE,
+                temperature=resolved_temperature,
                 messages=messages,
                 **kwargs,
             )
