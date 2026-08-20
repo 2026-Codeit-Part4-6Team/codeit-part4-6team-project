@@ -124,3 +124,48 @@ def test_generation_failure_records_classified_error_and_keeps_batch_going(
     assert result["image_prompts"][0]
     assert result["image_prompts"][1] is None
     assert result["image_prompts"][2]
+
+
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_instagram_platform_uses_square_size_and_style(mock_generate_image):
+    mock_generate_image.return_value = "base64imagedata"
+    state = {
+        "store": _STORE,
+        "platform": "instagram",
+        "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
+    }
+
+    image_gen_node(state)
+
+    prompt = mock_generate_image.call_args.args[0]
+    assert mock_generate_image.call_args.kwargs["size"] == "1024x1024"
+    assert "라이프스타일" in prompt
+
+
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_banner_platform_uses_landscape_size_and_style(mock_generate_image):
+    mock_generate_image.return_value = "base64imagedata"
+    state = {
+        "store": _STORE,
+        "platform": "banner",
+        "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
+    }
+
+    image_gen_node(state)
+
+    prompt = mock_generate_image.call_args.args[0]
+    assert mock_generate_image.call_args.kwargs["size"] == "1536x1024"
+    assert "여백" in prompt
+
+
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_missing_platform_falls_back_to_instagram_default(mock_generate_image):
+    mock_generate_image.return_value = "base64imagedata"
+    state = {
+        "store": _STORE,
+        "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
+    }
+
+    image_gen_node(state)
+
+    assert mock_generate_image.call_args.kwargs["size"] == "1024x1024"
