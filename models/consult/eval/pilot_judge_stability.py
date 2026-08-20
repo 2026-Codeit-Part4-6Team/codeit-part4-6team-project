@@ -2,11 +2,14 @@
 """컨설턴트 문항별 생성 1회와 동일 응답 Judge 3회 채점을 실행한다."""
 
 import json
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
+
+import openai
 
 from models.consult.eval.eval_strategy import (
     DEFAULT_DATASET_PATH,
@@ -27,10 +30,13 @@ from models.shared.eval.token_usage import (
     preflight,
     token_snapshot,
 )
+from models.shared.llm_errors import classify_llm_error
 
 PILOT_ITEM_COUNT = 5
 JUDGE_REPEAT = 3
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
+
+logger = logging.getLogger(__name__)
 
 Generate = Callable[[dict], tuple[dict, dict]]
 Judge = Callable[[dict, dict, dict], dict[str, int]]
@@ -77,10 +83,31 @@ def run_pilot(
     preflight()
     results = []
     unstable_items = []
+    failed_items = []
 
     for item in items:
         snapshot = token_snapshot()
-        response, context = generate(item)
+        try:
+            response, context = generate(item)
+        except (ValueError, RuntimeError, openai.OpenAIError) as exc:
+            logger.exception("컨설턴트 안정성 파일럿 생성 실패: %s", item["id"])
+            generation_error = (
+                classify_llm_error(exc)
+                if isinstance(exc, openai.OpenAIError)
+                else "invalid_response"
+            )
+            failed_items.append(item["id"])
+            results.append(
+                {
+                    "id": item["id"],
+                    "runs": [],
+                    "spread": {},
+                    "stable": False,
+                    "generation_error": generation_error,
+                    "tokens": item_token_delta(snapshot),
+                }
+            )
+            break
         runs = [judge(item, response, context) for _ in range(JUDGE_REPEAT)]
         rubric = (item.get("expected") or {}).get("rubric") or {}
         spread = {
@@ -96,6 +123,7 @@ def run_pilot(
                 "runs": runs,
                 "spread": spread,
                 "stable": stable,
+                "generation_error": None,
                 "tokens": item_token_delta(snapshot),
             }
         )
@@ -106,7 +134,8 @@ def run_pilot(
         "judge_temperature": LLM_JUDGE_TEMPERATURE,
         "judge_repeat": JUDGE_REPEAT,
         "item_count": len(items),
-        "passed": not unstable_items,
+        "passed": not unstable_items and not failed_items,
+        "failed_items": failed_items,
         "unstable_items": unstable_items,
         "token_usage": build_token_usage(),
         "items": results,
@@ -127,7 +156,8 @@ def main(
     with report_path.open("x", encoding="utf-8") as report_file:
         json.dump(report, report_file, ensure_ascii=False, indent=2)
 
-    result = "통과" if report["passed"] else f"실패 {report['unstable_items']}"
+    failed = report["failed_items"] + report["unstable_items"]
+    result = "통과" if report["passed"] else f"실패 {failed}"
     print(
         f"judge_model={report['judge_model']} "
         f"temperature={report['judge_temperature']} 재현성={result}"

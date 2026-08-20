@@ -72,8 +72,10 @@ def test_run_pilot_generates_once_and_judges_same_response_three_times(
     assert len(judged) == 3
     assert all(call == ("C-001", response, context) for call in judged)
     assert report["passed"] is True
+    assert report["failed_items"] == []
     assert report["unstable_items"] == []
     assert report["items"][0]["spread"] == {"근거_충실도": 0, "자연스러움": 0}
+    assert report["items"][0]["generation_error"] is None
     assert report["items"][0]["tokens"] == {"generation": 100, "judge": 60}
 
 
@@ -99,6 +101,59 @@ def test_run_pilot_reports_item_when_any_rubric_score_changes(monkeypatch) -> No
     assert report["passed"] is False
     assert report["unstable_items"] == ["C-001"]
     assert report["items"][0]["spread"] == {"근거_충실도": 1, "자연스러움": 0}
+
+
+def test_run_pilot_preserves_generation_failure_and_stops_later_items(monkeypatch) -> None:
+    generated = []
+    judged = []
+    monkeypatch.setattr(pilot, "preflight", lambda: None)
+    monkeypatch.setattr(pilot, "token_snapshot", lambda: {"generation-model": 10})
+    monkeypatch.setattr(
+        pilot,
+        "item_token_delta",
+        lambda _snapshot: {"generation": 25, "judge": 0},
+    )
+    monkeypatch.setattr(
+        pilot,
+        "build_token_usage",
+        lambda: {
+            "by_model": {"generation-model": 25, "judge-model": 0},
+            "generation_tokens": 25,
+            "judge_tokens": 0,
+            "total_tokens": 25,
+            "unattributed_tokens": 0,
+        },
+    )
+
+    def generate(item: dict) -> tuple[dict, dict]:
+        generated.append(item["id"])
+        raise ValueError("actions_wrong_length")
+
+    def judge(_item: dict, _response: dict, _context: dict) -> dict:
+        judged.append(True)
+        return {}
+
+    report = pilot.run_pilot(
+        [_item("C-001"), _item("C-002")],
+        generate=generate,
+        judge=judge,
+    )
+
+    assert generated == ["C-001"]
+    assert judged == []
+    assert report["passed"] is False
+    assert report["failed_items"] == ["C-001"]
+    assert report["unstable_items"] == []
+    assert report["items"] == [
+        {
+            "id": "C-001",
+            "runs": [],
+            "spread": {},
+            "stable": False,
+            "generation_error": "invalid_response",
+            "tokens": {"generation": 25, "judge": 0},
+        }
+    ]
 
 
 def test_load_pilot_items_requires_five_consult_items(tmp_path) -> None:
@@ -151,6 +206,7 @@ def test_generate_once_rejects_error_response(monkeypatch) -> None:
 def test_main_writes_stability_report(monkeypatch, tmp_path) -> None:
     report = {
         "passed": True,
+        "failed_items": [],
         "unstable_items": [],
         "generation_model": "generation-model",
         "judge_model": "judge-model",
