@@ -5,7 +5,7 @@ models/shared/tests/test_llm.py
 models/shared/llm.py 검증.
 
 컨설턴트 구현본(D-035) 테스트 5종을 이관하고, 통합 시 추가된
-(text, tokens) 반환 · json_mode · 요청 데드라인(D-049) 3종을 더했다.
+(text, tokens) 반환 · json_mode · 요청 데드라인(D-052) 3종을 더했다.
 """
 import time
 from unittest.mock import MagicMock, call, patch
@@ -18,8 +18,9 @@ from models.shared.config import (
     LLM_MAX_RETRIES,
     LLM_TIMEOUT_SECONDS,
     OPENAI_BASE_URL,
+    OPENAI_MODEL,
 )
-from models.shared.llm import call_llm, get_total_tokens, reset_client
+from models.shared.llm import call_llm, get_total_tokens, reset_client, reset_total_tokens
 
 
 # ── 공통 헬퍼 ────────────────────────────────────────────────
@@ -37,13 +38,15 @@ def _fake_response(content: str | None, tokens: int = 12) -> MagicMock:
     response.usage = MagicMock(total_tokens=tokens)
     return response
 
-
+    
 @pytest.fixture(autouse=True)
 def _reset_singleton():
-    """싱글턴 클라이언트가 테스트 간에 새어나가지 않게 한다(D-085)."""
+    """싱글턴 클라이언트와 토큰 카운터가 테스트 간에 새어나가지 않게 한다(D-088)."""
     reset_client()
+    reset_total_tokens()
     yield
     reset_client()
+    reset_total_tokens()
 
 
 # ── 이관분: 컨설턴트 구현본 테스트 5종 (D-035) ──────────────
@@ -135,7 +138,7 @@ def test_raises_value_error_when_content_is_none(mock_openai_cls, mock_sleep) ->
 # ── 추가분: 통합으로 생긴 기능 3종 ──────────────────────────
 @patch("models.shared.llm.OpenAI")
 def test_returns_text_and_tokens(mock_openai_cls) -> None:
-    """계약 필수 필드인 tokens_used를 채울 수 있도록 토큰을 함께 반환한다(D-083)."""
+    """계약 필수 필드인 tokens_used를 채울 수 있도록 토큰을 함께 반환한다(D-086)."""
     client = MagicMock()
     client.chat.completions.create.return_value = _fake_response("안녕하세요", 37)
     mock_openai_cls.return_value = client
@@ -144,7 +147,7 @@ def test_returns_text_and_tokens(mock_openai_cls) -> None:
     text, tokens = call_llm("system", "user")
 
     assert (text, tokens) == ("안녕하세요", 37)
-    assert get_total_tokens() - before == 37  # 예산 모니터링 누적(D-089)
+    assert get_total_tokens() - before == 37  # 예산 모니터링 누적(D-092)
 
 
 @patch("models.shared.llm.OpenAI")
@@ -163,7 +166,7 @@ def test_json_mode_sets_response_format(mock_openai_cls) -> None:
 @patch("models.shared.llm.time.sleep")
 @patch("models.shared.llm.OpenAI")
 def test_gives_up_when_deadline_is_shorter_than_backoff(mock_openai_cls, mock_sleep) -> None:
-    """남은 예산이 다음 대기시간보다 짧으면 자지 않고 즉시 전파한다(D-049)."""
+    """남은 예산이 다음 대기시간보다 짧으면 자지 않고 즉시 전파한다(D-052)."""
     client = MagicMock()
     client.chat.completions.create.side_effect = _rate_limit_error()
     mock_openai_cls.return_value = client
@@ -173,3 +176,44 @@ def test_gives_up_when_deadline_is_shorter_than_backoff(mock_openai_cls, mock_sl
 
     assert client.chat.completions.create.call_count == 1
     mock_sleep.assert_not_called()
+    
+
+@patch("models.shared.llm.OpenAI")
+def test_default_model_is_resolved_before_counting(mock_openai_cls) -> None:
+    """model 을 생략하면 OPENAI_MODEL 로 호출하고 토큰도 그 이름으로 집계한다.
+
+    raw model(None)을 집계 키로 쓰면 KeyError 가 나거나 모든 토큰이
+    None 키에 쌓여 모델별 집계(D-257)가 무의미해진다.
+    """
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_response("응답", 21)
+    mock_openai_cls.return_value = client
+
+    call_llm("system", "user")
+
+    assert client.chat.completions.create.call_args.kwargs["model"] == OPENAI_MODEL
+    assert get_total_tokens(OPENAI_MODEL) == 21
+    assert get_total_tokens() == 21          # 전체 합계도 같다
+
+
+@patch("models.shared.llm.OpenAI")
+def test_tokens_are_counted_per_model(mock_openai_cls) -> None:
+    """생성 모델과 Judge 모델의 소비량이 분리 집계된다(D-257·D-251)."""
+    client = MagicMock()
+    client.chat.completions.create.side_effect = [
+        _fake_response("생성 결과", 10),
+        _fake_response("채점 결과", 30),
+    ]
+    mock_openai_cls.return_value = client
+
+    call_llm("system", "user")                           # 생성 — OPENAI_MODEL
+    call_llm("system", "user", model="judge-model-x")    # 채점 — Judge
+
+    assert get_total_tokens(OPENAI_MODEL) == 10
+    assert get_total_tokens("judge-model-x") == 30
+    assert get_total_tokens() == 40
+
+
+def test_unknown_model_returns_zero_instead_of_raising() -> None:
+    """집계에 없는 모델을 조회해도 KeyError 가 아니라 0 이다."""
+    assert get_total_tokens("존재하지-않는-모델") == 0
