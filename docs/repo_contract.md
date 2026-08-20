@@ -78,9 +78,11 @@ def get_trend(keyword: str, industry: str | None = None) -> dict | None:
   "keyword": "아이스아메리카노",
   "direction": "상승",
   "related": ["여름음료", "냉커피"],
-  "weather": {"temp": 31.0, "sky": "맑음"}
+  "weather": null
 }
 ```
+
+> `weather`는 현재 미구현이다(날씨 API 미연동) — `get_trend()`는 항상 `null`을 반환한다.
 
 - 실패 시 `None`을 반환한다. 좌표 없이 검색어(`keyword`)만으로 캐시 키를 쓰며(공백 제거 정규화), TTL 7일.
 

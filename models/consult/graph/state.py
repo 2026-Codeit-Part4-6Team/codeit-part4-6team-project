@@ -21,3 +21,10 @@ class ConsultState(CommonState):
     # (time.monotonic() 기준). 안 넘기면 매 call_llm 호출이 각자 새 예산을 받아, strategy의
     # 재시도(최대 3회)+429 백오프가 겹치면 서비스 60초 타임아웃에 근접할 수 있다(D-144, PM 리뷰 PR #93).
     deadline: NotRequired[float]
+    # BasicState(models/basic/graph/state.py)와 동일 패턴 — CommonState엔 없어서
+    # 검증 노드가 반환해도 LangGraph가 스키마 밖 키로 보고 조용히 버렸다(Codex 리뷰로
+    # 발견, assemble_response()의 blocked/error 분기가 항상 무력화되는 치명적 버그였음).
+    status: NotRequired[str]  # ok, blocked, error
+    issues: NotRequired[
+        list[dict]
+    ]  # [{"source": ..., "action": "block"/"reask"/"warn", "reason": ..., "message": ...}, ...]
