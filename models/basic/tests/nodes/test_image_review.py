@@ -41,7 +41,7 @@ def test_decode_failure_on_all_items_rejects_and_increments_image_retry_count():
 
     assert result["image_review_result"]["action"] == "reject"
     assert result["image_retry_count"] == 1
-    assert result["ranked_copies"][0]["error"]["reason"] == "unkown"
+    assert result["ranked_copies"][0]["error"]["reason"] == "unknown"
 
 
 def test_partial_decode_failure_still_passes():

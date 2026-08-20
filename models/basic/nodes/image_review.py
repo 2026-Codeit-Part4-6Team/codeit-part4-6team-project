@@ -85,7 +85,7 @@ def image_review_node(state: BasicState) -> dict:
                     "image_b64": None,
                     "error": {
                         "field": "image",
-                        "reason": "unkown",
+                        "reason": "unknown",
                         "message": "이미지 디코딩에 실패했습니다.",
                     },
                 }

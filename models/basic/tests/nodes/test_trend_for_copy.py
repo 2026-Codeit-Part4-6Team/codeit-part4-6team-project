@@ -25,7 +25,7 @@ def test_trend_with_related_builds_full_summary(mock_get_trend):
     assert result["context"]["trend"] == (
         "'아이스 아메리카노' 검색 트렌드 상승 (연관 검색어: 콜드브루, 여름 신메뉴)"
     )
-    mock_get_trend.assert_called_once_with("여름 신메뉴", industry="카페")
+    mock_get_trend.assert_called_once_with("여름 신메뉴")
 
 
 @patch("models.basic.nodes.trend_for_copy.get_trend")
@@ -65,4 +65,4 @@ def test_missing_keyword_falls_back_to_question(mock_get_trend):
 
     trend_for_copy_node({"question": "아무거나", "store": _STORE, "context": {}})
 
-    mock_get_trend.assert_called_once_with("아무거나", industry="카페")
+    mock_get_trend.assert_called_once_with("아무거나")
