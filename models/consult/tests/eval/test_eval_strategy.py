@@ -704,6 +704,11 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         fixture_version="v2",
         trend_fixture_version="v1-naver-apihub",
         run_at=run_at,
+        token_usage={
+            "generation_tokens": 35,
+            "judge_tokens": 45,
+            "total_tokens": 80,
+        },
     )
 
     assert list(report) == [
@@ -711,6 +716,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "area",
         "generation_model",
         "judge_model",
+        "token_usage",
         "dataset_version",
         "fixture_version",
         "trend_fixture_version",
@@ -721,6 +727,11 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
     assert report["run_at"] == "2026-08-20T18:00:00+09:00"
     assert report["generation_model"] == OPENAI_MODEL
     assert report["judge_model"] == OPENAI_JUDGE_MODEL
+    assert report["token_usage"] == {
+        "generation_tokens": 35,
+        "judge_tokens": 45,
+        "total_tokens": 80,
+    }
     assert report["dataset_version"] == "v1.3"
     assert report["trend_fixture_version"] == "v1-naver-apihub"
     assert report["item_count"] == 3
@@ -744,6 +755,88 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "trend_path",
         "judge_error",
     }
+
+
+@pytest.mark.parametrize(
+    ("generation_model", "judge_model", "before", "after", "expected"),
+    [
+        (
+            "generation-model",
+            "judge-model",
+            {"generation-model": 100, "judge-model": 200},
+            {"generation-model": 135, "judge-model": 245},
+            {
+                "generation_tokens": 35,
+                "judge_tokens": 45,
+                "total_tokens": 80,
+            },
+        ),
+        (
+            "same-model",
+            "same-model",
+            {"same-model": 300},
+            {"same-model": 380},
+            {
+                "generation_tokens": None,
+                "judge_tokens": None,
+                "total_tokens": 80,
+            },
+        ),
+    ],
+)
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_records_only_this_run_token_usage(
+    mock_evaluate_item,
+    tmp_path,
+    generation_model,
+    judge_model,
+    before,
+    after,
+    expected,
+) -> None:
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps([_item()], ensure_ascii=False), encoding="utf-8")
+    counters = before.copy()
+
+    def get_total_tokens(model=None):
+        return sum(counters.values()) if model is None else counters.get(model, 0)
+
+    def evaluate_item(_item):
+        counters.clear()
+        counters.update(after)
+        return {
+            "id": "C-001",
+            "passed": True,
+            "scores": {"자연스러움": 4},
+            "unexpected_numbers": [],
+            "response": _OK_RESPONSE,
+            "context_snapshot": {"market": {"same_industry_count": 177}},
+            "trend_path": None,
+            "judge_error": None,
+            "_status_ok": True,
+            "_contract_ok": True,
+            "_judge_ok": True,
+            "_latency_s": 1.0,
+        }
+
+    mock_evaluate_item.side_effect = evaluate_item
+
+    with (
+        patch("models.consult.eval.eval_strategy.OPENAI_MODEL", generation_model),
+        patch("models.consult.eval.eval_strategy.OPENAI_JUDGE_MODEL", judge_model),
+        patch(
+            "models.consult.eval.eval_strategy.shared_llm.get_total_tokens",
+            side_effect=get_total_tokens,
+        ),
+    ):
+        report, _ = evaluate_dataset(
+            dataset_path=dataset_path,
+            area="consult",
+            limit=1,
+            report_dir=tmp_path / "reports",
+        )
+
+    assert report["token_usage"] == expected
 
 
 @patch("models.consult.eval.eval_strategy.time.sleep")
