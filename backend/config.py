@@ -78,7 +78,7 @@ def load_settings() -> Settings:
         basic_credit_cost=_read_int("BASIC_CREDIT_COST", 50),
         consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 10),
         model_request_timeout_seconds=_read_int(
-            "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
+            "MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60
         ),
         chatbot_mode=chatbot_mode,
         session_secret_key=secret_key,
