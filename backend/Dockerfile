@@ -19,6 +19,9 @@ RUN uv sync --locked --no-install-project \
 
 COPY backend ./backend
 COPY models ./models
+COPY cache ./cache
+COPY validation ./validation
+COPY shared_data ./shared_data
 
 EXPOSE 8000
 
