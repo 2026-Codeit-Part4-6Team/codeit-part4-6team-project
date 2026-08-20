@@ -1,6 +1,7 @@
 from collections.abc import Generator
 
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.config import settings
@@ -8,15 +9,24 @@ from backend.config import settings
 
 def create_database_engine(url: str) -> Engine:
     """서비스 DB Engine을 생성합니다."""
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    connect_args = (
+        {"check_same_thread": False, "timeout": 30}
+        if url.startswith("sqlite")
+        else {}
+    )
     engine = create_engine(url, connect_args=connect_args)
 
     if url.startswith("sqlite"):
+        parsed_url = make_url(url)
+        use_wal = parsed_url.database not in (None, "", ":memory:")
 
         @event.listens_for(engine, "connect")
-        def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+        def configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            if use_wal:
+                cursor.execute("PRAGMA journal_mode=WAL")
             cursor.close()
 
     return engine

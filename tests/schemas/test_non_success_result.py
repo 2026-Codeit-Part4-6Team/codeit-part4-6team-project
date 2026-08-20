@@ -34,3 +34,46 @@ def test_error_result_limits_reason_codes():
 
     with pytest.raises(ValidationError):
         ErrorResult(status="error", reason="parse_failed", message="파싱 실패")
+
+
+@pytest.mark.parametrize(
+    ("action", "reason"),
+    [
+        ("block", "illegal_or_injection"),
+        ("block", "prohibited_item"),
+        ("block", "sensitive_leak"),
+        ("reask", "need_clarification"),
+        ("reask", "insufficient_info"),
+        ("warn", "regulation_risk"),
+    ],
+)
+def test_blocked_result_accepts_only_contract_action_reason_pairs(action, reason):
+    result = BlockedResult(
+        status="blocked",
+        action=action,
+        reason=reason,
+        message="계약된 정책 응답입니다.",
+    )
+
+    assert result.action == action
+    assert result.reason == reason
+
+
+@pytest.mark.parametrize(
+    ("action", "reason"),
+    [
+        ("block", "insufficient_info"),
+        ("reask", "regulation_risk"),
+        ("warn", "prohibited_item"),
+        ("block", "content_policy"),
+        ("reask", "unknown_policy_reason"),
+    ],
+)
+def test_blocked_result_rejects_non_contract_action_reason_pairs(action, reason):
+    with pytest.raises(ValidationError):
+        BlockedResult(
+            status="blocked",
+            action=action,
+            reason=reason,
+            message="잘못된 정책 응답입니다.",
+        )

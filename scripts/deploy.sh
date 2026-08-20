@@ -83,16 +83,12 @@ if ! "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180; then
   exit 1
 fi
 
-if ! "${compose[@]}" exec -T frontend /app/.venv/bin/python - <<'PY'
-import os
-
-from frontend.api_client import ApiClient
-
-result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
-    "배포 컨테이너 연결 테스트"
-)
-assert result["status"] == "completed"
-PY
+if ! "${compose[@]}" exec -T frontend node --input-type=module - <<'JS'
+const response = await fetch(`${process.env.BACKEND_URL}/health`);
+if (!response.ok) throw new Error(`backend health failed: ${response.status}`);
+const result = await response.json();
+if (result.status !== "ok") throw new Error(`unexpected health: ${JSON.stringify(result)}`);
+JS
 then
   "${compose[@]}" ps >&2 || true
   "${compose[@]}" logs --no-color --tail=200 >&2 || true

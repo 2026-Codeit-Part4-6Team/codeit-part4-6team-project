@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+from backend.clients.chatbot_client import create_chatbot_client
 from backend.config import settings
 from backend.routers.auth_router import router as auth_router
 from backend.routers.generate_router import router as generate_router
@@ -13,6 +14,7 @@ from backend.routers.users_router import router as users_router
 def create_app() -> FastAPI:
     """FastAPI 애플리케이션을 생성합니다."""
     application = FastAPI(title="Codeit Part 4 Team 6 API")
+    application.state.chatbot_client = create_chatbot_client(settings)
     application.add_middleware(
         SessionMiddleware,
         secret_key=settings.session_secret_key,
