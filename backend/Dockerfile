@@ -12,9 +12,13 @@ WORKDIR /app
 
 COPY --from=uv /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project --only-group backend
+RUN uv sync --locked --no-install-project \
+    --only-group backend \
+    --only-group model-consult \
+    --only-group basic
 
 COPY backend ./backend
+COPY models ./models
 
 EXPOSE 8000
 
