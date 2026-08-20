@@ -32,7 +32,10 @@ def ranking_node(state: BasicState) -> dict:
 
     try:
         raw, tokens = call_llm(
-            SYSTEM_PROMPT, json.dumps(context, ensure_ascii=False), json_mode=True
+            SYSTEM_PROMPT,
+            json.dumps(context, ensure_ascii=False),
+            json_mode=True,
+            deadline=state.get("deadline"),
         )
     # BLE001 억제 사유: call_llm의 모든 실패를 잡아 status=error로 안전하게 전환
     except Exception as exc:  # noqa: BLE001
