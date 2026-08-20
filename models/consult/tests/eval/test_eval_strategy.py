@@ -27,7 +27,7 @@ from models.consult.eval.eval_strategy import (
     main,
     trend_path_match_rate,
 )
-from models.shared.config import OPENAI_JUDGE_MODEL, OPENAI_MODEL
+from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL, OPENAI_MODEL
 
 _OK_RESPONSE = {
     "status": "ok",
@@ -410,6 +410,7 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
     assert mock_call_llm.call_args.kwargs == {
         "json_mode": True,
         "model": OPENAI_JUDGE_MODEL,
+        "temperature": LLM_JUDGE_TEMPERATURE,
     }
 
 

@@ -18,7 +18,7 @@ import openai
 from models.consult.graph.build_consultant import build_consultant
 from models.consult.main import assemble_response, build_initial_state
 from models.shared import llm as shared_llm
-from models.shared.config import OPENAI_JUDGE_MODEL, OPENAI_MODEL
+from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL, OPENAI_MODEL
 from models.shared.llm_errors import classify_llm_error
 
 EVAL_USER_ID = 1
@@ -250,6 +250,7 @@ def _judge_response(
         json.dumps(judge_input, ensure_ascii=False),
         json_mode=True,
         model=OPENAI_JUDGE_MODEL,
+        temperature=LLM_JUDGE_TEMPERATURE,
     )
     parsed = json.loads(raw)
     if not isinstance(parsed, dict):
