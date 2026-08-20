@@ -99,11 +99,10 @@ def screen(copy: str) -> list[dict]:
 
 def _worst(hits: list[dict]) -> dict:
     """block > warn, 그다음 트리거 길이 순으로 대표 히트를 고른다."""
-    return sorted(
+    return max(
         hits,
         key=lambda h: (h["severity"] == "block", len(h["triggers"][0])),
-        reverse=True,
-    )[0]
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
