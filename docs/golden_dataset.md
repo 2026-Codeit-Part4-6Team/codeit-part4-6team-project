@@ -1477,7 +1477,7 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | 전 → 후에서 달라진 것 | 비교 가능? | 이 비교가 증명하는 것 |
 | --- | --- | --- |
 | **프롬프트만** (모든 필드 동일) | ✅ | **프롬프트 튜닝 효과** — 가장 흔한 비교 |
-| `generation_model` 만 | ✅ | **생성 모델 성능 차이** (D-048 A/B) |
+| `generation_model` 만 | ✅ | **생성 모델 성능 차이** (D-051 A/B) |
 | `judge_model` 만 | ✅ | **채점자 성향 차이** — Judge 자체 검증용 |
 | `fixture_version` 만 | ✅ | **입력 데이터 정확도 개선 효과** (예: 16→177) |
 | **`generation_model` + `judge_model`** | ❌ | **해석 불가** — 생성이 좋아진 건지 자[尺]가 바뀐 건지 모른다 |
