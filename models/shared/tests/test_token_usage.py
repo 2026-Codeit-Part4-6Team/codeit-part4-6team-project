@@ -1,9 +1,11 @@
 """models/shared/tests/test_token_usage.py — 평가 산출물 헤더·토큰 블록 검증 (D-278)"""
-import os, pytest
 from unittest.mock import MagicMock, patch
-import models.shared.config as C
+
+import pytest
+
 import models.shared.llm as L
 from models.shared.eval import token_usage as T
+
 
 def _r(tok):
     r = MagicMock(); r.choices=[MagicMock(message=MagicMock(content="ok"))]
