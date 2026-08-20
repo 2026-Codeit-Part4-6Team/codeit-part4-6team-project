@@ -56,6 +56,7 @@ def image_review_node(state: BasicState) -> dict:
     has_copy_count = 0
     decode_fail_count = 0
     prompts = state.get("image_prompts") or []
+    captions_en = state.get("image_captions_en") or []
 
     for i, c in enumerate(state["ranked_copies"]):
         if not c.get("copy"):
@@ -68,8 +69,9 @@ def image_review_node(state: BasicState) -> dict:
             reviewed.append(c)
             continue
 
+        caption = captions_en[i] if i < len(captions_en) else None
         prompt = prompts[i] if i < len(prompts) else None
-        text_for_clip = prompt or c["copy"]
+        text_for_clip = caption or prompt or c["copy"]
 
         try:
             image = Image.open(io.BytesIO(base64.b64decode(c["image_b64"])))
@@ -83,7 +85,7 @@ def image_review_node(state: BasicState) -> dict:
                     "image_b64": None,
                     "error": {
                         "field": "image",
-                        "reason": "decode_failed",
+                        "reason": "unknown",
                         "message": "이미지 디코딩에 실패했습니다.",
                     },
                 }

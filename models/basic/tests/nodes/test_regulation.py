@@ -101,7 +101,7 @@ def test_no_valid_copies_blocks_without_calling_check_regulation(mock_check_regu
     assert result["validation"]["regulation"] == {
         "action": "block",
         "reason": "no_valid_copy",
-        "message": "",
+        "message": "카피 생성에 실패해 규제 검사를 진행할 수 없습니다.",
     }
     assert result["status"] == "blocked"
 
@@ -144,10 +144,15 @@ def test_partial_block_replaces_blocked_copy_with_placeholder_slot(
     }
     assert result["validation"]["regulation"]["action"] == "pass"
 
+
 @patch("models.basic.nodes.regulation_node.check_regulation")
 def test_passed_copy_does_not_leak_internal_regulation_key(mock_check_regulation):
     mock_check_regulation.return_value = {
-        "action": "pass", "law": "", "reason": "", "alternative": "", "message": "",
+        "action": "pass",
+        "law": "",
+        "reason": "",
+        "alternative": "",
+        "message": "",
     }
     state = {
         "ranked_copies": [{"copy": "정상 카피", "score": 4.5}],
