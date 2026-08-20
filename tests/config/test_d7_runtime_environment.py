@@ -91,10 +91,10 @@ def test_actual_runtime_copy_sources_exist_in_d7_branch():
         )
 
 
-def test_compose_defaults_to_actual_but_ci_uses_lightweight_target():
+def test_compose_and_pr_ci_use_actual_build_target():
     compose = (ROOT / "compose.yaml").read_text()
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
     assert "target: ${BACKEND_BUILD_TARGET:-actual}" in compose
-    assert "BACKEND_BUILD_TARGET: ci" in workflow
+    assert "BACKEND_BUILD_TARGET: actual" in workflow
     assert "CHATBOT_MODE: mock" in workflow
