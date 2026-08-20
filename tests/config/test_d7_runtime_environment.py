@@ -31,7 +31,7 @@ def test_compose_passes_actual_model_environment_to_backend():
     required_environment = [
         "OPENAI_API_KEY: ${OPENAI_API_KEY:-}",
         "OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}",
-        "OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}",
+        "OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}",
         "LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.3}",
         "MARKET_API_KEY: ${MARKET_API_KEY:-}",
         "NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}",
