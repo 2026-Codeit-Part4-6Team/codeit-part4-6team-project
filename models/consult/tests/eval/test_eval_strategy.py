@@ -27,7 +27,13 @@ from models.consult.eval.eval_strategy import (
     main,
     trend_path_match_rate,
 )
-from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL, OPENAI_MODEL
+from models.shared.config import (
+    LLM_JUDGE_TEMPERATURE,
+    LLM_TEMPERATURE,
+    OPENAI_JUDGE_MODEL,
+    OPENAI_MODEL,
+)
+from models.shared.eval.token_usage import EvalPreflightError
 
 _OK_RESPONSE = {
     "status": "ok",
@@ -640,7 +646,10 @@ def test_evaluate_item_classifies_judge_rate_limit_and_continues(
     assert result["_judge_ok"] is False
 
 
-def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
+@patch("models.shared.eval.token_usage.get_total_tokens", return_value=0)
+def test_build_report_uses_required_schema_and_aggregates_metrics(
+    _mock_get_total_tokens,
+) -> None:
     results = [
         {
             "id": "C-001",
@@ -705,11 +714,6 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         fixture_version="v2",
         trend_fixture_version="v1-naver-apihub",
         run_at=run_at,
-        token_usage={
-            "generation_tokens": 35,
-            "judge_tokens": 45,
-            "total_tokens": 80,
-        },
     )
 
     assert list(report) == [
@@ -717,21 +721,29 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
         "area",
         "generation_model",
         "judge_model",
-        "token_usage",
+        "generation_temperature",
+        "judge_temperature",
         "dataset_version",
         "fixture_version",
         "trend_fixture_version",
         "item_count",
+        "changed",
+        "token_usage",
         "metrics",
         "items",
     ]
     assert report["run_at"] == "2026-08-20T18:00:00+09:00"
     assert report["generation_model"] == OPENAI_MODEL
     assert report["judge_model"] == OPENAI_JUDGE_MODEL
+    assert report["generation_temperature"] == LLM_TEMPERATURE
+    assert report["judge_temperature"] == LLM_JUDGE_TEMPERATURE
+    assert report["changed"] == ""
     assert report["token_usage"] == {
-        "generation_tokens": 35,
-        "judge_tokens": 45,
-        "total_tokens": 80,
+        "by_model": dict.fromkeys((OPENAI_MODEL, OPENAI_JUDGE_MODEL), 0),
+        "generation_tokens": 0,
+        "judge_tokens": 0,
+        "total_tokens": 0,
+        "unattributed_tokens": 0,
     }
     assert report["dataset_version"] == "v1.3"
     assert report["trend_fixture_version"] == "v1-naver-apihub"
@@ -758,53 +770,21 @@ def test_build_report_uses_required_schema_and_aggregates_metrics() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    ("generation_model", "judge_model", "before", "after", "expected"),
-    [
-        (
-            "generation-model",
-            "judge-model",
-            {"generation-model": 100, "judge-model": 200},
-            {"generation-model": 135, "judge-model": 245},
-            {
-                "generation_tokens": 35,
-                "judge_tokens": 45,
-                "total_tokens": 80,
-            },
-        ),
-        (
-            "same-model",
-            "same-model",
-            {"same-model": 300},
-            {"same-model": 380},
-            {
-                "generation_tokens": None,
-                "judge_tokens": None,
-                "total_tokens": 80,
-            },
-        ),
-    ],
-)
 @patch("models.consult.eval.eval_strategy._evaluate_item")
-def test_evaluate_dataset_records_only_this_run_token_usage(
+def test_evaluate_dataset_uses_shared_by_model_token_usage(
     mock_evaluate_item,
     tmp_path,
-    generation_model,
-    judge_model,
-    before,
-    after,
-    expected,
 ) -> None:
     dataset_path = tmp_path / "golden.json"
     dataset_path.write_text(json.dumps([_item()], ensure_ascii=False), encoding="utf-8")
-    counters = before.copy()
+    counters = {"old-model": 999}
 
     def get_total_tokens(model=None):
         return sum(counters.values()) if model is None else counters.get(model, 0)
 
     def evaluate_item(_item):
         counters.clear()
-        counters.update(after)
+        counters.update({"generation-model": 35, "judge-model": 45})
         return {
             "id": "C-001",
             "passed": True,
@@ -823,12 +803,13 @@ def test_evaluate_dataset_records_only_this_run_token_usage(
     mock_evaluate_item.side_effect = evaluate_item
 
     with (
-        patch("models.consult.eval.eval_strategy.OPENAI_MODEL", generation_model),
-        patch("models.consult.eval.eval_strategy.OPENAI_JUDGE_MODEL", judge_model),
+        patch("models.shared.eval.token_usage.OPENAI_MODEL", "generation-model"),
+        patch("models.shared.eval.token_usage.OPENAI_JUDGE_MODEL", "judge-model"),
         patch(
-            "models.consult.eval.eval_strategy.shared_llm.get_total_tokens",
+            "models.shared.eval.token_usage.get_total_tokens",
             side_effect=get_total_tokens,
         ),
+        patch("models.shared.eval.token_usage.reset_total_tokens", side_effect=counters.clear),
     ):
         report, _ = evaluate_dataset(
             dataset_path=dataset_path,
@@ -837,14 +818,45 @@ def test_evaluate_dataset_records_only_this_run_token_usage(
             report_dir=tmp_path / "reports",
         )
 
-    assert report["token_usage"] == expected
+    assert report["token_usage"] == {
+        "by_model": {"generation-model": 35, "judge-model": 45},
+        "generation_tokens": 35,
+        "judge_tokens": 45,
+        "total_tokens": 80,
+        "unattributed_tokens": 0,
+    }
 
 
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_blocks_before_item_when_models_are_identical(
+    mock_evaluate_item,
+    tmp_path,
+) -> None:
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps([_item()], ensure_ascii=False), encoding="utf-8")
+
+    with (
+        patch("models.shared.eval.token_usage.OPENAI_MODEL", "same-model"),
+        patch("models.shared.eval.token_usage.OPENAI_JUDGE_MODEL", "same-model"),
+        pytest.raises(EvalPreflightError, match="OPENAI_JUDGE_MODEL"),
+    ):
+        evaluate_dataset(
+            dataset_path=dataset_path,
+            area="consult",
+            limit=1,
+            report_dir=tmp_path / "reports",
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
 @patch("models.consult.eval.eval_strategy.time.sleep")
 @patch("models.consult.eval.eval_strategy._evaluate_item")
 def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     mock_evaluate_item,
     mock_sleep,
+    _mock_preflight,
     tmp_path,
 ) -> None:
     dataset = [_item("C-001"), _item("C-002"), _item("C-003")]
@@ -892,9 +904,11 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     mock_sleep.assert_called_once_with(1.0)
 
 
+@patch("models.consult.eval.eval_strategy.preflight")
 @patch("models.consult.eval.eval_strategy._evaluate_item")
 def test_evaluate_dataset_keeps_two_reports_created_on_same_day(
     mock_evaluate_item,
+    _mock_preflight,
     tmp_path,
 ) -> None:
     dataset_path = tmp_path / "golden.json"
@@ -946,11 +960,13 @@ def test_evaluate_dataset_keeps_two_reports_created_on_same_day(
     assert second_path.exists()
 
 
+@patch("models.consult.eval.eval_strategy.preflight")
 @patch("models.consult.eval.eval_strategy.time.sleep")
 @patch("models.consult.eval.eval_strategy._evaluate_item")
 def test_evaluate_dataset_keeps_prior_item_result_after_later_judge_failure(
     mock_evaluate_item,
     _mock_sleep,
+    _mock_preflight,
     tmp_path,
 ) -> None:
     """한 문항의 Judge 호출이 실패해도(_evaluate_item이 예외를 던지지 않고 실패

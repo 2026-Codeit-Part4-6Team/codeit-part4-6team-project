@@ -18,7 +18,8 @@ import openai
 from models.consult.graph.build_consultant import build_consultant
 from models.consult.main import assemble_response, build_initial_state
 from models.shared import llm as shared_llm
-from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL, OPENAI_MODEL
+from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL
+from models.shared.eval.token_usage import build_report_header, preflight
 from models.shared.llm_errors import classify_llm_error
 
 EVAL_USER_ID = 1
@@ -367,7 +368,6 @@ def _build_report(
     fixture_version: str,
     trend_fixture_version: str,
     run_at: datetime,
-    token_usage: dict[str, int | None],
 ) -> dict:
     """문항별 결과를 §10.4 발표용 집계 스키마로 변환한다."""
     item_count = len(results)
@@ -388,16 +388,16 @@ def _build_report(
         "response",
         "context_snapshot",
     )
+    header = build_report_header(
+        area=area,
+        dataset_version=DATASET_VERSION,
+        fixture_version=fixture_version,
+        trend_fixture_version=trend_fixture_version,
+        item_count=item_count,
+    )
+    header["run_at"] = run_at.isoformat()
     return {
-        "run_at": run_at.isoformat(),
-        "area": area,
-        "generation_model": OPENAI_MODEL,
-        "judge_model": OPENAI_JUDGE_MODEL,
-        "token_usage": token_usage,
-        "dataset_version": DATASET_VERSION,
-        "fixture_version": fixture_version,
-        "trend_fixture_version": trend_fixture_version,
-        "item_count": item_count,
+        **header,
         "metrics": {
             "llm_judge_avg": sum(scores) / len(scores) if scores else 0.0,
             "hallucination_rate": rate(
@@ -463,10 +463,8 @@ def evaluate_dataset(
         raise ValueError(f"area={area!r}인 문항이 없습니다.")
     selected = area_items[:limit] if limit is not None else area_items
 
+    preflight()
     run_at = datetime.now(ZoneInfo("Asia/Seoul"))
-    total_tokens_before = shared_llm.get_total_tokens()
-    generation_tokens_before = shared_llm.get_total_tokens(OPENAI_MODEL)
-    judge_tokens_before = shared_llm.get_total_tokens(OPENAI_JUDGE_MODEL)
     results = []
     for index, item in enumerate(selected):
         results.append(_evaluate_item(item))
@@ -481,25 +479,12 @@ def evaluate_dataset(
         )
     print(f"{area} {len(area_items)}문항 중 {processed_count}건 처리")
 
-    total_tokens = shared_llm.get_total_tokens() - total_tokens_before
-    if OPENAI_MODEL == OPENAI_JUDGE_MODEL:
-        generation_tokens = None
-        judge_tokens = None
-    else:
-        generation_tokens = shared_llm.get_total_tokens(OPENAI_MODEL) - generation_tokens_before
-        judge_tokens = shared_llm.get_total_tokens(OPENAI_JUDGE_MODEL) - judge_tokens_before
-
     report = _build_report(
         results,
         area=area,
         fixture_version=_fixture_version(selected),
         trend_fixture_version=_trend_fixture_version(selected),
         run_at=run_at,
-        token_usage={
-            "generation_tokens": generation_tokens,
-            "judge_tokens": judge_tokens,
-            "total_tokens": total_tokens,
-        },
     )
     report_dir.mkdir(parents=True, exist_ok=True)
     scope = f"limit-{processed_count}" if limit is not None else "full"
