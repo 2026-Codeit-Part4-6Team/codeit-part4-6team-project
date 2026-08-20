@@ -1,8 +1,8 @@
 # 백엔드
 
-FastAPI 기반 API 컨테이너입니다. 현재는 컨테이너 연결 검증을 위한 상태 확인과 목 생성 API를 제공합니다.
+FastAPI 기반 API 컨테이너입니다. 서비스 기반, 인증, Session, 회원가입 지오코딩과 목 생성 API를 제공합니다.
 
-이 디렉터리의 초기 API와 서비스 코드는 Docker 실행 검증용입니다. POC 및 팀 요구사항을 반영한 실제 백엔드 구현이 시작되면 교체하거나 제거합니다.
+생성 관통 API와 실제 모델 연동은 D4 이후 마일스톤에서 구현합니다. 현재 `/generate`는 D4 전환 전까지 유지하는 Preview API입니다.
 
 ## 컨테이너와 포트
 
@@ -23,6 +23,10 @@ FastAPI 기반 API 컨테이너입니다. 현재는 컨테이너 연결 검증�
 | 메서드 | 경로 | 용도 |
 | --- | --- | --- |
 | `GET` | `/health` | 컨테이너 상태 확인 |
+| `POST` | `/auth/register` | 사용자명 기반 회원가입과 주소 지오코딩 |
+| `POST` | `/auth/login` | Session 로그인 |
+| `POST` | `/auth/logout` | Session 로그아웃 |
+| `GET` | `/users/me` | 인증 사용자와 사용량 상태 조회 |
 | `POST` | `/generate` | 목 광고 콘텐츠 생성 |
 | `GET` | `/docs` | OpenAPI 문서 |
 
@@ -35,13 +39,21 @@ docker compose up --build backend
 curl http://localhost:18000/health
 ```
 
+Backend 컨테이너는 시작 시 `python -m backend.init_db`를 먼저 실행합니다. 초기화가 실패하면 API 프로세스가 시작되지 않아 Compose healthcheck가 통과하지 않습니다. 수동으로 초기화할 때는 아래 명령을 사용합니다.
+
+```bash
+docker compose run --rm backend python -m backend.init_db
+```
+
+서비스 초기화 명령은 `users`, `payments`, `generations`, `waiting_copies` 네 테이블만 관리합니다. 모델 캐시 테이블은 별도 초기화 책임을 갖습니다.
+
 ## 현재 구조
 
 ```text
-backend/app/
+backend/
 ├── main.py              애플리케이션 생성과 라우터 등록
-├── api/                 HTTP 엔드포인트
-├── schemas/             요청·응답 스키마
+├── schemas.py           요청·응답 스키마
+├── routers/             HTTP 엔드포인트
 └── services/            생성 유스케이스
 ```
 

@@ -7,7 +7,12 @@ dependencies = []
 
 [dependency-groups]
 backend = [
+    "bcrypt>=4.2.0,<5.0.0",
+    "email-validator>=2.2.0,<3.0.0",
     "fastapi>=0.116.0,<1.0.0",
+    "httpx>=0.28.0,<1.0.0",
+    "itsdangerous>=2.2.0,<3.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
     "uvicorn[standard]>=0.35.0,<1.0.0",
 ]
 frontend = [
@@ -23,11 +28,21 @@ model-consult = [
     "httpx>=0.28.0,<1.0.0",
     "langgraph>=1.2.10,<2.0.0",
     "sqlalchemy>=2.0.0,<3.0.0",
+    "openai>=1.50.0,<3.0.0",
+]
+basic = [
+    "faiss-cpu>=1.15.0",
+    "langgraph>=1.2.10",
+    "openai>=2.54.0",
+    "pillow>=12.3.0",
+    "python-dotenv>=1.2.2",
+    "torch>=2.13.0",
+    "transformers>=5.15.0",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["tests"]
+testpaths = ["tests", "models"]
 
 [tool.ruff]
 line-length = 100
