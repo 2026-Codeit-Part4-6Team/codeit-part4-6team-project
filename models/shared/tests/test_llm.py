@@ -217,3 +217,37 @@ def test_tokens_are_counted_per_model(mock_openai_cls) -> None:
 def test_unknown_model_returns_zero_instead_of_raising() -> None:
     """집계에 없는 모델을 조회해도 KeyError 가 아니라 0 이다."""
     assert get_total_tokens("존재하지-않는-모델") == 0
+
+# ── 추가분: Judge temperature 분리 (D-275) ──────────────────
+# D-266 원칙 — 동작을 바꿨으면 그 동작을 직접 검증하는 테스트를 같은 PR 에 넣는다.
+@patch("models.shared.llm.OpenAI")
+def test_default_temperature_is_config_value(mock_openai_cls) -> None:
+    """temperature 를 생략하면 기존과 동일하게 LLM_TEMPERATURE 로 호출한다."""
+    from models.shared.config import LLM_TEMPERATURE
+
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_response("응답")
+    mock_openai_cls.return_value = client
+
+    call_llm("system", "user")
+
+    assert client.chat.completions.create.call_args.kwargs["temperature"] == LLM_TEMPERATURE
+
+
+@patch("models.shared.llm.OpenAI")
+def test_judge_can_override_temperature_to_zero(mock_openai_cls) -> None:
+    """temperature=0.0 이 그대로 전달돼야 한다.
+
+    0.0 은 falsy 라 `temperature or LLM_TEMPERATURE` 로 구현하면 조용히 0.3 으로
+    되돌아간다. 그러면 같은 응답을 두 번 채점해도 점수가 달라져
+    골든 데이터셋의 제1 요건인 재현성이 깨진다(기준 문서 §1.4).
+    """
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_response("{}")
+    mock_openai_cls.return_value = client
+
+    call_llm("system", "user", model="judge-model-x", temperature=0.0)
+
+    kwargs = client.chat.completions.create.call_args.kwargs
+    assert kwargs["temperature"] == 0.0
+    assert kwargs["model"] == "judge-model-x"
