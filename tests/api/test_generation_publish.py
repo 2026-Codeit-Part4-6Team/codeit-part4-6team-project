@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import get_current_user
 from backend.models import Generation, User
+from backend.services.generation_service import PublishPersistenceError
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"payload"
 
@@ -222,3 +223,27 @@ def test_publish_different_approved_slot_returns_409(
 
     assert response.status_code == 409
     assert response.json()["detail"]["reason"] == "published_proposal_conflict"
+
+
+def test_publish_maps_persistence_failure_to_sanitized_500(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    from backend.routers import generations_router
+
+    user = add_user(db_session)
+    generation = add_generation(db_session, user)
+    auth_as(client, user)
+
+    async def fail_publish(*_args, **_kwargs):
+        raise PublishPersistenceError("database secret")
+
+    monkeypatch.setattr(generations_router, "publish_generation", fail_publish)
+
+    response = client.post(
+        f"/generations/{generation.id}/publish",
+        json={"proposal_index": 0, "image_b64": None},
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == {"reason": "publish_persistence_error"}
+    assert "database secret" not in response.text

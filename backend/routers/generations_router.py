@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +14,7 @@ from backend.services.generation_service import (
     ApprovedImageTooLarge,
     PublishedProposalConflict,
     PublishNotFound,
+    PublishPersistenceError,
     PublishProposalInvalid,
     PublishStateConflict,
     PublishTypeConflict,
@@ -26,7 +28,7 @@ router = APIRouter(tags=["generations"])
     "/generations/{generation_id}/publish",
     response_model=PublishResponse,
 )
-async def publish(
+def publish(
     generation_id: int,
     body: PublishRequest,
     user: Annotated[User, Depends(get_current_user)],
@@ -34,12 +36,14 @@ async def publish(
 ) -> PublishResponse:
     """소유한 Basic 생성 결과의 한 제안을 게시 승인합니다."""
     try:
-        return await publish_generation(
-            db,
-            user,
-            generation_id,
-            body,
-            max_image_bytes=settings.max_approved_image_bytes,
+        return asyncio.run(
+            publish_generation(
+                db,
+                user,
+                generation_id,
+                body,
+                max_image_bytes=settings.max_approved_image_bytes,
+            )
         )
     except PublishNotFound as error:
         raise HTTPException(
@@ -75,4 +79,9 @@ async def publish(
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail={"reason": "approved_image_too_large"},
+        ) from error
+    except PublishPersistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"reason": "publish_persistence_error"},
         ) from error

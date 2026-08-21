@@ -9,6 +9,7 @@ const basicResponse: GenerationResponse = {
   status: "done",
   chatbot_type: "basic",
   result: {
+    status: "ok",
     title: "광고 제안",
     proposals: [
       { copy: "첫 제안", image_b64: "encoded", error: null },
@@ -49,6 +50,7 @@ describe("ResultView", () => {
           status: "done",
           chatbot_type: "consultant",
           result: {
+            status: "ok",
             title: "상권 전략",
             strategy: { summary: "요약", actions: [] },
           },
@@ -76,5 +78,63 @@ describe("ResultView", () => {
 
     expect(html).toContain("게시 승인 완료");
     expect(html).toContain("제안 3 게시됨");
+  });
+
+  it.each(["basic", "consultant"] as const)(
+    "shows the exact blocked message without result controls for %s",
+    (chatbotType) => {
+      const html = renderToStaticMarkup(
+        <ResultView
+          response={{
+            generation_id: 9,
+            status: "failed",
+            chatbot_type: chatbotType,
+            result: {
+              status: "blocked",
+              action: "reask",
+              reason: "정보 부족",
+              message: "가게의 대표 메뉴를 알려주세요.",
+            },
+            usage: { plan: "free", credits_used: 0 },
+          }}
+          onPublish={vi.fn()}
+          onRegenerate={vi.fn()}
+        />,
+      );
+
+      expect(html).toContain("가게의 대표 메뉴를 알려주세요.");
+      expect(html).not.toContain("이 제안 선택");
+      expect(html).not.toContain("게시 승인");
+      expect(html).not.toContain("전략 요약이 없습니다");
+    },
+  );
+
+  it("keeps a successful content-policy slot selectable", () => {
+    const html = renderToStaticMarkup(
+      <ResultView
+        response={{
+          ...basicResponse,
+          result: {
+            ...basicResponse.result,
+            proposals: [
+              {
+                copy: "정책에 맞게 조정한 문구",
+                image_b64: null,
+                error: {
+                  field: "image",
+                  reason: "content_policy",
+                  message: "이미지만 제외했습니다.",
+                },
+              },
+            ],
+          },
+        }}
+        onPublish={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("정책에 맞게 조정한 문구");
+    expect(html).toContain("이 제안 선택");
   });
 });

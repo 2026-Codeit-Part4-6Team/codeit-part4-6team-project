@@ -19,7 +19,7 @@ import {
   type PendingGeneration,
 } from "../../state";
 import { CreditDialog } from "./CreditDialog";
-import { ResultView } from "./ResultView";
+import { isSuccessfulGeneration, ResultView } from "./ResultView";
 import type { ProposalIndex } from "./ResultCards";
 import { WaitingScreen } from "./WaitingScreen";
 
@@ -97,6 +97,12 @@ export async function refreshGenerationEstimate(
 ): Promise<GenerationAction> {
   const estimate = await api.estimate(pending.estimatePayload);
   return nextGenerationAction(estimate, pending.estimatePayload, keyFactory());
+}
+
+export function shouldShowFollowUpComposer(
+  response: GenerationResponse | null,
+): boolean {
+  return response !== null && isSuccessfulGeneration(response);
 }
 
 function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
@@ -276,7 +282,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
         />
       )}
-      {generation && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
     </section>
   );
 }

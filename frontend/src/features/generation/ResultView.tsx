@@ -12,6 +12,20 @@ type ResultViewProps = {
   onSuggestedChip?: (chip: string) => void;
 };
 
+export function isSuccessfulGeneration(response: GenerationResponse): boolean {
+  return response.status === "done" && response.result?.status === "ok";
+}
+
+function nonSuccessMessage(response: GenerationResponse): string {
+  if (
+    response.result?.status === "blocked" &&
+    typeof response.result.message === "string"
+  ) {
+    return response.result.message;
+  }
+  return "생성 결과를 표시할 수 없습니다. 입력 내용을 확인해 주세요.";
+}
+
 export function ResultView({
   response,
   publishedProposalIndex = null,
@@ -22,6 +36,15 @@ export function ResultView({
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
     useState<ProposalIndex | null>(null);
+
+  if (!isSuccessfulGeneration(response)) {
+    return (
+      <section className="card blocked-result" role="alert">
+        <p>{nonSuccessMessage(response)}</p>
+      </section>
+    );
+  }
+
   const proposals = Array.isArray(response.result?.proposals)
     ? response.result.proposals
     : [];

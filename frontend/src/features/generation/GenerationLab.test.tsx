@@ -5,6 +5,7 @@ import { createPendingGeneration } from "../../state";
 import {
   createGenerationRunner,
   isBillingConfirmationRequired,
+  shouldShowFollowUpComposer,
   refreshGenerationEstimate,
 } from "./GenerationLab";
 
@@ -121,5 +122,26 @@ describe("GenerationLab orchestration", () => {
       false,
     );
     expect(isBillingConfirmationRequired(new ApiError(422, {}))).toBe(false);
+  });
+
+  it("hides the follow-up composer for blocked generation results", () => {
+    expect(
+      shouldShowFollowUpComposer({
+        generation_id: 10,
+        status: "failed",
+        chatbot_type: "consultant",
+        result: {
+          status: "blocked",
+          action: "reask",
+          reason: "정보 부족",
+          message: "추가 정보가 필요합니다.",
+        },
+        usage: { plan: "free", credits_used: 0 },
+      }),
+    ).toBe(false);
+    expect(shouldShowFollowUpComposer({
+      ...response,
+      result: { status: "ok" },
+    })).toBe(true);
   });
 });

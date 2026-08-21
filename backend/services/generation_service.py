@@ -98,6 +98,10 @@ class PublishProposalInvalid(Exception):
     """저장된 Basic 결과 또는 선택 슬롯이 게시 계약을 위반합니다."""
 
 
+class PublishPersistenceError(Exception):
+    """게시 승인 저장 중 DB 기술 실패가 발생했습니다."""
+
+
 class PublishedProposalConflict(Exception):
     """이미 다른 제안으로 게시 승인이 완료되었습니다."""
 
@@ -242,7 +246,7 @@ async def publish_generation(
         db.rollback()
     except SQLAlchemyError as error:
         db.rollback()
-        raise PublishStateConflict("게시 승인 저장에 실패했습니다.") from error
+        raise PublishPersistenceError("게시 승인 저장에 실패했습니다.") from error
 
     current = db.scalar(
         select(Generation).where(

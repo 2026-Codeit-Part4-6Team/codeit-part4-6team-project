@@ -4,6 +4,7 @@ from asyncio import run
 
 import pytest
 from sqlalchemy import update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from backend.database import create_database_engine
@@ -15,6 +16,7 @@ from backend.services.generation_service import (
     ApprovedImageTooLarge,
     PublishedProposalConflict,
     PublishNotFound,
+    PublishPersistenceError,
     PublishProposalInvalid,
     PublishStateConflict,
     PublishTypeConflict,
@@ -374,3 +376,39 @@ def test_publish_compare_and_set_detects_lost_race(tmp_path):
                     max_image_bytes=100,
                 )
             )
+
+
+def test_publish_rolls_back_and_preserves_database_failure(tmp_path):
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        user = add_user(db)
+        generation = add_generation(db, user)
+        _ = user.id
+        generation_id = generation.id
+        rollback_called = False
+
+        def fail_execute(_statement, *_args, **_kwargs):
+            raise OperationalError("UPDATE generations", {}, Exception("db down"))
+
+        original_rollback = db.rollback
+
+        def record_rollback():
+            nonlocal rollback_called
+            rollback_called = True
+            original_rollback()
+
+        db.execute = fail_execute
+        db.rollback = record_rollback
+
+        with pytest.raises(PublishPersistenceError):
+            run(
+                publish_generation(
+                    db,
+                    user,
+                    generation_id,
+                    PublishRequest(proposal_index=0),
+                    max_image_bytes=100,
+                )
+            )
+
+        assert rollback_called is True
