@@ -12,7 +12,11 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <p className="kicker">YOUR AI GROWTH PARTNERS</p>
           <h1 id="dashboard-title">안녕하세요, 사장님!</h1>
           <p><strong>카피니와 분석이</strong>가 광고 제작부터 상권 전략까지 함께합니다.</p>
-          <span className="hero-brand-copy">매출부스터 AI</span>
+          <img
+            className="hero-brand-logo"
+            src="/assets/brand/salesbooster-logo.png"
+            alt="매출부스터 AI"
+          />
         </div>
         <div className="mascot-duo" aria-label="카피니와 분석이">
           <img className="mascot-duo-copyni" src="/assets/mascots/copyni.png" alt="광고 제작 파트너 카피니" />

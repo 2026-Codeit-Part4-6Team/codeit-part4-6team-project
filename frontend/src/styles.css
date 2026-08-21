@@ -259,7 +259,7 @@ select:focus-visible {
 .dashboard-greeting h1 { margin-bottom: 18px; font-size: clamp(30px, 3vw, 42px); font-weight: 750; letter-spacing: -0.045em; }
 .dashboard-greeting p:not(.kicker) { max-width: 460px; margin-bottom: 22px; color: #625d76; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.65; }
 .dashboard-greeting p strong { color: var(--primary); }
-.hero-brand-copy { color: var(--primary); font-size: 14px; font-weight: 900; letter-spacing: .04em; }
+.hero-brand-logo { display: block; width: clamp(200px, 24vw, 270px); height: auto; margin: -10px 0 -24px; }
 .mascot-duo { position: relative; align-self: stretch; min-height: 276px; }
 .mascot-duo img { position: absolute; bottom: -2px; width: 67%; max-height: 300px; object-fit: contain; object-position: bottom; filter: drop-shadow(0 14px 18px rgba(37, 33, 67, .12)); }
 .mascot-duo-copyni { left: -8%; }
@@ -439,6 +439,7 @@ select:focus-visible {
   .mascot-hero { grid-template-columns: 1fr; padding: 28px 24px 0; text-align: center; }
   .dashboard-greeting { padding-bottom: 10px; }
   .dashboard-greeting p:not(.kicker) { margin-inline: auto; }
+  .hero-brand-logo { width: min(72vw, 250px); margin-inline: auto; }
   .mascot-duo { min-height: 230px; }
   .mascot-duo img { max-height: 245px; }
   .feature-card-grid { grid-template-columns: minmax(0, 1fr); width: min(100%, 430px); }
