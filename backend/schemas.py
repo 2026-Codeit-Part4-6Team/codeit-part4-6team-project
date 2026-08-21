@@ -15,7 +15,7 @@ from pydantic import (
 logger = logging.getLogger(__name__)
 
 ChatbotType = Literal["basic", "consultant"]
-Platform = Literal["instagram", "banner"]
+Platform = Literal["instagram", "banner", "xbanner"]
 GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
 
 

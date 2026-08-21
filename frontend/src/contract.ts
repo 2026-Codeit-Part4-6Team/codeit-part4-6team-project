@@ -1,5 +1,5 @@
 export type ChatbotType = "basic" | "consultant";
-export type Platform = "instagram" | "banner";
+export type Platform = "instagram" | "banner" | "xbanner";
 
 /** Basic과 Consultant가 공유하는 선택 입력이다. 비어 있으면 null로 전송한다. */
 export type GenerateExtra = {
