@@ -17,6 +17,22 @@ def merge_dicts(left: dict, right: dict) -> dict:
     """병렬 노드가 각자 다른 키를 채워도 값이 유지되도록 얕은 병합하는 reducer."""
     return {**left, **right}
 
+class SourceStrategy(TypedDict):
+    """ConsultantStrategy 를 dict 로 받은 모양."""
+    summary: str
+    actions: list[dict]      # [{"type": "menu"|"promotion"|"target"|"other", "content": str}]
+
+
+class SourceContext(TypedDict):
+    """컨설팅→광고 연계 Context — ModelRequest.source_context 원문 (D-306).
+
+    ★ 서버가 관리권·타입·상태를 검증한 뒤 채운다.
+      프론트엔드는 이 값을 주입할 수 없다(GenerateRequest 는 source_gen_id 만 받는다).
+    """
+    generation_id: int
+    strategy: SourceStrategy
+    reasons: list[str]
+    sources: list[str]
 
 class CommonState(TypedDict):
     # ── 입력 (서비스 담당에게서 받음, 최초 요청에 항상 존재) ──
@@ -44,4 +60,6 @@ class CommonState(TypedDict):
     validation: NotRequired[Annotated[dict, merge_dicts]]  # {"input": {...}, "regulation": {...}}
 
     # ── 광고 연계 (v10 확정) ──
-    source_gen_id: NotRequired[int | None]  # 컨설팅→광고 파생 추적
+    # 변경 전: source_gen_id: NotRequired[int | None]  # 컨설팅→광고 파생 추적
+    #   → 서비스는 이 키를 보내지 않는다. 항상 None 이라 전략이 통째로 버려졌다.
+    source_context: NotRequired[SourceContext | None]
