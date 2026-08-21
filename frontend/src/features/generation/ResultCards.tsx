@@ -9,7 +9,23 @@ const actionMeta: Record<string, { label: string; visual: string }> = {
 
 // 모델 enum은 사용자 문구가 아니므로 카드에서는 한국어 라벨과 시각 요소로 변환한다.
 
-export function ResultCards({ response, onSuggestedChip }: { response: GenerationResponse; onSuggestedChip?: (chip: string) => void }) {
+export type ProposalIndex = 0 | 1 | 2;
+
+type ResultCardsProps = {
+  response: GenerationResponse;
+  onSuggestedChip?: (chip: string) => void;
+  onSelectProposal?: (index: ProposalIndex) => void;
+  selectedProposalIndex?: ProposalIndex | null;
+  publishedProposalIndex?: ProposalIndex | null;
+};
+
+export function ResultCards({
+  response,
+  onSuggestedChip,
+  onSelectProposal,
+  selectedProposalIndex = null,
+  publishedProposalIndex = null,
+}: ResultCardsProps) {
   const result = response.result ?? {};
   const title = typeof result.title === "string" ? result.title : "생성 결과";
   const proposals = Array.isArray(result.proposals) ? result.proposals : [];
@@ -30,12 +46,28 @@ export function ResultCards({ response, onSuggestedChip }: { response: Generatio
       {response.chatbot_type === "basic" ? (
         <div className="proposal-grid">
           {Array.from({ length: 3 }, (_, index) => {
+            const proposalIndex = index as ProposalIndex;
             const raw = proposals[index];
             const proposal = (raw ?? {}) as { copy?: string | null; image_b64?: string | null; error?: { message?: string } | null };
+            const canSelect = typeof proposal.copy === "string" && proposal.copy.trim().length > 0;
+            const imageSource = proposal.image_b64?.startsWith("data:")
+              ? proposal.image_b64
+              : proposal.image_b64
+                ? `data:image/png;base64,${proposal.image_b64}`
+                : null;
+            const isPublished = publishedProposalIndex === proposalIndex;
+            const isSelected = selectedProposalIndex === proposalIndex;
+            const actionLabel = isPublished
+              ? `제안 ${index + 1} 게시됨`
+              : !canSelect
+                ? "선택 불가"
+                : isSelected
+                  ? "선택됨"
+                  : "이 제안 선택";
             return (
-              <article className="card proposal" key={index}>
-                <div className="proposal-visual">{proposal.image_b64 ? <img className="proposal-image" src={`data:image/png;base64,${proposal.image_b64}`} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>
-                <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className="proposal-action">이 제안 선택</button></div>
+              <article className={`card proposal${isPublished ? " proposal-published" : ""}`} key={index}>
+                <div className="proposal-visual">{imageSource ? <img className="proposal-image" src={imageSource} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>
+                <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className="proposal-action" disabled={!canSelect || publishedProposalIndex !== null} aria-pressed={isSelected || isPublished} onClick={() => onSelectProposal?.(proposalIndex)}>{actionLabel}</button></div>
               </article>
             );
           })}

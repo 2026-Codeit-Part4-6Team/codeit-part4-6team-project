@@ -37,6 +37,24 @@ export type GenerationResponse = {
   usage: { plan: "free" | "paid"; credits_used: number };
 };
 
+export type PublishRequest = {
+  proposal_index: 0 | 1 | 2;
+  image_b64: string | null;
+};
+
+export type PublishResponse = {
+  generation_id: number;
+  status: "published";
+  hitl_approved: true;
+  proposal_index: 0 | 1 | 2;
+};
+
+export type WaitingCopyResponse = {
+  id: number;
+  copy_text: string;
+  industry: string | null;
+};
+
 export class ApiClient {
   constructor(
     private readonly baseUrl = "/api",
@@ -106,5 +124,19 @@ export class ApiClient {
       body: JSON.stringify(payload),
       headers: { "Idempotency-Key": idempotencyKey },
     });
+  }
+
+  publishGeneration(
+    generationId: number,
+    payload: PublishRequest,
+  ): Promise<PublishResponse> {
+    return this.request(`/generations/${generationId}/publish`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  waitingCopy(): Promise<WaitingCopyResponse> {
+    return this.request("/waiting-copies", { method: "GET" });
   }
 }
