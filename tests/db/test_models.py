@@ -95,8 +95,9 @@ def test_generation_has_idempotency_and_result_fields(db_session):
     assert generation.selected_proposal_index is None
 
 
-def test_generation_platform_persists_xbanner(db_session):
-    """신규 X-배너 생성 이력은 xbanner wire 값을 저장합니다."""
+@pytest.mark.parametrize("platform", ["banner", "xbanner"])
+def test_generation_platform_persists_transition_values(db_session, platform):
+    """전환기 생성 이력은 기존 banner와 신규 xbanner를 모두 저장합니다."""
     user = make_user()
     db_session.add(user)
     db_session.flush()
@@ -106,13 +107,13 @@ def test_generation_platform_persists_xbanner(db_session):
         idempotency_key="00000000-0000-0000-0000-000000000002",
         request_hash="b" * 64,
         question="X-배너 광고를 만들어줘",
-        platform="xbanner",
+        platform=platform,
         plan="free",
     )
     db_session.add(generation)
     db_session.commit()
 
-    assert generation.platform == "xbanner"
+    assert generation.platform == platform
 
 
 def test_user_idempotency_key_pair_is_unique(db_session):

@@ -10,23 +10,17 @@ def test_public_basic_request_requires_platform():
         GenerateRequest(chatbot_type="basic", question="광고를 만들어줘", max_accepted_credits=0)
 
 
-def test_public_basic_request_uses_xbanner_platform_enum():
-    """X-배너의 공개 wire 값은 xbanner이며 기존 banner는 거부합니다."""
+@pytest.mark.parametrize("platform", ["banner", "xbanner"])
+def test_public_basic_request_accepts_xbanner_and_legacy_banner(platform):
+    """전환기 Service 계약은 신규 xbanner와 기존 banner를 모두 허용합니다."""
     request = GenerateRequest(
-        chatbot_type="basic",
-        question="X-배너 광고를 만들어줘",
-        platform="xbanner",
-        max_accepted_credits=0,
-    )
-    assert request.platform == "xbanner"
-
-    with pytest.raises(ValidationError):
-        GenerateRequest(
             chatbot_type="basic",
             question="X-배너 광고를 만들어줘",
-            platform="banner",
+            platform=platform,
             max_accepted_credits=0,
-        )
+    )
+
+    assert request.platform == platform
 
 
 def test_public_consultant_request_requires_null_platform():
