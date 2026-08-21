@@ -9,6 +9,7 @@ from backend.routers.auth_router import router as auth_router
 from backend.routers.generate_router import router as generate_router
 from backend.routers.generations_router import router as generations_router
 from backend.routers.health_router import router as health_router
+from backend.routers.payments_router import router as payments_router
 from backend.routers.users_router import router as users_router
 from backend.routers.waiting_router import router as waiting_router
 
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(generate_router)
     application.include_router(generations_router)
+    application.include_router(payments_router)
     application.include_router(waiting_router)
 
     @application.exception_handler(RequestValidationError)

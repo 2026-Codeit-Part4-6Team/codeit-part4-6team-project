@@ -20,4 +20,25 @@ describe("BillingPage payment gate", () => {
 
     expect((html.match(/disabled=""/g) ?? [])).toHaveLength(3);
   });
+
+  it("shows explicit demo prices and actions when the demo catalog is enabled", () => {
+    const html = renderToStaticMarkup(
+      <BillingPage
+        onBack={vi.fn()}
+        demoCatalog={{
+          demo_enabled: true,
+          packages: [
+            { id: "starter", amount: 5000, credits: 500 },
+            { id: "standard", amount: 10000, credits: 1100 },
+            { id: "pro", amount: 30000, credits: 3500 },
+          ],
+        }}
+      />,
+    );
+
+    expect(html).toContain("시연용 결제");
+    expect(html).toContain("5,000원");
+    expect(html).toContain("500 Credit");
+    expect((html.match(/데모 충전/g) ?? [])).toHaveLength(3);
+  });
 });
