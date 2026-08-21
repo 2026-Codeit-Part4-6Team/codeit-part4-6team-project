@@ -2,17 +2,11 @@
 import json
 
 from models.consult.graph.state import ConsultState
-from models.consult.prompts.strategy import (
-    RETRY_ACTIONS_HINT,
-    RETRY_REASONS_HINT,
-    SYSTEM_PROMPT,
-    build_user_prompt,
-)
+from models.consult.prompts.strategy import RETRY_REASONS_HINT, SYSTEM_PROMPT, build_user_prompt
 from models.shared.llm import call_llm
 
 _VALID_ACTION_TYPES = {"menu", "promotion", "target", "other"}
 _MAX_REASONS_RETRIES = 2  # 근거 부족 재생성 상한(SDP §6.5)
-_MAX_ACTIONS_RETRIES = 1  # actions 개수 오류 재생성 상한(D8 실측에서 발견, C-001 등 5건)
 
 
 def normalize_title(title: object, store_name: str) -> str:
@@ -54,14 +48,8 @@ def strategy(state: ConsultState) -> dict:
     (DoD상 reasons는 반드시 포함돼야 하므로). 이 재시도는 strategy 노드 내부에서만
     반복되며, 그래프 조건부 엣지는 쓰지 않는다 — strategy_check 노드는 D9에 별도로
     구현될 "근거 유무·실행 가능성·LLM Judge" 검증이라 이번 범위와 다르다.
-
-    actions 개수 오류(actions_wrong_length, 0개나 4개 이상)도 최대 1회 재생성한다
-    (D8 60문항 실측에서 status=error 5건 전부가 이 원인으로 확인됨 — 프롬프트의
-    "1~3개만" 지시를 LLM이 가끔 무시함). 다른 actions 오류(enum 밖 type, content
-    누락 등)는 형식 자체가 신뢰할 수 없다고 보고 재생성 없이 즉시 예외를 던진다.
-
     여러 번 호출한 토큰 사용량은 모두 합산해 state["tokens_used"]에 누적하고,
-    실제 재생성 횟수(actions + reasons 합산)는 state["retry_count"]에 기록한다.
+    실제 재생성 횟수는 state["retry_count"]에 기록한다.
     """
     question = state["question"]
     store = state["store"]
@@ -73,16 +61,11 @@ def strategy(state: ConsultState) -> dict:
 
     total_tokens = 0
     retry_count = 0
-    actions_retry_count = 0
 
     while True:
-        if retry_count > 0:
-            hint = RETRY_REASONS_HINT
-        elif actions_retry_count > 0:
-            hint = RETRY_ACTIONS_HINT
-        else:
-            hint = ""
-        user_prompt = base_user_prompt if not hint else f"{base_user_prompt}\n\n{hint}"
+        user_prompt = (
+            base_user_prompt if retry_count == 0 else f"{base_user_prompt}\n\n{RETRY_REASONS_HINT}"
+        )
         raw, tokens = call_llm(SYSTEM_PROMPT, user_prompt, json_mode=True, deadline=deadline)
         total_tokens += tokens
 
@@ -97,12 +80,6 @@ def strategy(state: ConsultState) -> dict:
 
         actions, actions_error = _parse_actions(parsed.get("actions"))
         if actions is None:
-            if (
-                actions_error == "actions_wrong_length"
-                and actions_retry_count < _MAX_ACTIONS_RETRIES
-            ):
-                actions_retry_count += 1
-                continue
             raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
 
         reasons = _parse_reasons(parsed.get("reasons"))
@@ -126,7 +103,7 @@ def strategy(state: ConsultState) -> dict:
         "tokens_used": state.get("tokens_used", 0) + total_tokens,
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).
-        "retry_count": state.get("retry_count", 0) + retry_count + actions_retry_count,
+        "retry_count": state.get("retry_count", 0) + retry_count,
         **sources_update,
     }
 
