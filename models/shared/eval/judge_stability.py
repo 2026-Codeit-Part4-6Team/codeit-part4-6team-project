@@ -18,6 +18,11 @@ models/shared/eval/judge_stability.py
   ② 문항(rubric 평균) : max-min <= 0.5 — 여러 항목이 동시에 흔들린 경우를 잡는다
   ③ 데이터셋          : llm_judge_avg 재현 SD <= 0.05  ← ★ 진짜 통과 기준
                                         비교표에 싣는 숫자가 이것이기 때문이다
+
+★ 이 모듈은 판정만 한다
+  생성·채점은 pilot_judge_stability.py 가 하고, 결과를 evaluate_stability() 에 넘긴다.
+  판정 로직을 파일럿 안에 두면 기준이 바뀔 때마다 파일럿을 고쳐야 하고,
+  기본·컨설턴트가 서로 다른 기준으로 통과하게 된다.
 """
 
 from __future__ import annotations
@@ -34,14 +39,16 @@ def evaluate_stability(runs_by_item: dict[str, dict[str, list[int]]],
                        target_item_count: int) -> dict:
     """runs_by_item: {문항ID: {rubric항목: [1회차, 2회차, 3회차]}}
 
-    target_item_count: 본 평가 문항 수(컨설턴트 60 / 기본 25).
-        파일럿 표본에서 관측한 흔들림 비율을 본 평가 규모로 외삽한다.
+    생성이 실패한 문항은 빈 dict 로 넘긴다 — 채점할 응답이 없으므로
+    안정성 표본에서 제외되지만 total_responses 로 몇 건이 빠졌는지는 드러난다(D-300).
+
+    target_item_count: 본 평가 문항 수. 파일럿 표본의 흔들림 비율을 그 규모로 외삽한다.
+        ⚠️ 하드코딩하지 말고 golden_dataset.json 에서 해당 area 문항 수를 세서 넘긴다.
     """
     cells, cell_fail, item_fail = [], [], []
+    scored_items = {k: v for k, v in runs_by_item.items() if v}
 
-    for item_id, rubric in runs_by_item.items():
-        if not rubric:                       # 생성 실패 문항 — 채점할 응답이 없다
-            continue
+    for item_id, rubric in scored_items.items():
         for name, scores in rubric.items():
             spread = max(scores) - min(scores)
             cells.append(spread)
@@ -54,21 +61,35 @@ def evaluate_stability(runs_by_item: dict[str, dict[str, list[int]]],
         ]
         item_spread = max(per_run_avg) - min(per_run_avg)
         if item_spread > ITEM_MAX_SPREAD:
-            item_fail.append(f"{item_id} 평균 {per_run_avg} (편차 {item_spread:.2f})")
+            item_fail.append(
+                f"{item_id} 회차별 평균 {[round(v, 2) for v in per_run_avg]} "
+                f"(편차 {item_spread:.2f})"
+            )
 
     flip_rate = sum(1 for s in cells if s > 0) / len(cells) if cells else 0.0
-    rubric_k = max((len(r) for r in runs_by_item.values() if r), default=4)
+    rubric_k = max((len(r) for r in scored_items.values()), default=4)
+    sessions = max((len(next(iter(r.values()))) for r in scored_items.values()), default=0)
 
     # 흔들리는 셀은 두 등급 사이를 오간다 → 셀당 분산 상한 p(1-p) = 0.25
     # 전체 셀 평균의 표준오차 = sqrt(flip_rate * 0.25 / 총셀수)
     n_cells = target_item_count * rubric_k
-    projected_sd = (flip_rate * 0.25 / n_cells) ** 0.5
+    projected_sd = (flip_rate * 0.25 / n_cells) ** 0.5 if n_cells else 0.0
     mde = MDE_SIGMA * (2 ** 0.5) * projected_sd      # 두 측정 차이의 3σ
 
-    passed = not cell_fail and not item_fail and projected_sd <= DATASET_MAX_SD
+    passed = (
+        bool(scored_items)
+        and not cell_fail
+        and not item_fail
+        and projected_sd <= DATASET_MAX_SD
+    )
     return {
         "passed": passed,
+        # ★ format_report 가 쓰는 두 값 — 없으면 KeyError 가 난다
+        "sessions": sessions,                       # 같은 응답을 몇 회 채점했나
+        "total_responses": len(scored_items),       # 실제로 채점된 응답 건수
+        "skipped_items": [k for k, v in runs_by_item.items() if not v],  # 생성 실패(D-300)
         "measured_cells": len(cells),
+        "rubric_count": rubric_k,
         "flip_rate": round(flip_rate, 4),
         "cells_over_1": cell_fail,
         "items_over_0_5": item_fail,
@@ -84,9 +105,12 @@ def format_report(result: dict) -> str:
     lines = [
         "",
         "== 파일럿 안정성 검증 ==",
-        f"  판정 결과          : {ok}",                              # ← 추가
+        f"  판정 결과          : {ok}",
         f"  총 세션 수         : {result['sessions']}회",
         f"  총 응답 수         : {result['total_responses']}건",
+        f"  측정 셀            : {result['measured_cells']}개 "
+        f"(응답 {result['total_responses']} × rubric {result['rubric_count']})",
+        f"  흔들린 비율        : {result['flip_rate']:.0%}",
         f"  ① 편차 2 이상 셀   : {len(result['cells_over_1'])}건",
         f"  ② 문항 평균 편차   : {len(result['items_over_0_5'])}건 초과",
         (
@@ -98,6 +122,11 @@ def format_report(result: dict) -> str:
             f"— 이보다 작은 변화는 개선이라 부르지 않는다"
         ),
     ]
+    if result["skipped_items"]:
+        lines.append(
+            f"  ⚠️ 생성 실패로 제외 : {result['skipped_items']} "
+            f"— 안정성과 별개 트랙이다(D-300). failure_rate 에는 그대로 계상한다"
+        )
     for f in result["cells_over_1"] + result["items_over_0_5"]:
         lines.append(f"    · {f}")
     return "\n".join(lines)
@@ -105,6 +134,7 @@ def format_report(result: dict) -> str:
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 앵커 문항 — Judge 자체가 시간에 따라 움직였는지 검출한다 (D-302)
+# ★ 파일럿이 아니라 '튜닝 전후 비교' 시점에 쓴다. 파일럿에서는 호출하지 않는다.
 # ═════════════════════════════════════════════════════════════════════════════
 ANCHOR_MAX_DRIFT = 0.25
 
