@@ -24,7 +24,7 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: P
   } else if (route === "consultant_chatbot") {
     content = <GenerationLab key="consultant-generation" api={api} chatbotType="consultant" />;
   } else if (route === "mypage") {
-    content = <MyPage user={user} onBack={() => onNavigate("dashboard")} />;
+    content = <MyPage api={api} user={user} onBack={() => onNavigate("dashboard")} onBilling={() => onNavigate("billing")} />;
   } else if (route === "settings") {
     content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
   } else {
