@@ -46,6 +46,7 @@ class Settings:
     geocode_fallback_enabled: bool
     geocode_fallback_lat: float
     geocode_fallback_lng: float
+    demo_payment_enabled: bool
 
 
 def load_settings() -> Settings:
@@ -54,8 +55,11 @@ def load_settings() -> Settings:
     if environment not in {"development", "test", "demo", "production"}:
         raise ValueError("APP_ENV는 development, test, demo, production 중 하나여야 합니다.")
     geocode_fallback_enabled = _read_bool("GEOCODE_FALLBACK_ENABLED", False)
+    demo_payment_enabled = _read_bool("DEMO_PAYMENT_ENABLED", False)
     if environment not in {"development", "demo"} and geocode_fallback_enabled:
         raise ValueError("geocoding fallback은 development 또는 demo 환경에서만 사용할 수 있습니다.")
+    if environment == "production" and demo_payment_enabled:
+        raise ValueError("운영 환경에서는 데모 결제를 활성화할 수 없습니다.")
     secret_key = os.getenv("SESSION_SECRET_KEY")
     if secret_key is not None:
         secret_key = secret_key.strip()
@@ -97,6 +101,7 @@ def load_settings() -> Settings:
         geocode_fallback_lng=_read_coordinate(
             "GEOCODE_FALLBACK_LNG", 127.0276, minimum=-180, maximum=180
         ),
+        demo_payment_enabled=demo_payment_enabled,
     )
 
 
