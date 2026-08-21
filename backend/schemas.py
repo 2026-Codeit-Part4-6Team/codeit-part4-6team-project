@@ -388,3 +388,27 @@ class GenerationResponse(StrictModel):
     chatbot_type: ChatbotType
     result: PublicGenerationResult | None = None
     usage: GenerationUsage
+
+
+class PublishRequest(StrictModel):
+    """Basic 생성 결과 중 게시 승인할 제안과 선택 이미지를 받습니다."""
+
+    proposal_index: Literal[0, 1, 2]
+    image_b64: str | None = None
+
+
+class PublishResponse(StrictModel):
+    """원자적으로 반영된 게시 승인 결과입니다."""
+
+    generation_id: int = Field(gt=0)
+    status: Literal["published"]
+    hitl_approved: Literal[True]
+    proposal_index: Literal[0, 1, 2]
+
+
+class WaitingCopyResponse(StrictModel):
+    """생성 대기 화면에 표시할 서버 관리 문구입니다."""
+
+    id: int = Field(gt=0)
+    copy_text: str = Field(min_length=1)
+    industry: str | None = None

@@ -36,6 +36,7 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    max_approved_image_bytes: int
     session_secret_key: str
     session_max_age_seconds: int
     session_cookie_secure: bool
@@ -75,6 +76,9 @@ def load_settings() -> Settings:
         consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 10),
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
+        ),
+        max_approved_image_bytes=_read_int(
+            "MAX_APPROVED_IMAGE_BYTES", 5_242_880, minimum=1
         ),
         session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
