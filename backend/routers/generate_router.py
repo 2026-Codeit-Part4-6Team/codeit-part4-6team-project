@@ -43,8 +43,6 @@ def _insufficient_credits_detail(error: InsufficientCredits) -> dict[str, str | 
         "required": error.required,
         "current": error.current,
     }
-
-
 @router.post("/generate", response_model=GenerationResponse)
 async def generate(
     http_request: Request,

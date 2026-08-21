@@ -300,8 +300,6 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
-
-
 class ConsultantSourceContext(StrictModel):
     """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
 
