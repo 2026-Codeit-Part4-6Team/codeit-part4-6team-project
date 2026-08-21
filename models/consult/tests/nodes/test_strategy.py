@@ -7,7 +7,7 @@ import openai
 import pytest
 
 from models.consult.nodes.strategy import strategy
-from models.consult.prompts.strategy import RETRY_REASONS_HINT
+from models.consult.prompts.strategy import RETRY_ACTIONS_HINT, RETRY_REASONS_HINT
 
 _STORE = {
     "name": "카페 코드잇",
@@ -630,13 +630,100 @@ def test_reasons_field_missing_entirely_triggers_retry(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_immediately_on_malformed_actions_even_on_retry_attempt(mock_call_llm) -> None:
-    """actions 형식 오류는 재생성 대상이 아니라 즉시 실패 — 근거 재생성 중이라도 예외로 처리한다."""
+    """actions_wrong_length가 아닌 형식 오류(예: enum 밖 type)는 재생성 대상이 아니라
+    즉시 실패 — 근거 재생성 중이라도 예외로 처리한다."""
     mock_call_llm.side_effect = [
         _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도 유발
-        _response(_payload(actions=[])),  # 2차: actions 자체가 잘못됨 → 즉시 실패
+        _response(
+            _payload(actions=[{"type": "invalid_type", "content": "내용"}])
+        ),  # 2차: 즉시 실패
     ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid_type"):
         strategy(_state())
 
     assert mock_call_llm.call_count == 2
+
+
+# ── 섹션 6: actions 개수 오류(actions_wrong_length) 재생성 ─────────────────
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retries_once_when_actions_wrong_length_then_succeeds(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: actions 0개
+        _response(_payload()),  # 2차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["actions"] == _ACTIONS
+    assert result["retry_count"] == 1
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retries_once_when_actions_too_many_then_succeeds(mock_call_llm) -> None:
+    too_many = [{"type": "menu", "content": "a"}] * 4
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=too_many)),  # 1차: actions 4개
+        _response(_payload()),  # 2차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["actions"] == _ACTIONS
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_prompt_includes_correction_hint(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),
+        _response(_payload()),
+    ]
+
+    strategy(_state())
+
+    first_call_user_prompt = mock_call_llm.call_args_list[0].args[1]
+    second_call_user_prompt = mock_call_llm.call_args_list[1].args[1]
+    assert RETRY_ACTIONS_HINT not in first_call_user_prompt
+    assert RETRY_ACTIONS_HINT in second_call_user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_accumulates_tokens_across_actions_retries(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[]), tokens=100),
+        _response(_payload(), tokens=120),
+    ]
+
+    result = strategy(_state(tokens_used=10))
+
+    assert result["tokens_used"] == 10 + 100 + 120
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_after_exhausting_actions_retries(mock_call_llm) -> None:
+    """actions_wrong_length가 2회(최초 1회+재생성 1회) 연속되면 예외를 던진다(재생성 상한 1회)."""
+    mock_call_llm.return_value = _response(_payload(actions=[]))
+
+    with pytest.raises(ValueError, match="actions_wrong_length"):
+        strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_and_reasons_retry_counts_both_accumulate(mock_call_llm) -> None:
+    """actions 재시도와 reasons 재시도가 한 호출 안에서 섞여도 retry_count에 둘 다 반영된다."""
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: actions 개수 오류 → 재시도
+        _response(_payload(reasons=[])),  # 2차: 근거 없음 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    assert result["retry_count"] == 2
