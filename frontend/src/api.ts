@@ -84,6 +84,24 @@ export type GenerationDetailResponse = GenerationListItem & {
   hitl_approved: boolean;
 };
 
+export type DemoPaymentPackage = {
+  id: "starter" | "standard" | "pro";
+  amount: number;
+  credits: number;
+};
+
+export type DemoPaymentCatalogResponse = {
+  demo_enabled: boolean;
+  packages: DemoPaymentPackage[];
+};
+
+export type DemoPaymentResponse = DemoPaymentPackage & {
+  payment_id: number;
+  balance: number;
+  status: "completed";
+  demo: true;
+};
+
 export class ApiClient {
   constructor(
     private readonly baseUrl = "/api",
@@ -150,6 +168,21 @@ export class ApiClient {
 
   generationDetail(generationId: number): Promise<GenerationDetailResponse> {
     return this.request(`/generations/${generationId}`, { method: "GET" });
+  }
+
+  paymentCatalog(): Promise<DemoPaymentCatalogResponse> {
+    return this.request("/payments/catalog", { method: "GET" });
+  }
+
+  purchaseDemoPackage(
+    packageId: DemoPaymentPackage["id"],
+    idempotencyKey: string,
+  ): Promise<DemoPaymentResponse> {
+    return this.request("/payments", {
+      method: "POST",
+      body: JSON.stringify({ package: packageId }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
   }
 
   estimate(payload: EstimatePayload): Promise<EstimateResponse> {
