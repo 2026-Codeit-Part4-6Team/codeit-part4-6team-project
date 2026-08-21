@@ -446,17 +446,22 @@ def _build_report(
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
             # contract_compliance가 100%여도 진짜 고쳐진 건지 복구가 가려버린 건지
             # 구분하기 위한 지표(D-139 후속, PM 요청) — 둘 다 낮을수록 좋다.
+            # 관측 문항이 0개(전부 그래프 예외로 죽음)면 "복구 없음"(0.0)과
+            # "측정 불가"가 같은 값으로 섞이므로 None으로 남긴다 — 분모(관측
+            # 문항 수)도 함께 기록해 서로 다른 실행 간 비교 시 분모 차이를
+            # 알 수 있게 한다(Codex 리뷰).
+            "actions_observed_count": len(actions_observed),
             "actions_retry_rate": (
                 sum(result["actions_retried"] for result in actions_observed)
                 / len(actions_observed)
                 if actions_observed
-                else 0.0
+                else None
             ),
             "actions_truncate_rate": (
                 sum(result["actions_truncated"] for result in actions_observed)
                 / len(actions_observed)
                 if actions_observed
-                else 0.0
+                else None
             ),
             "trend_path_match_rate": trend_path_match_rate(results),
             "judge_failure_rate": (

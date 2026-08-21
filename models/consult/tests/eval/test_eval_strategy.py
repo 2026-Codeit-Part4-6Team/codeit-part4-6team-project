@@ -580,6 +580,11 @@ def test_evaluate_item_hides_graph_exception_and_skips_judge(
         "reason": "unknown",
         "message": "전략 생성 중 오류가 발생했습니다.",
     }
+    # 그래프 실행 자체가 죽으면 strategy() 노드가 정상 반환하지 못해 재시도·절단
+    # 여부를 전혀 볼 수 없다 — False(미발생)로 단정하면 "재시도했지만 실패"와
+    # "애초에 시도 안 함"을 구분 못 하므로 None(측정 불가)이어야 한다(Codex 리뷰).
+    assert result["actions_retried"] is None
+    assert result["actions_truncated"] is None
     assert "비밀" not in json.dumps(result, ensure_ascii=False)
     mock_call_llm.assert_not_called()
 
@@ -704,8 +709,8 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
             "context_snapshot": {},
             "trend_path": None,
             "judge_error": None,
-            "actions_retried": False,
-            "actions_truncated": False,
+            "actions_retried": None,  # 그래프 실행 자체 실패 — 측정 불가
+            "actions_truncated": None,
             "_status_ok": False,
             "_contract_ok": False,
             "_judge_ok": None,
@@ -759,8 +764,9 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "llm_judge_avg": 3.0,
         "hallucination_rate": pytest.approx(1 / 3),
         "contract_compliance": pytest.approx(1 / 3),
-        "actions_retry_rate": pytest.approx(1 / 3),
-        "actions_truncate_rate": pytest.approx(1 / 3),
+        "actions_observed_count": 2,
+        "actions_retry_rate": pytest.approx(1 / 2),
+        "actions_truncate_rate": pytest.approx(1 / 2),
         "trend_path_match_rate": 0.5,
         "judge_failure_rate": 0.5,
         "failure_rate": pytest.approx(1 / 3),
@@ -785,6 +791,45 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "actions_retried",
         "actions_truncated",
     }
+
+
+@patch("models.shared.eval.token_usage.get_total_tokens", return_value=0)
+def test_build_report_marks_actions_rates_none_when_all_items_unobserved(
+    _mock_get_total_tokens,
+) -> None:
+    """문항 전부가 그래프 실행 실패(actions_retried=None)면, "복구가 한 번도
+    없었음"(0.0)과 혼동되지 않도록 비율을 None으로 남기고 관측 문항 수는
+    0으로 기록해야 한다(Codex 리뷰)."""
+    results = [
+        {
+            "id": "C-001",
+            "passed": False,
+            "scores": {},
+            "unexpected_numbers": [],
+            "response": {"status": "error"},
+            "context_snapshot": {},
+            "trend_path": None,
+            "judge_error": None,
+            "actions_retried": None,
+            "actions_truncated": None,
+            "_status_ok": False,
+            "_contract_ok": False,
+            "_judge_ok": None,
+            "_latency_s": 1.0,
+        }
+    ]
+
+    report = _build_report(
+        results,
+        area="consult",
+        fixture_version="v2",
+        trend_fixture_version="v1-naver-apihub",
+        run_at=datetime(2026, 8, 21, 12, 0, tzinfo=ZoneInfo("Asia/Seoul")),
+    )
+
+    assert report["metrics"]["actions_observed_count"] == 0
+    assert report["metrics"]["actions_retry_rate"] is None
+    assert report["metrics"]["actions_truncate_rate"] is None
 
 
 @patch("models.shared.eval.token_usage.get_total_tokens", return_value=0)

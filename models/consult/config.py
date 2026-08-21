@@ -7,7 +7,8 @@ CACHE_TTL_TREND_DAYS = 7  # 트렌드 캐시 TTL(SDP §2.7) — cache/trend_repo
 MAX_RELATED_KEYWORDS = 5
 
 # backend.schemas.ConsultantStrategy.actions의 Field(min_length=1, max_length=3)과
-# 반드시 같아야 한다 — 모델 프로덕션 코드는 backend를 import할 수 없어(§7.4) 값을
-# 복제하지만, 계약 동기화 테스트(tests/test_actions_contract.py)가 어긋남을 잡는다.
+# 반드시 같아야 한다 — 모델 프로덕션 코드는 backend를 import할 수 없어(배포 단위
+# 분리, D-031) 값을 복제하지만, 계약 동기화 테스트(tests/test_actions_contract.py)가
+# 어긋남을 잡는다.
 MIN_ACTIONS = 1
 MAX_ACTIONS = 3
