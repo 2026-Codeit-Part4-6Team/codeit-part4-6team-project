@@ -730,6 +730,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "changed",
         "token_usage",
         "metrics",
+        "anchors",
         "items",
     ]
     assert report["run_at"] == "2026-08-20T18:00:00+09:00"
@@ -758,6 +759,12 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "latency_p50_s": 3.0,
         "latency_p95_s": 4.8,
     }
+    assert report["anchors"] == {
+        "expected_ids": ["C-002", "C-017", "C-051"],
+        "captured_ids": ["C-002"],
+        "missing_ids": ["C-017", "C-051"],
+        "complete": False,
+    }
     assert set(report["items"][0]) == {
         "id",
         "passed",
@@ -767,6 +774,42 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "context_snapshot",
         "trend_path",
         "judge_error",
+    }
+
+
+@patch("models.shared.eval.token_usage.get_total_tokens", return_value=0)
+def test_build_report_marks_all_anchor_responses_captured(
+    _mock_get_total_tokens,
+) -> None:
+    def result_for(item_id: str) -> dict:
+        return {
+            "id": item_id,
+            "passed": True,
+            "scores": {"자연스러움": 4},
+            "unexpected_numbers": [],
+            "response": _OK_RESPONSE,
+            "context_snapshot": {"market": {"same_industry_count": 1}},
+            "trend_path": None,
+            "judge_error": None,
+            "_status_ok": True,
+            "_contract_ok": True,
+            "_judge_ok": True,
+            "_latency_s": 1.0,
+        }
+
+    report = _build_report(
+        [result_for(item_id) for item_id in ("C-002", "C-017", "C-051")],
+        area="consult",
+        fixture_version="v2",
+        trend_fixture_version="v1-naver-apihub",
+        run_at=datetime(2026, 8, 21, 12, 0, tzinfo=ZoneInfo("Asia/Seoul")),
+    )
+
+    assert report["anchors"] == {
+        "expected_ids": ["C-002", "C-017", "C-051"],
+        "captured_ids": ["C-002", "C-017", "C-051"],
+        "missing_ids": [],
+        "complete": True,
     }
 
 

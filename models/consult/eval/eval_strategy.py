@@ -27,6 +27,7 @@ DATASET_VERSION = "v1.3"
 DEFAULT_DATASET_PATH = Path("shared_data/golden_dataset.json")
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 SLEEP_SECONDS = 1.0
+ANCHOR_ITEM_IDS = ("C-002", "C-017", "C-051")
 DEFAULT_STORE = {
     "name": "카페 코드잇",
     "type": "카페",
@@ -361,6 +362,23 @@ def _percentile(values: list[float], percentile: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * weight
 
 
+def _anchor_metadata(results: list[dict]) -> dict:
+    """튜닝 전후에 동일 응답을 재채점할 대표 문항의 포착 상태를 만든다."""
+    by_id = {result["id"]: result for result in results}
+    captured_ids = [
+        item_id
+        for item_id in ANCHOR_ITEM_IDS
+        if (result := by_id.get(item_id)) and result["_status_ok"] and bool(result["scores"])
+    ]
+    missing_ids = [item_id for item_id in ANCHOR_ITEM_IDS if item_id not in captured_ids]
+    return {
+        "expected_ids": list(ANCHOR_ITEM_IDS),
+        "captured_ids": captured_ids,
+        "missing_ids": missing_ids,
+        "complete": not missing_ids,
+    }
+
+
 def _build_report(
     results: list[dict],
     *,
@@ -414,6 +432,7 @@ def _build_report(
             "latency_p50_s": _percentile(latencies, 0.50),
             "latency_p95_s": _percentile(latencies, 0.95),
         },
+        "anchors": _anchor_metadata(results),
         "items": [{field: result[field] for field in public_fields} for result in results],
     }
 
