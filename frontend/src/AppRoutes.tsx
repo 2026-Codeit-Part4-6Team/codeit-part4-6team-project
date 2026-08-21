@@ -2,8 +2,8 @@ import type { AppRoute } from "./appState";
 import type { ApiClient, UserResponse } from "./api";
 import { DashboardHome } from "./components/DashboardHome";
 import { DashboardLayout } from "./components/DashboardLayout";
-import { PlaceholderPage } from "./components/PlaceholderPage";
 import { GenerationLab } from "./features/generation/GenerationLab";
+import { BillingPage } from "./features/billing/BillingPage";
 import { MyPage } from "./components/MyPage";
 import { SettingsPage } from "./components/SettingsPage";
 
@@ -28,13 +28,7 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: P
   } else if (route === "settings") {
     content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
   } else {
-    content = (
-      <PlaceholderPage
-        title="크레딧 충전"
-        description="결제 정책이 확정되는 D9에서 안전한 충전 흐름을 연결합니다."
-        onBack={() => onNavigate("dashboard")}
-      />
-    );
+    content = <BillingPage onBack={() => onNavigate("dashboard")} />;
   }
 
   return (

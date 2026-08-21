@@ -65,4 +65,12 @@ describe("D5 protected routes", () => {
     expect(renderRoute("settings")).toContain("기본 제공 모델");
     expect(renderRoute("settings")).toContain("고급 제공 모델");
   });
+
+  it("renders the payment policy gate without a transaction action", () => {
+    const html = renderRoute("billing");
+
+    expect(html).toContain("결제 정책 확정 대기");
+    expect(html).toContain("starter");
+    expect(html).not.toContain("결제하기");
+  });
 });
