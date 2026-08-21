@@ -73,7 +73,8 @@ jobs:
 
       - name: Build and start services
         env:
-          BACKEND_BUILD_TARGET: ci
+          BACKEND_BUILD_TARGET: actual
+          CHATBOT_MODE: mock
         run: docker compose up --build -d --wait --wait-timeout 180
 
       - name: Verify public health endpoints
