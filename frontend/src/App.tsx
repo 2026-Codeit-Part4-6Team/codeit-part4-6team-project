@@ -54,6 +54,12 @@ export function App() {
     }
   }
 
+  function updateCredits(credits: number) {
+    setView((current) => current.user
+      ? { ...current, user: { ...current.user, credits } }
+      : current);
+  }
+
   if (restoreError) {
     return (
       <main className="loading loading--error">
@@ -71,6 +77,7 @@ export function App() {
       route={view.route}
       onNavigate={onNavigate}
       onLogout={() => void logout()}
+      onCreditsChanged={updateCredits}
     />
   );
 }

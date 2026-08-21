@@ -7,6 +7,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/app.db}
       APP_ENV: ${APP_ENV:-development}
+      DEMO_PAYMENT_ENABLED: ${DEMO_PAYMENT_ENABLED:-false}
       SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-local-development-secret}
       SESSION_MAX_AGE_SECONDS: ${SESSION_MAX_AGE_SECONDS:-28800}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
