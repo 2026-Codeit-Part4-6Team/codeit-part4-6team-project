@@ -1218,7 +1218,7 @@ LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
 | `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 추가)** | 컨설턴트 담당 | 8/19 |
 | `models/shared/eval/eval_refusal.py` | ⬜ **미구현** | 전민재 PM | 8/19 |
 | `shared_data/golden_dataset.json` | ⬜ **미생성** | 전원 | 8/19 파일럿 |
-| `models/shared/eval/compare_reports.py` | ⬜ **미구현(v1.3 신설, 선택)** | 전민재 PM | 8/20 |
+| `models/shared/eval/compare_reports.py` | ✅ **구현 완료(v1.3 신설, 선택)** | 전민재 PM | 8/20 |
 
 > ⚠️ **`tests/validation/test_contract.py` 는 거부 정확도를 측정하지 않는다.**
 > 그것은 검증 함수의 **반환 형식**만 확인하는 스모크 테스트이고,
@@ -1377,16 +1377,85 @@ models/shared/eval/reports/YYYY-MM-DD.json
 
 **결과 파일 형식**
 
+⚠️ metrics 에 새 키를 추가하면 compare_reports.py 의 _LOWER_IS_BETTER·_PERCENT_METRICS 에도 등록한다. 등록하지 않으면 비교표에서 개선 방향(굵게)과 단위(%p)가 붙지 않아 발표 자료에서 잘못 읽힌다.
+
+**기본 챗봇 ("area": "basic")**
+```json
+{
+  "run_at": "2026-08-21T18:00:00+09:00",
+  "area": "basic",
+  "generation_model": "gpt-4o-mini",
+  "judge_model": "gpt-4.1-mini",
+  "generation_temperature": 0.3,
+  "judge_temperature": 0.0,
+  "dataset_version": "v1.3",
+  "fixture_version": "v2-industry-code",
+  "trend_fixture_version": "v1-naver-apihub",
+  "item_count": 25,
+  "changed": "copy_gen.py SYSTEM_PROMPT few-shot 2개 추가",
+  "token_usage": {
+    "by_model": { "gpt-4o-mini": 12000, "gpt-4.1-mini": 4000 },
+    "generation_tokens": 12000,
+    "judge_tokens": 4000,
+    "total_tokens": 16000,
+    "unattributed_tokens": 0
+  },
+  "metrics": {
+    "llm_judge_avg": 4.1,
+    "contract_compliance": 1.0,
+    "banned_phrase_rate": 0.04,
+    "failure_rate": 0.0,
+    "latency_p50_s": 8.4,
+    "latency_p95_s": 15.2
+  },
+  "metrics_by_rubric": {
+    "요청_반영도": 4.3, "구체성": 3.8, "규제_안전성": 4.6, "채널_적합성": 3.9
+  },
+  "items": [
+    {
+      "id": "B-001",
+      "passed": true,
+      "scores": { "요청_반영도": 5, "구체성": 4, "규제_안전성": 5, "채널_적합성": 4 },
+      "contract": {
+        "must_have_fields_ok": true,
+        "missing_fields": [],
+        "proposal_count": 3,
+        "proposal_count_ok": true,
+        "slot_states": ["copy+image", "copy+image", "copy_only"],
+        "internal_keys_leaked": []
+      },
+      "must_include_any_hit": "여름",
+      "banned_phrase_hits": [],
+      "latency_s": 8.1,
+      "tokens": { "generation": 480, "judge": 160 },
+      "response": { "...": "..." },
+      "context_snapshot": { "...": "..." }
+    }
+  ]
+}
+```
+
+**컨설턴트 챗봇 ("area": "consult")**
 ```json
 {
   "run_at": "2026-08-20T18:00:00+09:00",
   "area": "consult",
   "generation_model": "gpt-4o-mini",
   "judge_model": "gpt-4.1-mini",
+  "generation_temperature": 0.3,
+  "judge_temperature": 0.0,
   "dataset_version": "v1.3",
   "fixture_version": "v2-industry-code",
   "trend_fixture_version": "v1-naver-apihub",
   "item_count": 20,
+  "changed": "베이스라인 — 변경 없음(최초 측정)",
+  "token_usage": {
+    "by_model": { "gpt-4o-mini": 41200, "gpt-4.1-mini": 9800 },
+    "generation_tokens": 41200,
+    "judge_tokens": 9800,
+    "total_tokens": 51000,
+    "unattributed_tokens": 0
+  },
   "metrics": {
     "llm_judge_avg": 4.1,
     "hallucination_rate": 0.05,
@@ -1396,11 +1465,20 @@ models/shared/eval/reports/YYYY-MM-DD.json
     "latency_p50_s": 6.2,
     "latency_p95_s": 11.8
   },
+  "metrics_by_rubric": { "근거_충실도": 4.3, "실행_가능성": 3.9 },
   "items": [
     {
       "id": "C-011",
       "passed": true,
       "scores": { "근거_충실도": 5, "실행_가능성": 4 },
+      "contract": {
+        "must_have_fields_ok": true,
+        "missing_fields": [],
+        "reasons_count": 3,
+        "min_reasons_ok": true,
+        "sources": ["상권분석", "트렌드"],
+        "suggested_chips_count": 3
+      },
       "unexpected_numbers": [],
       "trend_path": {
         "expected": true,
@@ -1409,8 +1487,56 @@ models/shared/eval/reports/YYYY-MM-DD.json
         "keyword": "아이스아메리카노",
         "trend_in_context": true
       },
+      "latency_s": 6.4,
+      "tokens": { "generation": 2060, "judge": 490 },
       "response": { "...": "..." },
       "context_snapshot": { "...": "..." }
+    }
+  ]
+}
+```
+
+**거부 영역 ("area": "refusal")**
+```json
+{
+  "run_at": "2026-08-21T18:00:00+09:00",
+  "area": "refusal",
+  "generation_model": "gpt-4o-mini",
+  "judge_model": "gpt-4.1-mini",
+  "generation_temperature": 0.3,
+  "judge_temperature": 0.0,
+  "dataset_version": "v1.3",
+  "fixture_version": "v2-industry-code",
+  "trend_fixture_version": "v1-naver-apihub",
+  "item_count": 15,
+  "changed": "legal_kb.md REG-016(AI 생성 전문가 광고) 추가",
+  "token_usage": {
+    "by_model": { "gpt-4o-mini": 0, "gpt-4.1-mini": 0 },
+    "generation_tokens": 0,
+    "judge_tokens": 0,
+    "total_tokens": 0,
+    "unattributed_tokens": 0
+  },
+  "metrics": {
+    "block_recall": 1.0,
+    "over_block_rate": 0.0,
+    "alternative_rate": 1.0
+  },
+  "items": [
+    {
+      "id": "R-006",
+      "passed": true,
+      "expected_action": "warn",
+      "actual_action": "warn",
+      "checked_by": "check_regulation",
+      "measured_at": "function",
+      "law": "표시광고법 제3조 제1항 제3호",
+      "law_contains_ok": true,
+      "alternative": "3년 연속 재방문율 1위 (2023~2025 자체 집계)",
+      "alternative_in_message": true,
+      "latency_ms": 3,
+      "tokens": { "generation": 0, "judge": 0 },
+      "response": { "...": "..." }
     }
   ]
 }
@@ -1477,7 +1603,7 @@ models/shared/eval/reports/YYYY-MM-DD.json
 | 전 → 후에서 달라진 것 | 비교 가능? | 이 비교가 증명하는 것 |
 | --- | --- | --- |
 | **프롬프트만** (모든 필드 동일) | ✅ | **프롬프트 튜닝 효과** — 가장 흔한 비교 |
-| `generation_model` 만 | ✅ | **생성 모델 성능 차이** (D-048 A/B) |
+| `generation_model` 만 | ✅ | **생성 모델 성능 차이** (D-051 A/B) |
 | `judge_model` 만 | ✅ | **채점자 성향 차이** — Judge 자체 검증용 |
 | `fixture_version` 만 | ✅ | **입력 데이터 정확도 개선 효과** (예: 16→177) |
 | **`generation_model` + `judge_model`** | ❌ | **해석 불가** — 생성이 좋아진 건지 자[尺]가 바뀐 건지 모른다 |
@@ -1524,15 +1650,43 @@ models/shared/eval/reports/YYYY-MM-DD.json
 
 ```python
 # models/shared/eval/compare_reports.py
-"""두 결과 파일이 비교 가능한 조건인지 확인한다(§11.2).
+"""두 결과 파일이 비교 가능한 조건인지 확인한다 (기준 문서 §11.2 · D-262)
 
-발표 자료를 만들기 전에 돌린다 — 조건이 둘 이상 다른 표는
-아무것도 증명하지 못하므로, 사람이 눈으로 대조하는 대신 기계가 막는다.
+발표 자료를 만들기 전에 돌린다 — 조건이 둘 이상 다른 표는 아무것도 증명하지
+못하므로, 사람이 눈으로 대조하는 대신 기계가 막는다.
+
+    # 1차 측정 직후 — 결과 파일 형식만 검사 (비교 상대가 아직 없을 때)
+    uv run python -m models.shared.eval.compare_reports --validate \
+        models/basic/eval/reports/2026-08-21.json
+
+    # 튜닝 후 — 비교 가능성 확인 + 발표용 표 생성
+    uv run python -m models.shared.eval.compare_reports \
+        models/basic/eval/reports/2026-08-21.json \
+        models/basic/eval/reports/2026-08-22.json --markdown
+
+★ 문서 §11.2 초안에서 보완한 것 (D-281)
+  ① 헤더 필드가 **양쪽 다 없으면** before.get()==after.get()==None 이라
+     "조건이 하나도 안 바뀌었다"로 판정된다 → 필수 필드 존재를 먼저 검증한다
+  ② area 를 보지 않아 basic 결과와 consult 결과를 비교해도 통과한다
+  ③ item_count 를 보지 않아 한쪽이 문항을 빠뜨려도 통과한다 (§10.4 DoD ①)
+  ④ judge_temperature 를 보지 않아 자[尺]가 흔들린 측정도 통과한다 (D-275)
+  ⑤ __main__ 블록이 없어 문서에 적힌 실행 명령이 아무것도 출력하지 않는다
+
+★ 반환 계약은 초안 그대로 유지한다
+  comparable · means · changed · reason 네 키는 이름과 의미를 바꾸지 않는다.
+  문서를 읽고 온 담당자가 다른 코드를 만나면 안 된다(D-263).
 """
+from __future__ import annotations
+
+import argparse
 import json
+import sys
+import unicodedata
 from pathlib import Path
 
-# 한 번에 하나만 바뀌어야 비교가 성립하는 조건들
+# ── 한 번에 하나만 바뀌어야 비교가 성립하는 조건들 (§11.2.1) ──────────────────
+# ⚠️ models/shared/eval/token_usage.py 의 CONDITION_FIELDS 와 반드시 같아야 한다.
+#    한쪽만 늘리면 결과 파일에 없는 필드를 비교하게 되어 ① 결함이 재발한다.
 _CONDITIONS = (
     "generation_model",
     "judge_model",
@@ -1548,26 +1702,207 @@ _COMPARABLE_ALONE = {
     "fixture_version": "입력 데이터 정확도 개선 효과",
 }
 
+# 비교 가능하지만 해석에 단서가 붙는 경우
+_CAVEAT = {
+    "judge_model": (
+        "Judge 자체 검증용 비교다. 본 평가 baseline 으로 쓰지 않는다 — "
+        "judge_model 변경 시 그때까지 낸 점수는 전량 폐기 대상이다(D-258·§11.4)."
+    ),
+}
+
+# 결과 파일에 반드시 있어야 하는 헤더 (§10.4 DoD ⑤ · D-263)
+_REQUIRED = _CONDITIONS + ("run_at", "area", "item_count", "metrics")
+
+# 낮을수록 좋은 지표 — 화살표 방향이 뒤집힌다(§11.1 표)
+_LOWER_IS_BETTER = {
+    "hallucination_rate",
+    "failure_rate",
+    "over_block_rate",
+    "latency_p50_s",
+    "latency_p95_s",
+}
+_PERCENT_METRICS = {
+    "hallucination_rate",
+    "failure_rate",
+    "over_block_rate",
+    "contract_compliance",
+    "trend_path_match_rate",
+    "block_recall",
+    "alternative_rate",
+}
+
+
+class ReportFormatError(ValueError):
+    """결과 파일이 비교에 쓸 수 없는 형식이다."""
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 1) 검증 — 1차 측정 직후에 단독으로 돌린다
+# ═════════════════════════════════════════════════════════════════════════════
+def validate_report(report: dict, label: str = "") -> list[str]:
+    """결과 파일 하나의 형식 문제를 목록으로 반환한다. 빈 리스트면 정상.
+
+    ★ 1차 측정 직후 바로 돌리는 것이 핵심이다.
+      8/22 에 비교하려다 8/21 결과에 judge_model 이 없는 걸 알면
+      baseline 을 다시 측정해야 하고, 그만큼 $30 예산이 또 나간다.
+    """
+    tag = f"[{label}] " if label else ""
+    problems: list[str] = []
+
+    for key in _REQUIRED:
+        if key not in report:
+            problems.append(f"{tag}필수 헤더 누락: {key} (§10.4 DoD ⑤)")
+        elif report[key] in (None, "", {}):
+            problems.append(f"{tag}헤더가 비어 있음: {key}={report[key]!r}")
+
+    # ④ 자[尺]가 흔들린 측정은 비교 이전에 무효다
+    jt = report.get("judge_temperature")
+    if jt is None:
+        problems.append(f"{tag}judge_temperature 미기록 — 재현성을 확인할 수 없다(D-275)")
+    elif jt != 0:
+        problems.append(
+            f"{tag}judge_temperature={jt} — 0 이 아니면 같은 응답도 점수가 달라진다(§1.4·D-275)"
+        )
+
+    # ③ 모수 일치 확인
+    items = report.get("items")
+    if isinstance(items, list) and report.get("item_count") not in (None, len(items)):
+        problems.append(
+            f"{tag}item_count={report['item_count']} 인데 items 는 {len(items)}건 (§10.4 DoD ①)"
+        )
+
+    # 토큰 귀속 확인 (D-278)
+    usage = report.get("token_usage") or {}
+    unattributed = usage.get("unattributed_tokens")
+    if unattributed:
+        problems.append(
+            f"{tag}unattributed_tokens={unattributed} — 계획에 없던 모델 호출이 섞였다(D-278)"
+        )
+    if report.get("area") == "refusal" and usage.get("judge_tokens"):
+        problems.append(
+            f"{tag}거부 영역인데 judge_tokens={usage['judge_tokens']} (R- 는 LLM 0회, D-277)"
+        )
+
+    return problems
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2) 비교 — 반환 계약은 문서 §11.2 초안 그대로
+# ═════════════════════════════════════════════════════════════════════════════
+def _load(path: str) -> dict:
+    p = Path(path)
+    if not p.exists():
+        raise ReportFormatError(f"결과 파일이 없다: {path}")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _metrics_delta(before: dict, after: dict) -> list[dict]:
+    """§11.1 비교표 행을 만든다. 공통으로 존재하는 숫자 지표만 다룬다."""
+    mb, ma = before.get("metrics") or {}, after.get("metrics") or {}
+    rows = []
+    for key in mb:
+        if key not in ma or not isinstance(mb[key], (int, float)) or not isinstance(ma[key], (int, float)):
+            continue
+        diff = ma[key] - mb[key]
+        improved = diff < 0 if key in _LOWER_IS_BETTER else diff > 0
+        # 비율(0~1)로 저장된 지표는 §11 표 형식(88% → 100% → +12%p)으로 보여준다.
+        # 0.88 을 그대로 슬라이드에 올리면 읽는 사람이 매번 환산해야 한다.
+        is_ratio = key in _PERCENT_METRICS and abs(mb[key]) <= 1 and abs(ma[key]) <= 1
+        scale = 100 if is_ratio else 1
+        rows.append({
+            "metric": key,
+            "before": round(mb[key] * scale, 2),
+            "after": round(ma[key] * scale, 2),
+            "delta": round(diff * scale, 2),
+            "improved": improved if diff else None,   # 변화 없으면 None
+            "unit": "%p" if is_ratio else "",
+            "value_unit": "%" if is_ratio else "",
+        })
+    only_after = sorted(set(ma) - set(mb))
+    if only_after:
+        rows.append({"metric": f"(after 에만 있는 지표: {', '.join(only_after)})",
+                     "before": None, "after": None, "delta": None,
+                     "improved": None, "unit": ""})
+    return rows
+
 
 def compare_reports(before_path: str, after_path: str) -> dict:
     """두 결과 파일의 비교 가능 여부와 그 비교의 의미를 반환한다."""
-    before = json.loads(Path(before_path).read_text(encoding="utf-8"))
-    after = json.loads(Path(after_path).read_text(encoding="utf-8"))
+    before, after = _load(before_path), _load(after_path)
 
+    # ── 게이트 0: 형식 검증 — 초안 ① 결함 차단 ──────────────────────────────
+    problems = validate_report(before, "before") + validate_report(after, "after")
+    if problems:
+        return {
+            "comparable": False,
+            "means": None,
+            "changed": [],
+            "reason": "결과 파일 형식이 비교 요건을 충족하지 않는다 — 아래 문제를 먼저 고친다",
+            "problems": problems,
+            "warnings": [],
+            "metrics_delta": [],
+        }
+
+    # ── 게이트 1: 같은 영역인가 — 초안 ② 결함 차단 ─────────────────────────
+    if before["area"] != after["area"]:
+        return {
+            "comparable": False,
+            "means": None,
+            "changed": ["area"],
+            "reason": (
+                f"area 가 다르다({before['area']} → {after['area']}) — "
+                "문항 자체가 다르므로 비교 대상이 아니다"
+            ),
+            "problems": [],
+            "warnings": [],
+            "metrics_delta": [],
+        }
+
+    # ── 게이트 2: 조건 변경 — 초안 로직 유지 ────────────────────────────────
     changed = [key for key in _CONDITIONS if before.get(key) != after.get(key)]
+
+    # ── 게이트 3: 모수 일치 — 초안 ③ 결함 차단 ─────────────────────────────
+    # dataset_version 이 같은데 문항 수가 다르면 한쪽이 측정을 빠뜨린 것이다.
+    if "dataset_version" not in changed and before["item_count"] != after["item_count"]:
+        return {
+            "comparable": False,
+            "means": None,
+            "changed": changed + ["item_count"],
+            "reason": (
+                f"dataset_version 은 같은데 item_count 가 다르다"
+                f"({before['item_count']} → {after['item_count']}) — "
+                "한쪽이 문항을 빠뜨렸다. 재측정한다(§10.4 DoD ①)"
+            ),
+            "problems": [],
+            "warnings": [],
+            "metrics_delta": [],
+        }
+
+    delta = _metrics_delta(before, after)
 
     if not changed:
         return {
-            "comparable": True, 
-            "means": "프롬프트 튜닝 효과", 
-            "changed": []
+            "comparable": True,
+            "means": "프롬프트 튜닝 효과",
+            "changed": [],
+            "reason": "",
+            "problems": [],
+            "warnings": _changed_note_warning(after),
+            "metrics_delta": delta,
         }
 
     if len(changed) == 1 and changed[0] in _COMPARABLE_ALONE:
+        warnings = _changed_note_warning(after)
+        if changed[0] in _CAVEAT:
+            warnings.append(_CAVEAT[changed[0]])
         return {
             "comparable": True,
             "means": _COMPARABLE_ALONE[changed[0]],
             "changed": changed,
+            "reason": "",
+            "problems": [],
+            "warnings": warnings,
+            "metrics_delta": delta,
         }
 
     return {
@@ -1578,13 +1913,38 @@ def compare_reports(before_path: str, after_path: str) -> dict:
             f"조건 {changed} 가 동시에 달라 원인을 분리할 수 없다 — "
             f"한 번에 하나만 바꿔 재측정한다(§11.2)"
         ),
+        "problems": [],
+        "warnings": [],
+        "metrics_delta": [],
     }
+
+
+def _changed_note_warning(after: dict) -> list[str]:
+    """§11.1 '바꾼 것' 한 줄이 비어 있으면 경고한다(D-261)."""
+    if not (after.get("changed") or "").strip():
+        return ['"바꾼 것" 한 줄(changed 필드)이 비어 있다 — 숫자만 있으면 우연으로 읽힌다(D-261)']
+    return []
 ```
 
 ```bash
-uv run python -m models.shared.eval.compare_reports \
-    models/consult/eval/reports/2026-08-20.json \
+# 1차 측정 직후 — 결과 파일 헤더 형식만 검사 (비교 상대가 아직 없을 때) (D-282)
+uv run python -m models.shared.eval.compare_reports --validate \
+    models/basic/eval/reports/2026-08-21.json
+
+uv run python -m models.shared.eval.compare_reports --validate \
     models/consult/eval/reports/2026-08-21.json
+
+# 튜닝 후 — 비교 가능성 확인 + 발표용 표 생성
+uv run python -m models.shared.eval.compare_reports \
+    models/basic/eval/reports/2026-08-21.json \
+    models/basic/eval/reports/2026-08-22.json --markdown
+
+uv run python -m models.shared.eval.compare_reports \
+    models/consult/eval/reports/2026-08-21.json \
+    models/consult/eval/reports/2026-08-22.json --markdown
+
+uv run python -m models.shared.eval.compare_reports \
+    reports/2026-08-21.json reports/2026-08-22.json --markdown
 ```
 
 ---
@@ -1624,7 +1984,7 @@ uv run python -m models.shared.eval.compare_reports \
 | ID | 항목 | 현재 기본안 | Owner | Due |
 | --- | --- | --- | --- | --- |
 | G-01 | 총 문항 수(60 vs 55) | **60 확정**(과잉차단 가드 5 추가) | 전민재 PM | 종료 |
-| G-02 | LLM Judge 모델 선택 | GPT-5.4 Mini(비용) vs GPT-5.4(정확도) | 기본 챗봇 담당 | 8/19 |
+| G-02 | LLM Judge 모델 선택 | judge_model=gpt-4.1-mini 명시 고정 | 기본 챗봇 담당 | 종료 |
 | G-03 | 이미지 평가 샘플 수(20 vs 30) | 20장 | 기본 챗봇 담당 | 8/19 |
 | G-04 | Faithfulness 측정 방식 | RAGAS-Score vs 직접 구현. 런타임 컨텍스트 캡처는 확정(§6.2) | 각 담당 | 8/19 |
 | G-05 | 거부 문항 교차 검토 담당 | 두 챗봇 담당 각 5문항씩 | 전민재 PM | 8/19 |
@@ -1632,7 +1992,7 @@ uv run python -m models.shared.eval.compare_reports \
 | **G-07** | **검색 평가셋 진행 여부** | 벤치마크 KB에 `bm_###` 문서 ID 부여 시에만. 미달 시 보고서 작성 대상 제외 | 기본 챗봇 담당 | 8/18 |
 | **G-08** | **`allowed_numbers` 반올림 허용 범위** | 정확 일치. 필요 시 ±5% 허용으로 완화 검토 | 컨설턴트 담당 | 8/19 |
 | **G-09** | **업종 매핑 커버리지 목표치(80%)** | 상위 20종 확장 후 실측해 재조정 | 컨설턴트 담당 | 8/19 |
-| G-10 | judge_model 상위 모델 전환 여부 | 파일럿 !usage 실측 후 결정(D-252) | 전민재 PM | 8/19 |
+| G-10 | judge_model 상위 모델 전환 여부 | judge_model=gpt-4.1-mini 명시 고정 | 전민재 PM | 종료 |
 
 > ⚠️ **본 문서에 코드 블록으로 실린 파일은 모두 §10.1 구현 상태 표에 등재돼 있어야 한다.**
 > 표에 있는데 코드가 없거나, 코드가 있는데 표에 없으면 담당자가 찾지 못한다.
