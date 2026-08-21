@@ -74,14 +74,15 @@ def strategy(state: ConsultState) -> dict:
     total_tokens = 0
     retry_count = 0
     actions_retry_count = 0
-    # 두 교정 힌트를 독립적으로 누적한다 — reasons 재시도 중 actions 오류가 나는 등
-    # 순서가 섞여도(또는 그 반대) 직전에 필요해진 힌트가 빠지지 않아야 한다
-    # (Codex 리뷰: retry_count만 우선시하면 이후 actions 힌트가 영영 안 붙는 회귀가 있었음).
-    hints: list[str] = []
 
     while True:
-        hint_text = "\n".join(hints)
-        user_prompt = base_user_prompt if not hints else f"{base_user_prompt}\n\n{hint_text}"
+        if retry_count > 0:
+            hint = RETRY_REASONS_HINT
+        elif actions_retry_count > 0:
+            hint = RETRY_ACTIONS_HINT
+        else:
+            hint = ""
+        user_prompt = base_user_prompt if not hint else f"{base_user_prompt}\n\n{hint}"
         raw, tokens = call_llm(SYSTEM_PROMPT, user_prompt, json_mode=True, deadline=deadline)
         total_tokens += tokens
 
@@ -101,8 +102,6 @@ def strategy(state: ConsultState) -> dict:
                 and actions_retry_count < _MAX_ACTIONS_RETRIES
             ):
                 actions_retry_count += 1
-                if RETRY_ACTIONS_HINT not in hints:
-                    hints.append(RETRY_ACTIONS_HINT)
                 continue
             raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
 
@@ -112,8 +111,6 @@ def strategy(state: ConsultState) -> dict:
         if retry_count >= _MAX_REASONS_RETRIES:
             raise ValueError("LLM이 재생성 후에도 근거(reasons)를 반환하지 않았습니다.")
         retry_count += 1
-        if RETRY_REASONS_HINT not in hints:
-            hints.append(RETRY_REASONS_HINT)
 
     title = normalize_title(parsed.get("title"), store["name"])
 
