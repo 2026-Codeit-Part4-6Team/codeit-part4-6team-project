@@ -99,3 +99,13 @@ def test_fewshot_constants_match_actual_example_content() -> None:
     assert FEWSHOT_TERMS == ["브런치 세트", "주말브런치", "브런치카페"]
     for term in FEWSHOT_TERMS:
         assert term in example_section
+
+
+def test_system_prompt_requires_explicit_zero_for_no_competitors() -> None:
+    """동일 업종 매장 수가 0곳이면 reasons에도 "없다"가 아니라 반드시 "0곳"이라고
+    숫자로 쓰라는 지시가 있어야 한다 — D8 60문항 실측에서 F1(경쟁 없음) fixture
+    4건(C-009·C-032·C-049·C-050)이 전부 이 이유로 must_contain_number를
+    못 채웠다."""
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert '0곳이면 "경쟁이 없다"·"동일 업종이 없다"처럼 숫자 없이 쓰지 말고' in normalized
+    assert 'reasons에도 반드시 "0곳"이라고 숫자로 명시한다' in normalized
