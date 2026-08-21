@@ -8,10 +8,16 @@ from backend.auth import get_current_user
 from backend.config import settings
 from backend.database import get_db
 from backend.models import User
-from backend.schemas import PublishRequest, PublishResponse
+from backend.schemas import (
+    GenerationDetailResponse,
+    GenerationListItem,
+    PublishRequest,
+    PublishResponse,
+)
 from backend.services.generation_service import (
     ApprovedImageInvalid,
     ApprovedImageTooLarge,
+    GenerationDataInvariantError,
     PublishedProposalConflict,
     PublishNotFound,
     PublishPersistenceError,
@@ -20,8 +26,43 @@ from backend.services.generation_service import (
     PublishTypeConflict,
     publish_generation,
 )
+from backend.services.history_service import (
+    GenerationHistoryNotFound,
+    get_generation_detail,
+    list_generations,
+)
 
 router = APIRouter(tags=["generations"])
+
+
+@router.get("/generations", response_model=list[GenerationListItem])
+def list_history(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[GenerationListItem]:
+    """현재 사용자의 생성 이력을 최신순으로 반환합니다."""
+    return list_generations(db, user)
+
+
+@router.get("/generations/{generation_id}", response_model=GenerationDetailResponse)
+def detail(
+    generation_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> GenerationDetailResponse:
+    """현재 사용자가 소유한 생성 이력 상세를 반환합니다."""
+    try:
+        return get_generation_detail(db, user, generation_id)
+    except GenerationHistoryNotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "generation_not_found"},
+        ) from error
+    except GenerationDataInvariantError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"reason": "generation_data_invariant"},
+        ) from error
 
 
 @router.post(
