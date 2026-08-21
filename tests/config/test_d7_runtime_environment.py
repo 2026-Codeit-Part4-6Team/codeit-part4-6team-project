@@ -1,24 +1,23 @@
-from pathlib import Path
 import tomllib
-
+from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 
 
 def test_compose_passes_chatbot_mode_to_backend():
-    compose = (ROOT / "compose.yaml").read_text()
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
 
     assert "CHATBOT_MODE: ${CHATBOT_MODE:-mock}" in compose
 
 
 def test_env_example_documents_chatbot_mode():
-    env_example = (ROOT / ".env.example").read_text()
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
 
     assert "CHATBOT_MODE=mock" in env_example
 
 
 def test_compose_passes_actual_model_environment_to_backend():
-    compose = (ROOT / "compose.yaml").read_text()
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
 
     required_environment = [
         "OPENAI_API_KEY: ${OPENAI_API_KEY:-}",
@@ -38,9 +37,9 @@ def test_compose_passes_actual_model_environment_to_backend():
 
 
 def test_d7_actual_timeout_defaults_to_verified_180_seconds():
-    config = (ROOT / "backend" / "config.py").read_text()
-    compose = (ROOT / "compose.yaml").read_text()
-    env_example = (ROOT / ".env.example").read_text()
+    config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
 
     assert '"MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60' in config
     assert "MODEL_REQUEST_TIMEOUT_SECONDS: ${MODEL_REQUEST_TIMEOUT_SECONDS:-180}" in compose
@@ -48,7 +47,7 @@ def test_d7_actual_timeout_defaults_to_verified_180_seconds():
 
 
 def test_basic_dependency_group_contains_sentence_transformers():
-    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     project_dependencies = config["project"].get("dependencies", [])
     basic_dependencies = config["dependency-groups"]["basic"]
@@ -58,7 +57,7 @@ def test_basic_dependency_group_contains_sentence_transformers():
 
 
 def test_backend_image_has_ci_and_actual_runtime_targets():
-    dockerfile = (ROOT / "backend" / "Dockerfile").read_text()
+    dockerfile = (ROOT / "backend" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "FROM base AS ci" in dockerfile
     assert "FROM base AS actual" in dockerfile
@@ -92,8 +91,10 @@ def test_actual_runtime_copy_sources_exist_in_d7_branch():
 
 
 def test_compose_and_pr_ci_use_actual_build_target():
-    compose = (ROOT / "compose.yaml").read_text()
-    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
 
     assert "target: ${BACKEND_BUILD_TARGET:-actual}" in compose
     assert "BACKEND_BUILD_TARGET: actual" in workflow
