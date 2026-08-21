@@ -27,7 +27,8 @@ function stringList(value: unknown): string[] {
 
 function Detail({ detail }: { detail: GenerationDetailResponse }) {
   const result = detail.result ?? {};
-  const strategy = typeof result.strategy === "object" && result.strategy !== null ? result.strategy as { summary?: unknown } : null;
+  const strategy = typeof result.strategy === "object" && result.strategy !== null ? result.strategy as { summary?: unknown; actions?: unknown } : null;
+  const actions = Array.isArray(strategy?.actions) ? strategy.actions.filter((raw): raw is { type?: unknown; content: string } => typeof raw === "object" && raw !== null && typeof (raw as { content?: unknown }).content === "string") : [];
   const proposals = Array.isArray(result.proposals) ? result.proposals : [];
   const reasons = stringList(result.reasons);
   const sources = stringList(result.sources);
@@ -39,6 +40,7 @@ function Detail({ detail }: { detail: GenerationDetailResponse }) {
       {detail.chatbot_type === "basic" && detail.copy_content && <div className="history-final-result">{detail.image_b64 && <img src={detail.image_b64} alt="게시 승인된 최종 이미지" />}<div><span>최종 게시 문구</span><p>{detail.copy_content}</p></div></div>}
       {detail.chatbot_type === "basic" && !detail.copy_content && proposals.length > 0 && <ol className="history-proposals">{proposals.map((raw, index) => { const proposal = typeof raw === "object" && raw !== null ? raw as { copy?: unknown; error?: { message?: unknown } | null } : {}; const text = typeof proposal.copy === "string" ? proposal.copy : typeof proposal.error?.message === "string" ? proposal.error.message : "결과 없음"; return <li key={index}>{text}</li>; })}</ol>}
       {detail.chatbot_type === "consultant" && typeof strategy?.summary === "string" && <p className="strategy-summary">{strategy.summary}</p>}
+      {detail.chatbot_type === "consultant" && actions.length > 0 && <div className="history-evidence"><strong>실행 제안</strong><ul>{actions.map((action, index) => <li key={`${String(action.type)}-${index}`}>{action.content}</li>)}</ul></div>}
       {reasons.length > 0 && <div className="history-evidence"><strong>제안 이유</strong><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
       {sources.length > 0 && <div className="history-evidence"><strong>참고 근거</strong><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></div>}
       {blockedMessage && <p className="history-blocked">{blockedMessage}</p>}
@@ -68,7 +70,7 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
       {error !== null && error !== undefined && <ErrorBanner error={error} onBilling={onBilling} />}
       <section className="card history-card">
         <div className="section-heading"><div><p className="kicker">RECENT ACTIVITY</p><h2>최근 생성 기록</h2></div></div>
-        {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => <button type="button" className="history-row" key={item.id} onClick={() => onSelect(item.id)}><div><strong>{historyTitle(item)}</strong><span>{generationLabel(item)}</span></div><div><span className="status-chip">{statusLabel(item.status)}</span><small>{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div></button>)}</div>}
+        {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => <button type="button" className="history-row" key={item.id} onClick={() => onSelect(item.id)}><div><strong>{historyTitle(item)}</strong><span>{generationLabel(item)}</span></div><div><span className="status-chip">{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small>{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div></button>)}</div>}
       </section>
       {detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}
       {detail && !detailLoading && <Detail detail={detail} />}

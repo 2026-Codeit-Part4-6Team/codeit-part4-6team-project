@@ -70,6 +70,7 @@ def test_history_list_and_detail_are_owner_scoped(
 
     assert listing.status_code == 200
     assert [item["id"] for item in listing.json()] == [generation.id]
+    assert listing.json()[0]["created_at"].endswith("Z")
     assert detail.status_code == 200
     assert detail.json()["result"]["title"] == "광고 제안"
     assert "request_hash" not in detail.json()

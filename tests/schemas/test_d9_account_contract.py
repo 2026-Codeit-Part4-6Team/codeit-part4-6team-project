@@ -53,6 +53,16 @@ def test_generation_history_contract_rejects_internal_fields():
         GenerationListItem(**list_payload(), idempotency_key="secret")
 
 
+def test_generation_history_normalizes_naive_sqlite_timestamp_to_utc():
+    payload = list_payload()
+    payload["created_at"] = datetime(2026, 8, 21, 1, 2, 3)  # noqa: DTZ001
+
+    item = GenerationListItem(**payload)
+
+    assert item.created_at.tzinfo is UTC
+    assert item.model_dump_json().endswith('"created_at":"2026-08-21T01:02:03Z"}')
+
+
 def test_generation_detail_exposes_only_public_result_and_final_fields():
     detail = GenerationDetailResponse(
         **list_payload(),

@@ -39,12 +39,23 @@ def _list_item(generation: Generation) -> GenerationListItem:
 
 def list_generations(db: Session, user: User) -> list[GenerationListItem]:
     """현재 사용자의 생성 이력을 newest-first로 반환합니다."""
-    rows = db.scalars(
-        select(Generation)
+    rows = db.execute(
+        select(
+            Generation.id,
+            Generation.chatbot_type,
+            Generation.title,
+            Generation.question,
+            Generation.platform,
+            Generation.plan,
+            Generation.credits_used,
+            Generation.tokens_used,
+            Generation.status,
+            Generation.created_at,
+        )
         .where(Generation.user_id == user.id)
         .order_by(Generation.created_at.desc(), Generation.id.desc())
-    ).all()
-    return [_list_item(row) for row in rows]
+    ).mappings()
+    return [GenerationListItem.model_validate(row) for row in rows]
 
 
 def _public_history_result(

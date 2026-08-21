@@ -102,6 +102,8 @@ describe("MyPage presentation", () => {
     expect(html).toContain("2");
     expect(html).toContain("1");
     expect(html.indexOf("상권 전략")).toBeLessThan(html.indexOf("광고를 만들어줘"));
+    expect(html).toContain("10 Credit");
+    expect(html).toContain("0 Credit");
     expect(html).not.toContain("스토리보드 데이터");
   });
 
@@ -113,8 +115,10 @@ describe("MyPage presentation", () => {
 
     const html = renderView({
       error: new ApiError(500, { stack: "Traceback secret-api-key" }),
+      history: [],
     });
     expect(html).toContain("서비스 연결이 불안정합니다");
+    expect(html).not.toContain("아직 생성 기록이 없습니다");
     expect(html).not.toContain("secret-api-key");
   });
 
@@ -144,7 +148,10 @@ describe("MyPage presentation", () => {
       result: {
         status: "ok",
         title: "상권 전략",
-        strategy: { summary: "직장인 고객 집중", actions: [] },
+        strategy: {
+          summary: "직장인 고객 집중",
+          actions: [{ type: "target", content: "점심 고객에게 집중 홍보" }],
+        },
         reasons: ["오피스 상권"],
         sources: ["상권 API"],
       },
@@ -156,6 +163,7 @@ describe("MyPage presentation", () => {
     const html = renderView({ detail });
 
     expect(html).toContain("직장인 고객 집중");
+    expect(html).toContain("점심 고객에게 집중 홍보");
     expect(html).toContain("오피스 상권");
     expect(html).toContain("상권 API");
   });

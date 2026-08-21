@@ -437,6 +437,14 @@ class GenerationListItem(StrictModel):
     status: GenerationStatus
     created_at: datetime
 
+    @field_validator("created_at")
+    @classmethod
+    def normalize_created_at_to_utc(cls, value: datetime) -> datetime:
+        """SQLite가 잃은 UTC offset을 API 경계에서 복원합니다."""
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
 
 class GenerationDetailResponse(GenerationListItem):
     """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""

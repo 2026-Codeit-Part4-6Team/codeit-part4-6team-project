@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from backend.database import create_database_engine
@@ -103,6 +104,41 @@ def test_list_history_is_owner_scoped_and_newest_first(tmp_path):
         assert [item.id for item in items] == [newer.id, older.id]
         assert "request_hash" not in items[0].model_dump()
         assert "idempotency_key" not in items[0].model_dump()
+
+
+def test_list_history_uses_id_as_newest_first_tiebreaker(tmp_path):
+    engine = make_engine(tmp_path)
+    same_time = datetime(2026, 8, 21, tzinfo=UTC)
+    with Session(engine) as db:
+        owner = add_user(db)
+        first = add_generation(db, owner, 4, created_at=same_time)
+        second = add_generation(db, owner, 5, created_at=same_time)
+
+        items = list_generations(db, owner)
+
+        assert [item.id for item in items] == [second.id, first.id]
+
+
+def test_list_history_does_not_select_large_or_internal_columns(tmp_path):
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        owner = add_user(db)
+        add_generation(db, owner, 6, result=basic_result())
+        statements: list[str] = []
+
+        def capture_statement(_conn, _cursor, statement, _parameters, _context, _many):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", capture_statement)
+        try:
+            list_generations(db, owner)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture_statement)
+
+        history_sql = next(sql for sql in statements if "FROM generations" in sql)
+        assert "result_json" not in history_sql
+        assert "image_b64" not in history_sql
+        assert "request_hash" not in history_sql
 
 
 def test_list_history_returns_empty_list(tmp_path):
