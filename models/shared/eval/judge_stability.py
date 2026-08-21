@@ -108,8 +108,10 @@ def format_report(result: dict) -> str:
         f"  판정 결과          : {ok}",
         f"  총 세션 수         : {result['sessions']}회",
         f"  총 응답 수         : {result['total_responses']}건",
-        f"  측정 셀            : {result['measured_cells']}개 "
-        f"(응답 {result['total_responses']} × rubric {result['rubric_count']})",
+        (
+            f"  측정 셀            : {result['measured_cells']}개 "
+            f"(응답 {result['total_responses']} × rubric {result['rubric_count']})"
+        ),
         f"  흔들린 비율        : {result['flip_rate']:.0%}",
         f"  ① 편차 2 이상 셀   : {len(result['cells_over_1'])}건",
         f"  ② 문항 평균 편차   : {len(result['items_over_0_5'])}건 초과",
