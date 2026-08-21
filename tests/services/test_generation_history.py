@@ -204,7 +204,7 @@ def test_failed_history_exposes_blocked_but_hides_technical_error(tmp_path):
             result={
                 "status": "blocked",
                 "action": "reask",
-                "reason": "정보 부족",
+                "reason": "insufficient_info",
                 "message": "질문을 보완해 주세요.",
             },
         )
