@@ -1218,7 +1218,7 @@ LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
 | `models/consult/eval/eval_data_quality.py` | ⬜ **미구현(v1.2 추가)** | 컨설턴트 담당 | 8/19 |
 | `models/shared/eval/eval_refusal.py` | ⬜ **미구현** | 전민재 PM | 8/19 |
 | `shared_data/golden_dataset.json` | ⬜ **미생성** | 전원 | 8/19 파일럿 |
-| `models/shared/eval/compare_reports.py` | ✅ 구현 완료(v1.3 신설, 선택)** | 전민재 PM | 8/20 |
+| `models/shared/eval/compare_reports.py` | ✅ **구현 완료(v1.3 신설, 선택)** | 전민재 PM | 8/20 |
 
 > ⚠️ **`tests/validation/test_contract.py` 는 거부 정확도를 측정하지 않는다.**
 > 그것은 검증 함수의 **반환 형식**만 확인하는 스모크 테스트이고,
