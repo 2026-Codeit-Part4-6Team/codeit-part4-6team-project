@@ -13,9 +13,10 @@ _PLATFORM_IMAGE_STYLE = {
         "제품이나 인물을 가까이서 담은 구도. 인스타그램 피드에서 시선을 끄는 톤."
     ),
     "banner": (
-        "선명하고 눈에 띄는 상업 광고 사진 스타일. 배경을 단순하게 정리해 "
-        "문구를 얹을 여백을 확보하고, 원거리에서도 알아볼 수 있도록 "
-        "고대비·고채도로 표현."
+        "실제 거리 현수막처럼 플랫 일러스트/벡터 그래픽 포스터 스타일로 그린다"
+        "(사진이 아님). 밝고 단순한 배경(단색 또는 옅은 그라데이션) 위에, "
+        "화면 좌우 여백에는 소재와 관련된 아이콘·일러스트 소품을 장식으로 배치한다. "
+        "가로로 넓은 배너 레이아웃, 원거리에서도 눈에 띄는 고대비 색상 구성."
     ),
 }
 _DEFAULT_PLATFORM = "instagram"
@@ -23,10 +24,15 @@ _DEFAULT_PLATFORM = "instagram"
 
 def _build_image_prompt(store: dict, copy: str, platform: str | None) -> str:
     """가게 정보·카피·플랫폼을 바탕으로 이미지 생성 프롬프트를 만든다."""
-    style = _PLATFORM_IMAGE_STYLE.get(
-        platform, _PLATFORM_IMAGE_STYLE[_DEFAULT_PLATFORM]
-    )
-    return f"{store.get('type', '가게')} 광고용 상업 사진. 소재: {copy}. {style}"
+    style = _PLATFORM_IMAGE_STYLE.get(platform, _PLATFORM_IMAGE_STYLE[_DEFAULT_PLATFORM])
+    prompt = f"{store.get('type', '가게')} 광고 이미지. 소재: {copy}. {style}"
+
+    if platform == "banner":
+        prompt += (
+            f' 화면 중앙에 다음 한국어 문구를 굵고 큼직한 컬러 타이포그래피로 '
+            f'정확한 철자로 표시한다: "{copy}"'
+        )
+    return prompt
 
 
 def image_gen_node(state: BasicState) -> dict:
