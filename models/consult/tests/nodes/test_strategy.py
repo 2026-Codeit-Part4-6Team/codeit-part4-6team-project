@@ -705,13 +705,14 @@ def test_accumulates_tokens_across_actions_retries(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_after_exhausting_actions_retries(mock_call_llm) -> None:
-    """actions_wrong_length가 2회(최초 1회+재생성 1회) 연속되면 예외를 던진다(재생성 상한 1회)."""
+    """actions_wrong_length가 3회(최초 1회+재생성 2회) 연속되면 예외를 던진다
+    — actions_wrong_length와 reasons가 합산 상한(_MAX_RETRIES=2)을 공유한다."""
     mock_call_llm.return_value = _response(_payload(actions=[]))
 
     with pytest.raises(ValueError, match="actions_wrong_length"):
         strategy(_state())
 
-    assert mock_call_llm.call_count == 2
+    assert mock_call_llm.call_count == 3
 
 
 @patch("models.consult.nodes.strategy.call_llm")

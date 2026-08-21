@@ -11,8 +11,10 @@ from models.consult.prompts.strategy import (
 from models.shared.llm import call_llm
 
 _VALID_ACTION_TYPES = {"menu", "promotion", "target", "other"}
-_MAX_REASONS_RETRIES = 2  # 근거 부족 재생성 상한(SDP §6.5)
-_MAX_ACTIONS_RETRIES = 1  # actions 개수 오류 재생성 상한(D8 실측에서 발견, C-001 등 5건)
+# reasons(SDP §6.5)와 actions_wrong_length(D-139 예외, PM 승인 대기)를 합산한 상한.
+# 개별 예산을 따로 두면 최초 호출 포함 최대 4회까지 늘어나 D-144가 전제한
+# "strategy 최대 3회 + 429 백오프"의 60초 예산을 넘길 수 있다(Codex 리뷰).
+_MAX_RETRIES = 2
 
 
 def normalize_title(title: object, store_name: str) -> str:
@@ -55,15 +57,21 @@ def strategy(state: ConsultState) -> dict:
     반복되며, 그래프 조건부 엣지는 쓰지 않는다 — strategy_check 노드는 D9에 별도로
     구현될 "근거 유무·실행 가능성·LLM Judge" 검증이라 이번 범위와 다르다.
 
-    actions 개수 오류(actions_wrong_length, 0개나 4개 이상)도 최대 1회 재생성한다
+    actions 개수 오류(actions_wrong_length, 0개나 4개 이상)도 재생성 대상에 포함한다
     (D8 60문항 실측에서 status=error 5건 전부가 이 원인으로 확인됨 — 프롬프트의
     "1~3개만" 지시를 LLM이 가끔 무시함). D-139(형식 오류는 즉시 실패)와 형식상
-    어긋나므로 PM에게 이 예외를 decisions.md 후속 결정으로 기록해달라고 요청한
-    상태다(decision_log 2026-08-21 참고). 다른 actions 오류(enum 밖 type, content
-    누락 등)는 형식 자체가 신뢰할 수 없다고 보고 재생성 없이 즉시 예외를 던진다.
+    어긋나므로 PM에게 이 예외를 decisions.md 후속 결정으로 기록해달라고 요청했고
+    승인을 기다리는 중이다 — 미승인 상태로 이 코드가 남아 있다면 재시도 로직을
+    되돌려야 한다. 다른 actions 오류(enum 밖 type, content 누락 등)는 형식 자체가
+    신뢰할 수 없다고 보고 재생성 없이 즉시 예외를 던진다.
+
+    actions_wrong_length와 reasons 부족은 재생성 예산(_MAX_RETRIES=2)을 함께
+    쓴다 — 따로 두면 최초 호출 포함 최대 4회까지 늘어나 D-144가 전제한 60초
+    예산을 넘길 위험이 있다(Codex 리뷰). 합산 상한을 넘기면 그 시점의 오류
+    종류에 맞는 예외를 던진다.
 
     여러 번 호출한 토큰 사용량은 모두 합산해 state["tokens_used"]에 누적하고,
-    실제 재생성 횟수(actions + reasons 합산)는 state["retry_count"]에 기록한다.
+    실제 재생성 횟수는 state["retry_count"]에 기록한다.
     """
     question = state["question"]
     store = state["store"]
@@ -75,7 +83,6 @@ def strategy(state: ConsultState) -> dict:
 
     total_tokens = 0
     retry_count = 0
-    actions_retry_count = 0
     # 두 교정 힌트를 독립적으로 누적한다 — reasons 재시도 중 actions 오류가 나는 등
     # 순서가 섞여도(또는 그 반대) 직전에 필요해진 힌트가 빠지지 않아야 한다
     # (Codex 리뷰: 카운터 상태만으로 우선순위를 매기면 이후 actions 힌트가 영영
@@ -99,11 +106,8 @@ def strategy(state: ConsultState) -> dict:
 
         actions, actions_error = _parse_actions(parsed.get("actions"))
         if actions is None:
-            if (
-                actions_error == "actions_wrong_length"
-                and actions_retry_count < _MAX_ACTIONS_RETRIES
-            ):
-                actions_retry_count += 1
+            if actions_error == "actions_wrong_length" and retry_count < _MAX_RETRIES:
+                retry_count += 1
                 if RETRY_ACTIONS_HINT not in hints:
                     hints.append(RETRY_ACTIONS_HINT)
                 continue
@@ -112,7 +116,7 @@ def strategy(state: ConsultState) -> dict:
         reasons = _parse_reasons(parsed.get("reasons"))
         if reasons is not None:
             break
-        if retry_count >= _MAX_REASONS_RETRIES:
+        if retry_count >= _MAX_RETRIES:
             raise ValueError("LLM이 재생성 후에도 근거(reasons)를 반환하지 않았습니다.")
         retry_count += 1
         if RETRY_REASONS_HINT not in hints:
@@ -132,7 +136,7 @@ def strategy(state: ConsultState) -> dict:
         "tokens_used": state.get("tokens_used", 0) + total_tokens,
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).
-        "retry_count": state.get("retry_count", 0) + retry_count + actions_retry_count,
+        "retry_count": state.get("retry_count", 0) + retry_count,
         **sources_update,
     }
 

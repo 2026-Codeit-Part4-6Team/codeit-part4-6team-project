@@ -15,7 +15,7 @@ class ConsultState(CommonState):
     변환하는 단계 없이 이 구조를 그대로 최종 응답 payload로 조립하면 된다.
     """
 
-    retry_count: NotRequired[int]  # 전략 재시도 누적값(reasons 최대 2회+actions 최대 1회, SDP §6.5)
+    retry_count: NotRequired[int]  # 전략 재시도 누적값(reasons §6.5+actions 합산 최대 2회, actions는 PM 승인 대기)
     suggested_chips: NotRequired[list[str]]  # 추천 질문 칩 3종 (SDP §2.1, D1 회의에서 응답 계약 추가 합의)
     # 그래프 진입 시(security_input) 1회 세팅, 모든 call_llm 호출이 공유하는 절대 마감
     # (time.monotonic() 기준). 안 넘기면 매 call_llm 호출이 각자 새 예산을 받아, strategy의
