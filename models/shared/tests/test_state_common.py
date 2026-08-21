@@ -30,7 +30,7 @@ def test_common_state_has_expected_fields() -> None:
         "sources",
         "tokens_used",
         "validation",
-        "source_gen_id",
+        "source_context",
     }
 
 
@@ -52,7 +52,7 @@ def test_only_input_fields_are_required() -> None:
             "sources",
             "tokens_used",
             "validation",
-            "source_gen_id",
+            "source_context",
         }
     )
 
