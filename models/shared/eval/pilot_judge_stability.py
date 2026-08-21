@@ -38,6 +38,7 @@ from models.shared.config import (
     OPENAI_JUDGE_MODEL,
     OPENAI_MODEL,
 )
+from models.shared.eval.judge_payload import dumps_for_judge, strip_for_report
 from models.shared.eval.judge_stability import evaluate_stability, format_report
 from models.shared.eval.token_usage import (
     build_token_usage,
@@ -71,12 +72,18 @@ JSON 만 출력한다: {"scores": {"항목명": 정수, ...}}"""
 def _judge_once(question: str, response: dict, rubric: dict[str, str]) -> dict[str, int]:
     """★ 반드시 temperature=0 으로 호출한다(D-275).
 
+    ★ 응답을 그대로 넣지 않는다(D-329).
+      proposals 의 image_b64 가 들어가면 1024 PNG 3안 기준 약 175만 토큰이라
+      context length exceeded 가 나고, 이미지가 작으면 실패 없이 예산만 태운다.
+      rubric 4항목은 전부 텍스트 카피에 대한 것이므로 이미지는 채점 대상이 아니다.
+
     Judge 가 rubric 항목을 빠뜨리거나 없는 항목을 만들어도 파일럿 전체가
     죽지 않도록, 반환값을 rubric 키 기준으로 정규화한다.
     """
+    response_text, _dropped = dumps_for_judge(response)
     user = (
         f"## 사용자 요청\n{question}\n\n"
-        f"## 모델 응답\n{json.dumps(response, ensure_ascii=False, indent=2)}\n\n"
+        f"## 모델 응답\n{response_text}\n\n"
         f"## 채점 기준\n"
         + "\n".join(f"- {k}: {v}" for k, v in rubric.items())
         + "\n\n## 출력\nJSON 만."
@@ -93,6 +100,22 @@ def _judge_once(question: str, response: dict, rubric: dict[str, str]) -> dict[s
     if missing:
         raise ValueError(f"Judge 가 rubric 항목을 빠뜨렸다: {missing}")
     return {k: int(raw[k]) for k in rubric}          # rubric 순서·범위로 정규화
+
+
+# 문항 1건이 3회 채점에 쓸 수 있는 judge 토큰 상한.
+# 카피 3안 + rubric 이면 회당 1,000 토큰 안쪽이 정상이라 3회 = 3,000 이면 충분하다.
+# 이 값을 넘으면 채점 대상이 아닌 무언가가 프롬프트에 섞였다는 신호다(D-332).
+MAX_JUDGE_TOKENS_PER_ITEM = 6_000
+
+
+def _warn_if_judge_tokens_exceed(item_id: str, tokens: dict) -> None:
+    used = tokens.get("judge", 0)
+    if used > MAX_JUDGE_TOKENS_PER_ITEM:
+        print(
+            f"⚠️  {item_id}: judge 토큰 {used:,} 이 상한 {MAX_JUDGE_TOKENS_PER_ITEM:,} 을 넘었다. "
+            "채점 대상이 아닌 필드가 프롬프트에 섞였는지 확인하라(D-329·D-332).",
+            file=sys.stderr,
+        )
 
 
 def run_pilot(items: list[dict], generate, target_item_count: int) -> dict:
@@ -133,6 +156,11 @@ def run_pilot(items: list[dict], generate, target_item_count: int) -> dict:
         # ③ 판정용 자료 구조로 옮긴다 — {rubric항목: [1회차, 2회차, 3회차]}
         runs_by_item[item["id"]] = {k: [r[k] for r in runs] for k in rubric}
 
+        # 결과 파일에도 이미지를 넣지 않는다(D-331) — 리포트가 수 MB 가 되어 저장소가 부푼다
+        report_response, dropped = strip_for_report(response)
+        item_tokens = item_token_delta(snap)
+        _warn_if_judge_tokens_exceed(item["id"], item_tokens)
+
         details.append({
             "id": item["id"],
             "generated": True,
@@ -140,8 +168,9 @@ def run_pilot(items: list[dict], generate, target_item_count: int) -> dict:
             "runs": runs,
             "avg": round(statistics.mean(sum(r.values()) / len(r) for r in runs), 3),
             "spread": {k: max(r[k] for r in runs) - min(r[k] for r in runs) for k in rubric},
-            "response": response,                    # DoD ③ — 원본 응답 보존
-            "tokens": item_token_delta(snap),
+            "response": report_response,             # DoD ③ — 이미지만 뺀 원본 응답
+            "dropped_fields": dropped,               # 무엇을 뺐는지 남긴다
+            "tokens": item_tokens,
         })
 
     # ★ 판정은 여기서 하지 않는다
