@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from judge_payload import (
+from models.shared.eval.judge_payload import (
     DROP_FIELDS,
     JudgePayloadTooLarge,
     dumps_for_judge,
