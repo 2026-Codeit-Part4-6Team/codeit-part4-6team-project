@@ -55,6 +55,35 @@ export type WaitingCopyResponse = {
   industry: string | null;
 };
 
+export type UserSummaryResponse = {
+  credits: number;
+  daily_free_remaining: number;
+  total_generations: number;
+  published_generations: number;
+};
+
+export type GenerationListItem = {
+  id: number;
+  chatbot_type: "basic" | "consultant";
+  title: string | null;
+  question: string;
+  platform: "instagram" | "banner" | null;
+  plan: "free" | "paid";
+  credits_used: number;
+  tokens_used: number;
+  status: "pending" | "generating" | "done" | "failed" | "published";
+  created_at: string;
+};
+
+export type GenerationDetailResponse = GenerationListItem & {
+  source_gen_id: number | null;
+  result: Record<string, unknown> | null;
+  copy_content: string | null;
+  image_b64: string | null;
+  selected_proposal_index: 0 | 1 | 2 | null;
+  hitl_approved: boolean;
+};
+
 export class ApiClient {
   constructor(
     private readonly baseUrl = "/api",
@@ -109,6 +138,18 @@ export class ApiClient {
 
   me(): Promise<UserResponse> {
     return this.request("/users/me", { method: "GET" });
+  }
+
+  userSummary(): Promise<UserSummaryResponse> {
+    return this.request("/users/me/summary", { method: "GET" });
+  }
+
+  generationHistory(): Promise<GenerationListItem[]> {
+    return this.request("/generations", { method: "GET" });
+  }
+
+  generationDetail(generationId: number): Promise<GenerationDetailResponse> {
+    return this.request(`/generations/${generationId}`, { method: "GET" });
   }
 
   estimate(payload: EstimatePayload): Promise<EstimateResponse> {

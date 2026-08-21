@@ -155,4 +155,54 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls[0]?.[0]).toBe("/api/waiting-copies");
     expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
   });
+
+  it("requests account summary, history, and selected detail paths", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            credits: 100,
+            daily_free_remaining: 9,
+            total_generations: 2,
+            published_generations: 1,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 7,
+            chatbot_type: "basic",
+            title: null,
+            question: "광고",
+            platform: "instagram",
+            plan: "free",
+            credits_used: 0,
+            tokens_used: 1,
+            status: "done",
+            created_at: "2026-08-21T00:00:00Z",
+            source_gen_id: null,
+            result: null,
+            copy_content: null,
+            image_b64: null,
+            selected_proposal_index: null,
+            hitl_approved: false,
+          }),
+          { status: 200 },
+        ),
+      );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.userSummary();
+    await api.generationHistory();
+    await api.generationDetail(7);
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/users/me/summary");
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/generations");
+    expect(fetcher.mock.calls[2]?.[0]).toBe("/api/generations/7");
+    expect(fetcher.mock.calls.every((call) => call[1]?.method === "GET")).toBe(true);
+  });
 });
