@@ -1,5 +1,6 @@
 import type { AppRoute } from "../appState";
 import type { UserResponse } from "../api";
+import { BrandMark } from "./BrandMark";
 
 type SidebarProps = {
   user: UserResponse;
@@ -63,8 +64,7 @@ export function Sidebar({ user, route, open, collapsed, onClose, onNavigate, onL
   return (
     <aside id="app-sidebar" className={`sidebar${open ? " is-open" : ""}${collapsed ? " is-collapsed" : ""}`}>
       <div className="sidebar-brand">
-        <span className="sidebar-logo" aria-hidden="true">매출</span>
-        <strong>매출부스터</strong>
+        <BrandMark />
         <button type="button" className="sidebar-collapse" aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-pressed={collapsed} onClick={onToggle}>{collapsed ? "»" : "«"}</button>
         <button type="button" className="sidebar-close" onClick={onClose} aria-label="메뉴 닫기">×</button>
       </div>
