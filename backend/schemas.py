@@ -412,3 +412,38 @@ class WaitingCopyResponse(StrictModel):
     id: int = Field(gt=0)
     copy_text: str = Field(min_length=1)
     industry: str | None = None
+
+
+class UserSummaryResponse(StrictModel):
+    """서버가 계산한 현재 사용자 계정 요약입니다."""
+
+    credits: int = Field(ge=0)
+    daily_free_remaining: int = Field(ge=0)
+    total_generations: int = Field(ge=0)
+    published_generations: int = Field(ge=0)
+
+
+class GenerationListItem(StrictModel):
+    """마이페이지에 노출할 생성 이력 최소 항목입니다."""
+
+    id: int = Field(gt=0)
+    chatbot_type: ChatbotType
+    title: str | None
+    question: str = Field(min_length=1)
+    platform: Platform | None
+    plan: Literal["free", "paid"]
+    credits_used: int = Field(ge=0)
+    tokens_used: int = Field(ge=0)
+    status: GenerationStatus
+    created_at: datetime
+
+
+class GenerationDetailResponse(GenerationListItem):
+    """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
+
+    source_gen_id: int | None = Field(default=None, gt=0)
+    result: PublicGenerationResult | None = None
+    copy_content: str | None = None
+    image_b64: str | None = None
+    selected_proposal_index: Literal[0, 1, 2] | None = None
+    hitl_approved: bool

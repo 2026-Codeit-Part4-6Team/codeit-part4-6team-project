@@ -67,13 +67,8 @@ class Payment(Base):
 
     __tablename__ = "payments"
     __table_args__ = (
-        CheckConstraint("package IN ('starter', 'standard', 'pro')", name="ck_payments_package"),
         CheckConstraint("amount >= 0", name="ck_payments_amount"),
         CheckConstraint("credits >= 0", name="ck_payments_credits"),
-        CheckConstraint(
-            "status IN ('pending', 'completed', 'failed', 'refunded')",
-            name="ck_payments_status",
-        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
