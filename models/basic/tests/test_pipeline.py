@@ -17,7 +17,9 @@ _STORE = {
 _FAKE_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
 
-def _fake_call_llm(system: str, user: str, json_mode: bool = False) -> tuple[str, int]:
+def _fake_call_llm(
+    system: str, user: str, json_mode: bool = False, deadline: float | None = None
+) -> tuple[str, int]:
     """question_analysis/copy_gen/ranking 세 노드가 공유하는 call_llm을 시스템
     프롬프트 내용으로 구분해 노드별 응답 스키마에 맞는 고정 응답을 돌려준다."""
     payload = json.loads(user)
