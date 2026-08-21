@@ -52,3 +52,23 @@ def test_estimate_and_usage_reject_negative_values():
 
     with pytest.raises(ValidationError):
         GenerationUsage(plan="paid", credits_used=-1)
+
+
+def test_generation_response_rejects_internal_error_result():
+    """기술 오류 metadata는 Public GenerationResponse.result로 노출하지 않습니다."""
+    from backend.schemas import GenerationResponse
+
+    with pytest.raises(ValidationError):
+        GenerationResponse.model_validate(
+            {
+                "generation_id": 1,
+                "status": "failed",
+                "chatbot_type": "basic",
+                "result": {
+                    "status": "error",
+                    "reason": "timeout",
+                    "message": "provider timeout",
+                },
+                "usage": {"plan": "free", "credits_used": 0},
+            }
+        )

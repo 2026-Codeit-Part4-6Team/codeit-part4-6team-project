@@ -194,6 +194,7 @@ class ModelRequest(StrictModel):
     platform: Platform | None = None
     store: StoreContext
     extra: GenerateExtra | None = None
+    source_context: "ConsultantSourceContext | None" = None
 
     @model_validator(mode="after")
     def validate_platform(self) -> "ModelRequest":
@@ -272,6 +273,17 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
+
+
+class ConsultantSourceContext(StrictModel):
+    """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
+
+    generation_id: int = Field(gt=0)
+    strategy: ConsultantStrategy
+    reasons: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+    sources: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+
+
 class ConsultantModelResult(StrictModel):
     """컨설턴트 챗봇의 성공 결과."""
 
@@ -310,6 +322,7 @@ class ErrorResult(StrictModel):
 
 
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
+PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -355,5 +368,5 @@ class GenerationResponse(StrictModel):
     generation_id: int = Field(gt=0)
     status: GenerationStatus
     chatbot_type: ChatbotType
-    result: ModelResult | None = None
+    result: PublicGenerationResult | None = None
     usage: GenerationUsage
