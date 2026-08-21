@@ -125,6 +125,9 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
 }
 
 export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; chatbotType?: ChatbotType }) {
+  const mascot = chatbotType === "basic"
+    ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
+    : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [question, setQuestion] = useState("");
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
@@ -225,14 +228,18 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
 
   return (
     <section className="generation-page" aria-labelledby="generation-title">
-      <div className="generation-heading">
-        <p className="kicker">{chatbotType === "basic" ? "BASIC CHATBOT" : "CONSULTANT CHATBOT"}</p>
-        <h1 id="generation-title">{chatbotType === "basic" ? "게시물 생성" : "상권 컨설팅"}</h1>
-        <p>{chatbotType === "basic" ? "구조화된 정보를 입력한 뒤 결과를 대화로 계속 다듬을 수 있습니다." : "가게와 상권에 대한 질문을 입력하고 다음 액션을 제안받아보세요."}</p>
+      <div className="generation-heading generation-heading-with-mascot">
+        <div>
+          <p className="kicker">{chatbotType === "basic" ? "BASIC CHATBOT" : "CONSULTANT CHATBOT"}</p>
+          <h1 id="generation-title">{chatbotType === "basic" ? "게시물 생성" : "상권 컨설팅"}</h1>
+          <strong className="mascot-role">{mascot.name} · {mascot.role}</strong>
+          <p>{chatbotType === "basic" ? "구조화된 정보를 입력한 뒤 결과를 대화로 계속 다듬을 수 있습니다." : "가게와 상권에 대한 질문을 입력하고 다음 액션을 제안받아보세요."}</p>
+        </div>
+        <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
       <form className="card generation-card chat-generation-card" onSubmit={estimate}>
-        <div className="chat-context-header"><span className="chat-avatar">AI</span><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
+        <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <label>광고 형식
           <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
             <option value="instagram">Instagram</option>

@@ -44,6 +44,8 @@ describe("D5 protected routes", () => {
     expect(html).toContain("예상 사용량 확인");
     expect(html).toContain("첫 메시지");
     expect(html).toContain("어떤 광고를 만들어볼까요?");
+    expect(html).toContain("카피니 · 광고 제작 파트너");
+    expect(html).toContain("/assets/mascots/copyni.png");
     expect(html).toContain("첫 메시지");
     expect(html).not.toContain("상권 컨설팅");
   });
@@ -52,6 +54,8 @@ describe("D5 protected routes", () => {
     const html = renderRoute("consultant_chatbot");
     expect(html).toContain("상권 컨설팅");
     expect(html).toContain("가게에 대해 무엇이 궁금하세요?");
+    expect(html).toContain("분석이 · 상권 분석 파트너");
+    expect(html).toContain("/assets/mascots/bunseoki.png");
     expect(html).toContain("등록된 가게 정보와 상권 데이터를 바탕으로 상담을 시작합니다.");
     expect(html).toContain("우리 가게 매출을 늘리려면?");
     expect(html).not.toContain("광고 목적");
