@@ -727,3 +727,21 @@ def test_actions_retry_and_reasons_retry_counts_both_accumulate(mock_call_llm) -
 
     assert mock_call_llm.call_count == 3
     assert result["retry_count"] == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_hint_still_sent_after_earlier_reasons_retry(mock_call_llm) -> None:
+    """reasons 오류가 먼저 발생한 뒤 actions 개수 오류가 나면, 세 번째 요청에도
+    actions 교정 힌트가 포함돼야 한다(Codex 리뷰: retry_count가 우선돼 빠지는 회귀)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도
+        _response(_payload(actions=[])),  # 2차: actions 개수 오류 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    third_call_user_prompt = mock_call_llm.call_args_list[2].args[1]
+    assert RETRY_ACTIONS_HINT in third_call_user_prompt
+    assert result["retry_count"] == 2
