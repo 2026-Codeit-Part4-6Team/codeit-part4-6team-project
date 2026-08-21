@@ -374,56 +374,118 @@ def test_error_result_rejects_internal_reason_names():
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 5. 교차 검증 — 모델 모듈을 import 할 수 있을 때만 (2차 안전망)
+# 5. 교차 검증 — 모델 진입점을 실제로 호출해 본다 (2차 안전망)
 #    §1 의 MODEL_READS_* 는 손으로 유지하는 '선언'이라 갱신을 잊을 수 있다.
-#    모델 모듈이 import 되는 환경에서는 실제 동작으로 한 번 더 확인한다.
-#    LangGraph 미설치 등으로 import 가 안 되면 조용히 건너뛴다.
+#    여기서는 run() 을 실제로 호출해 동작으로 한 번 더 확인한다.
+#
+#    ★ 공개 API 만 쓴다 (D-322)
+#      run() · reset_graph() · build_basic_graph 는 진입점 계약(D-206)의 일부지만,
+#      _REQUIRED_KEYS·_build_initial_state 같은 밑줄 이름은 소유자가 언제든
+#      인라인·개명할 수 있는 내부 구현이다. PM 이 소유하는 이 파일이 그걸 붙잡으면
+#      기본 챗봇 담당이 리팩토링할 때마다 남의 CI 가 깨진다(D-292 와 같은 유형).
 # ═════════════════════════════════════════════════════════════════════════════
-def _model_main():
-    return pytest.importorskip(
+_ENTRYPOINT_API = ("run", "reset_graph", "build_basic_graph")
+
+
+@pytest.fixture
+def model_entrypoint(monkeypatch):
+    """모델 진입점을 가짜 그래프와 함께 준비한다. LLM·LangGraph 를 타지 않는다.
+
+    yield: (main 모듈, 그래프가 받은 state 를 담는 dict)
+    """
+    main = pytest.importorskip(
         "models.basic.main",
         reason="모델 모듈을 import 할 수 없는 환경 — §1 선언 기반 검사로 충분하다",
     )
+    missing = [name for name in _ENTRYPOINT_API if not hasattr(main, name)]
+    if missing:
+        pytest.skip(
+            f"models/basic/main.py 에 {missing} 가 없다. "
+            "진입점 공개 API(D-206·D-288)를 확인하라."
+        )
+
+    seen: dict = {}
+
+    class _FakeGraph:
+        def invoke(self, state: dict) -> dict:
+            seen.clear()
+            seen.update(state)
+            return {
+                **state,
+                "result": {
+                    "title": "여름 신메뉴",
+                    "proposals": [{"copy": "a"}, {"copy": "b"}, {"copy": "c"}],
+                    "suggested_chips": [],
+                },
+                "sources": ["상권분석"],
+                "tokens_used": 100,
+            }
+
+    monkeypatch.setattr(main, "build_basic_graph", lambda: _FakeGraph())
+    main.reset_graph()
+    yield main, seen
+    main.reset_graph()
 
 
-def test_declared_required_keys_match_model_implementation():
-    """MODEL_READS_REQUIRED 선언이 main.py 의 실제 필수 키와 일치하는가."""
-    main = _model_main()
-    assert frozenset(main._REQUIRED_KEYS) == MODEL_READS_REQUIRED, (
-        "§1 의 MODEL_READS_REQUIRED 선언과 models/basic/main.py::_REQUIRED_KEYS 가 다르다.\n"
-        "→ 모델을 고쳤다면 이 파일의 선언도 같은 PR 에서 고친다(D-266)."
+@pytest.mark.parametrize("drop", sorted(MODEL_READS_REQUIRED))
+def test_missing_required_key_is_rejected_before_the_graph(model_entrypoint, drop):
+    """필수 키가 없으면 그래프를 부르기 전에 error 로 끝난다 — LLM 호출 0회.
+
+    §1 의 MODEL_READS_REQUIRED 선언을 '동작'으로 확인한다.
+    비공개 상수를 읽지 않으므로 소유자가 구현을 바꿔도 깨지지 않는다.
+    """
+    main, seen = model_entrypoint
+    payload = {k: v for k, v in basic_request().items() if k != drop}
+
+    result = main.run(payload)
+
+    assert result["status"] == "error", f"{drop} 없이도 통과했다"
+    assert not seen, f"{drop} 가 없는데 그래프를 호출했다 — LLM 비용이 발생한다"
+
+
+def test_full_request_reaches_the_graph(model_entrypoint):
+    """필수 키가 모두 있으면 정상적으로 그래프까지 간다."""
+    main, seen = model_entrypoint
+    result = main.run(basic_request())
+
+    assert result["status"] == "ok"
+    assert MODEL_READS_REQUIRED <= seen.keys(), (
+        f"그래프 state 에 필수 키가 빠졌다: {sorted(MODEL_READS_REQUIRED - seen.keys())}"
     )
 
 
-def test_source_context_actually_reaches_the_graph_state():
+def test_source_context_actually_reaches_the_graph(model_entrypoint):
     """서비스가 보낸 source_context 가 그래프 state 까지 도달하는가(D-306).
 
     §1 은 '키 이름이 맞는가'만 보고, 여기서는 '값이 실제로 전달되는가'를 본다.
     """
-    main = _model_main()
-    payload = basic_request(source_context=SOURCE_CONTEXT)
-    state = main._build_initial_state(payload)
+    main, seen = model_entrypoint
+    main.run(basic_request(source_context=SOURCE_CONTEXT))
 
-    assert state.get("source_context") == SOURCE_CONTEXT, (
+    assert seen.get("source_context") == SOURCE_CONTEXT, (
         "source_context 가 그래프 state 에 전달되지 않는다.\n"
-        "→ _build_initial_state 에 `\"source_context\": request.get(\"source_context\")` 를 넣는다."
+        "→ models/basic/main.py::_build_initial_state 에 "
+        '`"source_context": request.get("source_context")` 를 넣는다(D-306).'
     )
-    assert "source_gen_id" not in state, (
+    assert "source_gen_id" not in seen, (
         "state 에 source_gen_id 가 남아 있다 — 서비스는 이 키를 보내지 않으므로 항상 None 이다."
     )
 
 
-def test_deadline_is_set_and_shorter_than_service_timeout():
+def test_deadline_is_set_and_shorter_than_service_timeout(model_entrypoint):
     """D-291·D-307 — 모델 자체 예산이 서비스 타임아웃보다 짧아야 한다.
 
     asyncio.wait_for 는 to_thread 스레드를 취소하지 못하므로, 실제로 작업을
     멈추는 것은 모델 내부 deadline 뿐이다.
     """
-    main = _model_main()
+    main, seen = model_entrypoint
     from models.shared.config import LLM_DEADLINE_SECONDS
 
-    state = main._build_initial_state(basic_request())
-    assert isinstance(state.get("deadline"), float) and state["deadline"] > 0
+    main.run(basic_request())
+
+    assert isinstance(seen.get("deadline"), float) and seen["deadline"] > 0, (
+        "그래프 state 에 deadline 이 없다 — 모델이 스스로 멈출 수단이 없다(D-291)."
+    )
     assert LLM_DEADLINE_SECONDS < 60, (
         f"LLM_DEADLINE_SECONDS={LLM_DEADLINE_SECONDS} 가 서비스 최소 타임아웃(60초) 이상이다.\n"
         "→ 모델이 스스로 멈추지 못하면 좀비 스레드가 토큰을 계속 쓴다(D-307)."
