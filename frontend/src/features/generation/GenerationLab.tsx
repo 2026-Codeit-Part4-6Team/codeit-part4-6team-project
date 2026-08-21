@@ -243,7 +243,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
         {chatbotType === "basic" && <label>광고 형식
           <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
             <option value="instagram">Instagram</option>
-            <option value="banner">현수막</option>
+            <option value="xbanner">X-배너</option>
           </select>
         </label>}
         <label className="chat-composer-label">첫 메시지

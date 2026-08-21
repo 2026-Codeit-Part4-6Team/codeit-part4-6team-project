@@ -10,6 +10,25 @@ def test_public_basic_request_requires_platform():
         GenerateRequest(chatbot_type="basic", question="광고를 만들어줘", max_accepted_credits=0)
 
 
+def test_public_basic_request_uses_xbanner_platform_enum():
+    """X-배너의 공개 wire 값은 xbanner이며 기존 banner는 거부합니다."""
+    request = GenerateRequest(
+        chatbot_type="basic",
+        question="X-배너 광고를 만들어줘",
+        platform="xbanner",
+        max_accepted_credits=0,
+    )
+    assert request.platform == "xbanner"
+
+    with pytest.raises(ValidationError):
+        GenerateRequest(
+            chatbot_type="basic",
+            question="X-배너 광고를 만들어줘",
+            platform="banner",
+            max_accepted_credits=0,
+        )
+
+
 def test_public_consultant_request_requires_null_platform():
     """Consultant 공개 요청은 플랫폼을 사용하지 않습니다."""
     request = GenerateRequest(chatbot_type="consultant", question="상권을 분석해줘", max_accepted_credits=0)
@@ -31,7 +50,7 @@ def test_public_request_rejects_service_owned_fields():
             {
                 "chatbot_type": "basic",
                 "question": "광고를 만들어줘",
-                "platform": "banner",
+                "platform": "xbanner",
                 "max_accepted_credits": 0,
                 "user_id": 1,
             }

@@ -15,13 +15,13 @@
 
 #     cases = [
 #         {
-#             "label": "A. banner 채널",
+#             "label": "A. X-배너 채널",
 #             "state": {
 #                 "chatbot_type": "basic",
 #                 "user_id": 1,
 #                 "question": "여름 신메뉴 홍보 문구 만들어줘",
 #                 "store": store,
-#                 "platform": "banner",
+#                 "platform": "xbanner",
 #                 "extra": {},
 #             },
 #         },
@@ -168,7 +168,7 @@ def _mock_external_calls():
         yield
 
 
-def test_e2e_scenario_a_banner_channel():
+def test_e2e_scenario_a_xbanner_channel():
     graph = build_basic_graph()
     final_state = graph.invoke(
         {
@@ -176,7 +176,7 @@ def test_e2e_scenario_a_banner_channel():
             "user_id": 1,
             "question": "여름 신메뉴 홍보 문구 만들어줘",
             "store": _STORE,
-            "platform": "banner",
+            "platform": "xbanner",
             "extra": {},
         }
     )

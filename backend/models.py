@@ -99,7 +99,7 @@ class Generation(Base):
             "chatbot_type IN ('basic', 'consultant')", name="ck_generations_chatbot_type"
         ),
         CheckConstraint(
-            "platform IS NULL OR platform IN ('instagram', 'banner')",
+            "platform IS NULL OR platform IN ('instagram', 'xbanner')",
             name="ck_generations_platform",
         ),
         CheckConstraint("length(request_hash) = 64", name="ck_generations_request_hash"),

@@ -95,6 +95,26 @@ def test_generation_has_idempotency_and_result_fields(db_session):
     assert generation.selected_proposal_index is None
 
 
+def test_generation_platform_persists_xbanner(db_session):
+    """신규 X-배너 생성 이력은 xbanner wire 값을 저장합니다."""
+    user = make_user()
+    db_session.add(user)
+    db_session.flush()
+    generation = Generation(
+        user_id=user.id,
+        chatbot_type="basic",
+        idempotency_key="00000000-0000-0000-0000-000000000002",
+        request_hash="b" * 64,
+        question="X-배너 광고를 만들어줘",
+        platform="xbanner",
+        plan="free",
+    )
+    db_session.add(generation)
+    db_session.commit()
+
+    assert generation.platform == "xbanner"
+
+
 def test_user_idempotency_key_pair_is_unique(db_session):
     """같은 사용자의 Idempotency-Key는 한 번만 저장됩니다."""
     user = make_user()
@@ -106,7 +126,7 @@ def test_user_idempotency_key_pair_is_unique(db_session):
         "idempotency_key": "00000000-0000-0000-0000-000000000001",
         "request_hash": "a" * 64,
         "question": "광고를 만들어줘",
-        "platform": "banner",
+        "platform": "xbanner",
         "plan": "free",
     }
     db_session.add_all([Generation(**common), Generation(**common)])

@@ -29,7 +29,7 @@ def add_generation(db: Session, user: User, suffix: int, status="done"):
             idempotency_key=f"00000000-0000-0000-0000-{suffix:012d}",
             request_hash="b" * 64,
             question="광고",
-            platform="banner",
+            platform="xbanner",
             plan="free",
             status=status,
         )
