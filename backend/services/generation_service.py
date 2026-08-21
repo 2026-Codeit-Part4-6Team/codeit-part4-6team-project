@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import binascii
 import hashlib
 import json
 from datetime import datetime, timedelta
@@ -68,6 +70,61 @@ class ModelExecutionError(Exception):
         self.reason = reason
         self.message = message
         super().__init__(message)
+
+
+class ApprovedImageInvalid(Exception):
+    """승인 이미지가 허용된 인코딩 또는 이미지 형식이 아닙니다."""
+
+
+class ApprovedImageTooLarge(Exception):
+    """디코딩한 승인 이미지가 서비스 허용 크기를 초과했습니다."""
+
+
+def _detected_image_mime(data: bytes) -> str | None:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def canonicalize_approved_image(
+    image_b64: str | None,
+    *,
+    max_image_bytes: int,
+) -> str | None:
+    """허용된 이미지 바이트를 검증해 canonical data URI로 변환합니다."""
+    if image_b64 is None:
+        return None
+
+    declared_mime: str | None = None
+    encoded = image_b64
+    if image_b64.startswith("data:"):
+        header, separator, encoded = image_b64.partition(",")
+        if not separator or not header.endswith(";base64"):
+            raise ApprovedImageInvalid("이미지는 base64 data URI여야 합니다.")
+        declared_mime = header[5:-7]
+        if declared_mime not in {"image/png", "image/jpeg", "image/webp"}:
+            raise ApprovedImageInvalid("PNG, JPEG, WebP 이미지만 승인할 수 있습니다.")
+
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise ApprovedImageInvalid("이미지 base64 인코딩이 올바르지 않습니다.") from error
+
+    if len(data) > max_image_bytes:
+        raise ApprovedImageTooLarge("승인 이미지가 허용 크기를 초과했습니다.")
+
+    detected_mime = _detected_image_mime(data)
+    if detected_mime is None or (
+        declared_mime is not None and declared_mime != detected_mime
+    ):
+        raise ApprovedImageInvalid("이미지 MIME과 실제 바이트 형식이 올바르지 않습니다.")
+
+    canonical = base64.b64encode(data).decode("ascii")
+    return f"data:{detected_mime};base64,{canonical}"
 
 
 def serialize_model_result_for_storage(result: ModelResult) -> str:
