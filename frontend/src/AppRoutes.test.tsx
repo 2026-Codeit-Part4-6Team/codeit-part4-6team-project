@@ -58,10 +58,19 @@ describe("D5 protected routes", () => {
     expect(html).not.toContain("광고 형식");
   });
 
-  it("renders the storyboard account surfaces", () => {
+  it("renders the connected account and settings surfaces", () => {
     expect(renderRoute("mypage")).toContain("최근 생성 기록");
+    expect(renderRoute("mypage")).toContain("활동 기록을 불러오는 중");
     expect(renderRoute("settings")).toContain("사용할 AI 모델");
     expect(renderRoute("settings")).toContain("기본 제공 모델");
     expect(renderRoute("settings")).toContain("고급 제공 모델");
+  });
+
+  it("renders the payment policy gate without a transaction action", () => {
+    const html = renderRoute("billing");
+
+    expect(html).toContain("결제 정책 확정 대기");
+    expect(html).toContain("starter");
+    expect(html).not.toContain("결제하기");
   });
 });

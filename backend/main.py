@@ -7,8 +7,10 @@ from backend.clients.chatbot_client import create_chatbot_client
 from backend.config import settings
 from backend.routers.auth_router import router as auth_router
 from backend.routers.generate_router import router as generate_router
+from backend.routers.generations_router import router as generations_router
 from backend.routers.health_router import router as health_router
 from backend.routers.users_router import router as users_router
+from backend.routers.waiting_router import router as waiting_router
 
 
 def create_app() -> FastAPI:
@@ -27,6 +29,8 @@ def create_app() -> FastAPI:
     application.include_router(users_router)
     application.include_router(health_router)
     application.include_router(generate_router)
+    application.include_router(generations_router)
+    application.include_router(waiting_router)
 
     @application.exception_handler(RequestValidationError)
     async def validation_error_handler(

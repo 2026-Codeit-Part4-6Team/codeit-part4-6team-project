@@ -131,6 +131,16 @@ def test_payment_and_waiting_copy_defaults(db_session):
     assert waiting_copy.created_at is not None
 
 
+def test_payment_temporary_enums_are_not_db_checks():
+    """D-067에 따라 Gate 전 package/status enum을 DB CHECK로 고정하지 않습니다."""
+    names = {constraint.name for constraint in Payment.__table__.constraints}
+
+    assert "ck_payments_package" not in names
+    assert "ck_payments_status" not in names
+    assert "ck_payments_amount" in names
+    assert "ck_payments_credits" in names
+
+
 def test_runtime_policy_defaults():
     """초기 Sprint 정책값은 계약과 일치합니다."""
     assert settings.daily_free_limit == 10
