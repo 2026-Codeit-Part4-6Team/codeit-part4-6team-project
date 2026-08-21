@@ -1,6 +1,6 @@
 from ..graph.state import BasicState
 
-VALID_PLATFORMS = {"instagram", "banner"}
+VALID_PLATFORMS = {"instagram", "xbanner"}
 
 
 def channel_node(state: BasicState) -> dict:

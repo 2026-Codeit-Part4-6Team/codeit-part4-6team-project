@@ -300,8 +300,9 @@ def test_blocked_state_becomes_blocked_result(source, action, reason):
     assert result.action == action
 
 
-def test_blocked_action_must_be_within_contract_enum():
-    """action 은 block·reask·warn 3종만 허용된다."""
+def test_blocked_action_normalizes_to_block_when_outside_contract_enum():
+    """action 이 block·reask·warn 밖이면(예: enum 밖 값) block으로 정규화되어
+    계약 위반 자체가 발생하지 않는다."""
     state = {
         "status": "blocked",
         "issues": [
@@ -314,8 +315,8 @@ def test_blocked_action_must_be_within_contract_enum():
         ],
     }
 
-    with pytest.raises(ValidationError):
-        BlockedResult.model_validate(assemble_response(state))
+    result = BlockedResult.model_validate(assemble_response(state))
+    assert result.action == "block"
 
 
 def test_blocked_message_must_not_be_blank():
