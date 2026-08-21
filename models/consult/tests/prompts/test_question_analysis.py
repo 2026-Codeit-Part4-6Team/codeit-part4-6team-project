@@ -21,11 +21,14 @@ def test_system_prompt_excludes_business_type_words_as_keyword() -> None:
 
 def test_system_prompt_excludes_generic_concept_words_as_keyword() -> None:
     """ "이벤트"·"행사"·"신메뉴"처럼 무엇을 가리키는지 특정하지 않는 범용 개념어도
-    keyword로 뽑지 않는다는 조건→결론이 실제로 이어져 있어야 한다."""
+    keyword로 뽑지 않는다는 조건→결론이 실제로 이어져 있어야 한다. "행사"·
+    "신메뉴"는 개별 예시 문장이 없어 "이벤트"처럼 단독 phrase로 결론까지 확인할
+    수 없으므로, 최소한 "keyword로 뽑지 않는다"는 결론이 걸린 범용 개념어
+    목록 안에 나열돼 있는지(단어가 다른 문맥에 흩어져 있는 게 아니라) 확인한다
+    (Codex 리뷰: 단어 존재만 확인하면 결론이 뒤집혀도 못 잡음)."""
     normalized = _normalized()
     assert '"이벤트 하나 해볼까요?" → keyword: null' in normalized
-    for word in ("행사", "신메뉴"):
-        assert word in normalized
+    assert '범용 개념어(예: "이벤트", "행사", "신메뉴"' in normalized
 
 
 def test_system_prompt_includes_positive_contrast_for_business_type_word() -> None:
