@@ -7,20 +7,29 @@ type DashboardHomeProps = {
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   return (
     <section className="dashboard-home" aria-labelledby="dashboard-title">
-      <div className="dashboard-greeting">
-        <span className="greeting-mark" aria-hidden="true" />
-        <h1 id="dashboard-title">안녕하세요, 사장님!</h1>
-        <p>왼쪽 사이드바나 아래 카드에서 원하는 기능을 선택하세요.<br />AI가 마케팅을 도와드립니다.</p>
+      <div className="mascot-hero">
+        <div className="dashboard-greeting">
+          <p className="kicker">YOUR AI GROWTH PARTNERS</p>
+          <h1 id="dashboard-title">안녕하세요, 사장님!</h1>
+          <p><strong>카피니와 분석이</strong>가 광고 제작부터 상권 전략까지 함께합니다.</p>
+          <span className="hero-brand-copy">매출부스터 AI</span>
+        </div>
+        <div className="mascot-duo" aria-label="카피니와 분석이">
+          <img className="mascot-duo-copyni" src="/assets/mascots/copyni.png" alt="광고 제작 파트너 카피니" />
+          <img className="mascot-duo-bunseoki" src="/assets/mascots/bunseoki.png" alt="상권 분석 파트너 분석이" />
+        </div>
       </div>
 
       <div className="feature-card-grid">
-        <button type="button" className="feature-card" onClick={() => onNavigate("consultant_chatbot")}>
-          <img src="/assets/message-circle-large.svg" alt="" aria-hidden="true" />
+        <button type="button" className="feature-card feature-card-consultant" onClick={() => onNavigate("consultant_chatbot")}>
+          <img className="feature-mascot" src="/assets/mascots/bunseoki.png" alt="" aria-hidden="true" />
+          <small>분석이에게 상담받기</small>
           <strong>컨설턴트 챗봇</strong>
           <span>상권 분석 &amp; 전략 제안</span>
         </button>
-        <button type="button" className="feature-card" onClick={() => onNavigate("basic_chatbot")}>
-          <img src="/assets/file-text-large.svg" alt="" aria-hidden="true" />
+        <button type="button" className="feature-card feature-card-basic" onClick={() => onNavigate("basic_chatbot")}>
+          <img className="feature-mascot" src="/assets/mascots/copyni.png" alt="" aria-hidden="true" />
+          <small>카피니와 광고 만들기</small>
           <strong>게시물 생성</strong>
           <span>SNS &amp; 현수막</span>
         </button>
