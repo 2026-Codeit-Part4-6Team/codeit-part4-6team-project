@@ -304,12 +304,15 @@ def _evaluate_item(item: dict) -> dict:
     trend_path = check_trend_path(item, final_state) if final_state else None
 
     # actions 0개 재생성·초과분 절단이 있었는지(D-139 후속, PM 승인).
-    # final_state가 비어 있으면(그래프 실행 자체가 예외로 죽음 — 예: 재시도
-    # 소진) strategy() 노드가 정상 반환하지 못해 신호 자체를 볼 수 없다.
-    # False(미발생)로 단정하면 "재시도했지만 실패"와 "애초에 재시도 안 함"을
-    # 구분 못 하므로 None(측정 불가)으로 남긴다 — _build_report()가 None인
-    # 문항은 비율 분모에서 제외한다(Codex 리뷰).
-    if final_state:
+    # strategy() 노드가 실행되지 않으면(그래프 실행 자체가 예외로 죽음 — 예:
+    # 재시도 소진, 또는 그 이전 노드에서 차단돼 strategy까지 안 감) 이 키
+    # 자체가 state에 없다 — False(미발생)로 단정하면 "재시도했지만 실패"·
+    # "애초에 해당 없음"과 "재시도 안 함"을 구분 못 하므로 None(측정 불가)으로
+    # 남긴다. final_state 자체의 참/거짓이 아니라 이 키의 존재 여부로
+    # 판단해야, strategy()는 실행됐지만 final_state가 비어 있지는 않은
+    # 케이스(예: 차단으로 조기 종료)도 놓치지 않는다(자체 재점검).
+    # _build_report()가 None인 문항은 비율 분모에서 제외한다(Codex 리뷰).
+    if "actions_retried" in final_state:
         actions_retried = bool(final_state.get("actions_retried"))
         actions_truncated = bool(final_state.get("actions_truncated"))
     else:

@@ -591,6 +591,32 @@ def test_evaluate_item_hides_graph_exception_and_skips_judge(
 
 @patch("models.shared.llm.call_llm")
 @patch("models.consult.eval.eval_strategy._run_graph")
+def test_evaluate_item_marks_actions_signal_none_when_strategy_never_ran(
+    mock_run_graph,
+    mock_call_llm,
+) -> None:
+    """그래프가 예외 없이 정상 종료됐어도(final_state가 비어있지 않음)
+    strategy() 노드까지 안 갔으면(예: 그 전 노드에서 차단) actions_retried
+    키 자체가 state에 없다 — final_state의 참/거짓만으로 판단하면 이 경우를
+    False(미발생)로 잘못 단정한다(자체 재점검으로 발견)."""
+    final_state = {"status": "blocked"}  # strategy 노드가 실행되지 않아 키가 없음
+    response = {
+        "status": "blocked",
+        "action": "block",
+        "reason": "policy_blocked",
+        "message": "요청을 처리할 수 없습니다.",
+    }
+    mock_run_graph.return_value = (final_state, response)
+
+    result = _evaluate_item(_item())
+
+    assert result["actions_retried"] is None
+    assert result["actions_truncated"] is None
+    mock_call_llm.assert_not_called()
+
+
+@patch("models.shared.llm.call_llm")
+@patch("models.consult.eval.eval_strategy._run_graph")
 def test_evaluate_item_preserves_response_when_judge_returns_invalid_json(
     mock_run_graph,
     mock_call_llm,
