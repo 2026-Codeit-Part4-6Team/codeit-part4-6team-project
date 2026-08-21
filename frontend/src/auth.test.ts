@@ -37,6 +37,7 @@ const user: UserResponse = {
   daily_free_used: 0,
   daily_free_reset_at: "2026-08-14T15:00:00Z",
   daily_free_remaining: 10,
+  is_admin: false,
 };
 
 describe("registration contract", () => {

@@ -31,6 +31,7 @@ const user: UserResponse = {
   daily_free_used: 1,
   daily_free_reset_at: null,
   daily_free_remaining: 1,
+  is_admin: false,
 };
 
 const summary: UserSummaryResponse = {

@@ -234,4 +234,19 @@ describe("ApiClient", () => {
       "00000000-0000-0000-0000-000000000901",
     );
   });
+
+  it("updates the authenticated demo admin's credit and free usage state", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ credits: 700, daily_free_used: 4 }), { status: 200 }),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.updateDemoTestState({ credits: 700, daily_free_used: 4 });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/demo/test-state");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ credits: 700, daily_free_used: 4 }),
+    );
+  });
 });

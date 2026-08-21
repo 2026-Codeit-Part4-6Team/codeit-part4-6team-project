@@ -14,9 +14,10 @@ type ProtectedRouteViewProps = {
   onNavigate: (route: AppRoute) => void;
   onLogout: () => void;
   onCreditsChanged?: (credits: number) => void;
+  onUserChanged?: (user: UserResponse) => void;
 };
 
-export function ProtectedRouteView({ api, user, route, onNavigate, onLogout, onCreditsChanged }: ProtectedRouteViewProps) {
+export function ProtectedRouteView({ api, user, route, onNavigate, onLogout, onCreditsChanged, onUserChanged }: ProtectedRouteViewProps) {
   let content;
   if (route === "dashboard") {
     content = <DashboardHome onNavigate={onNavigate} />;
@@ -27,7 +28,7 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout, onC
   } else if (route === "mypage") {
     content = <MyPage api={api} user={user} onBack={() => onNavigate("dashboard")} onBilling={() => onNavigate("billing")} />;
   } else if (route === "settings") {
-    content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
+    content = <SettingsPage api={api} user={user} onUserChanged={onUserChanged} onBack={() => onNavigate("dashboard")} />;
   } else {
     content = <BillingPage api={api} currentCredits={user.credits} onCreditsChanged={onCreditsChanged} onBack={() => onNavigate("dashboard")} />;
   }

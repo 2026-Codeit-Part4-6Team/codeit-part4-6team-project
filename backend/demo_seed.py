@@ -31,6 +31,10 @@ async def seed_demo_user(
 
     existing = db.scalar(select(User).where(User.username == request.username))
     if existing is not None:
+        if not existing.is_admin:
+            existing.is_admin = True
+            db.commit()
+            db.refresh(existing)
         return existing, False
 
     user = await register_user(
@@ -41,6 +45,9 @@ async def seed_demo_user(
         now=now,
         daily_free_limit=daily_free_limit,
     )
+    user.is_admin = True
+    db.commit()
+    db.refresh(user)
     return user, True
 
 

@@ -27,6 +27,12 @@ export type UserResponse = {
   daily_free_used: number;
   daily_free_reset_at: string | null;
   daily_free_remaining: number;
+  is_admin: boolean;
+};
+
+export type DemoTestStateRequest = {
+  credits: number;
+  daily_free_used: number;
 };
 
 export type GenerationResponse = {
@@ -182,6 +188,13 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify({ package: packageId }),
       headers: { "Idempotency-Key": idempotencyKey },
+    });
+  }
+
+  updateDemoTestState(payload: DemoTestStateRequest): Promise<UserResponse> {
+    return this.request("/demo/test-state", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 

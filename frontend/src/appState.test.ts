@@ -19,6 +19,7 @@ const user: UserResponse = {
   daily_free_used: 3,
   daily_free_reset_at: null,
   daily_free_remaining: 7,
+  is_admin: false,
 };
 
 describe("D5 application view state", () => {

@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { ApiError, type ApiClient, type UserResponse } from "../api";
+
 type ModelId = "service_basic" | "service_advanced" | "pending";
 
 const models: Array<{ id: ModelId; name: string; detail: string }> = [
@@ -10,13 +12,46 @@ const models: Array<{ id: ModelId; name: string; detail: string }> = [
 
 // 제공 Provider가 확정되기 전까지는 실제 업체명을 UI 계약으로 고정하지 않는다.
 
-export function SettingsPage({ onBack }: { onBack: () => void }) {
+type SettingsPageProps = {
+  api: ApiClient;
+  user: UserResponse;
+  onBack: () => void;
+  onUserChanged?: (user: UserResponse) => void;
+};
+
+export function SettingsPage({ api, user, onBack, onUserChanged }: SettingsPageProps) {
   const [modelType, setModelType] = useState<ModelId>("service_basic");
   const [saved, setSaved] = useState(false);
+  const [credits, setCredits] = useState(user.credits);
+  const [dailyFreeUsed, setDailyFreeUsed] = useState(user.daily_free_used);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoMessage, setDemoMessage] = useState<string | null>(null);
 
   function changeModel(value: ModelId) {
     setModelType(value);
     setSaved(false);
+  }
+
+
+  async function applyDemoState() {
+    setDemoBusy(true);
+    setDemoMessage(null);
+    try {
+      const updated = await api.updateDemoTestState({
+        credits,
+        daily_free_used: dailyFreeUsed,
+      });
+      onUserChanged?.(updated);
+      setDemoMessage("데모 계정 상태를 반영했습니다.");
+    } catch (error) {
+      setDemoMessage(
+        error instanceof ApiError && error.statusCode === 422
+          ? "무료 사용량은 일일 한도 안에서 입력해 주세요."
+          : "데모 계정 상태를 변경하지 못했습니다.",
+      );
+    } finally {
+      setDemoBusy(false);
+    }
   }
 
   return (
@@ -32,6 +67,45 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
           {saved && <p className="saved-note">환경설정 미리보기에 반영했습니다.</p>}
           <button type="button" className="primary settings-save" onClick={() => setSaved(true)}>설정 저장</button>
         </section>
+        {user.is_admin && (
+          <section className="card settings-card demo-test-card">
+            <div>
+              <p className="kicker">DEMO ONLY</p>
+              <h2>데모 계정 상태</h2>
+              <p>시연할 과금 흐름에 맞춰 이 관리자 계정의 상태만 조절합니다.</p>
+            </div>
+            <div className="demo-test-fields">
+              <label>
+                <span>현재 크레딧</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={credits}
+                  onChange={(event) => setCredits(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                <span>오늘 무료 사용량</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={user.daily_free_used + user.daily_free_remaining}
+                  value={dailyFreeUsed}
+                  onChange={(event) => setDailyFreeUsed(Number(event.target.value))}
+                />
+              </label>
+            </div>
+            {demoMessage && <p className="saved-note" role="status">{demoMessage}</p>}
+            <button
+              type="button"
+              className="primary settings-save"
+              disabled={demoBusy}
+              onClick={() => void applyDemoState()}
+            >
+              {demoBusy ? "반영 중…" : "테스트 상태 적용"}
+            </button>
+          </section>
+        )}
         <section className="card settings-card muted-settings"><p className="kicker">MORE LATER</p><h2>추가 설정</h2><p>팀 의견을 받은 뒤 필요한 설정을 이 영역에 추가합니다.</p></section>
       </div>
     </section>

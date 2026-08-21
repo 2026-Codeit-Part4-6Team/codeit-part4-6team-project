@@ -20,6 +20,7 @@ const user: UserResponse = {
   daily_free_used: 3,
   daily_free_reset_at: null,
   daily_free_remaining: 7,
+  is_admin: false,
 };
 
 function renderRoute(route: "dashboard" | "basic_chatbot" | "consultant_chatbot" | "mypage" | "billing" | "settings") {
@@ -68,6 +69,23 @@ describe("D5 protected routes", () => {
     expect(renderRoute("settings")).toContain("사용할 AI 모델");
     expect(renderRoute("settings")).toContain("기본 제공 모델");
     expect(renderRoute("settings")).toContain("고급 제공 모델");
+    expect(renderRoute("settings")).not.toContain("데모 계정 상태");
+  });
+
+  it("shows demo account controls only to an administrator", () => {
+    const html = renderToStaticMarkup(
+      <ProtectedRouteView
+        api={new ApiClient()}
+        user={{ ...user, is_admin: true }}
+        route="settings"
+        onNavigate={() => undefined}
+        onLogout={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("데모 계정 상태");
+    expect(html).toContain("현재 크레딧");
+    expect(html).toContain("오늘 무료 사용량");
   });
 
   it("renders the payment policy gate without a transaction action", () => {

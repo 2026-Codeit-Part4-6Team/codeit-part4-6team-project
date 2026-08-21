@@ -6,6 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.clients.chatbot_client import create_chatbot_client
 from backend.config import settings
 from backend.routers.auth_router import router as auth_router
+from backend.routers.demo_router import router as demo_router
 from backend.routers.generate_router import router as generate_router
 from backend.routers.generations_router import router as generations_router
 from backend.routers.health_router import router as health_router
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
         https_only=settings.session_cookie_secure,
     )
     application.include_router(auth_router)
+    application.include_router(demo_router)
     application.include_router(users_router)
     application.include_router(health_router)
     application.include_router(generate_router)

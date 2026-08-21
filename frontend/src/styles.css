@@ -514,6 +514,10 @@ select:focus-visible {
 .settings-stack { display: grid; gap: 18px; max-width: 800px; }
 .settings-card > div:first-child p:last-child, .settings-card > p:not(.kicker) { color: var(--muted); line-height: 1.6; }
 .settings-model-card { border-top: 5px solid var(--accent); }
+.demo-test-card { border-top: 5px solid var(--primary); }
+.demo-test-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.demo-test-fields label { display: grid; gap: 8px; color: var(--navy); font-weight: 700; }
+.demo-test-fields input { min-height: 48px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .model-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0 18px; }
 .model-options button { min-height: 142px; display: grid; align-content: start; gap: 7px; padding: 18px; border: 1px solid #d8d3ca; border-radius: 16px; background: #fdfbf7; color: #18171d; text-align: left; transition: border-color .18s ease, background .18s ease, color .18s ease; }
 .model-options button:hover { border-color: var(--primary); }

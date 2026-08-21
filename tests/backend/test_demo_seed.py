@@ -76,6 +76,7 @@ def test_seed_creates_demo_user_with_registration_contract(db):
     assert user.username == "developer"
     assert user.business_name == "데모 카페"
     assert user.road_address == "서울 강남구 테헤란로 1"
+    assert user.is_admin is True
 
 
 def test_seed_keeps_existing_user_and_password_unchanged(db):
@@ -107,3 +108,4 @@ def test_seed_keeps_existing_user_and_password_unchanged(db):
     assert created is False
     assert second.id == first.id
     assert second.password_hash == original_hash
+    assert second.is_admin is True

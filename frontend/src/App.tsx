@@ -60,6 +60,10 @@ export function App() {
       : current);
   }
 
+  function updateUser(user: UserResponse) {
+    setView((current) => current.user ? { ...current, user } : current);
+  }
+
   if (restoreError) {
     return (
       <main className="loading loading--error">
@@ -78,6 +82,7 @@ export function App() {
       onNavigate={onNavigate}
       onLogout={() => void logout()}
       onCreditsChanged={updateCredits}
+      onUserChanged={updateUser}
     />
   );
 }

@@ -124,6 +124,7 @@ class UserResponse(StrictModel):
     daily_free_used: int = Field(ge=0)
     daily_free_reset_at: datetime | None
     daily_free_remaining: int = Field(ge=0)
+    is_admin: bool
 
     @field_validator("daily_free_reset_at", mode="before")
     @classmethod
@@ -132,6 +133,13 @@ class UserResponse(StrictModel):
         if isinstance(value, datetime) and value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value
+
+
+class DemoTestStateRequest(StrictModel):
+    """시연용 관리자 자신의 과금 상태 변경 요청."""
+
+    credits: int = Field(ge=0)
+    daily_free_used: int = Field(ge=0)
 
 
 class PreviewGenerationResult(StrictModel):
