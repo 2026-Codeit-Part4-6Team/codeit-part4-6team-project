@@ -82,15 +82,21 @@ def evaluate_stability(runs_by_item: dict[str, dict[str, list[int]]],
 def format_report(result: dict) -> str:
     ok = "✅ 통과" if result["passed"] else "❌ 실패"
     lines = [
-        f"Judge 안정성 판정: {ok}",
-        f"  측정 셀            : {result['measured_cells']}개",
-        f"  흔들린 비율        : {result['flip_rate']:.0%}",
+        "",
+        "== 파일럿 안정성 검증 ==",
+        f"  판정 결과          : {ok}",                              # ← 추가
+        f"  총 세션 수         : {result['sessions']}회",
+        f"  총 응답 수         : {result['total_responses']}건",
         f"  ① 편차 2 이상 셀   : {len(result['cells_over_1'])}건",
         f"  ② 문항 평균 편차   : {len(result['items_over_0_5'])}건 초과",
-        f"  ③ 본 평가 {result['target_item_count']}문항 환산 SD : "
-        f"{result['projected_dataset_sd']:.4f} (기준 {result['dataset_sd_limit']})",
-        f"  최소 검출 가능 효과: ±{result['minimum_detectable_effect']:.2f} "
-        f"— 이보다 작은 변화는 개선이라 부르지 않는다",
+        (
+            f"  ③ 본 평가 {result['target_item_count']}문항 환산 SD : "
+            f"{result['projected_dataset_sd']:.4f} (기준 {result['dataset_sd_limit']})"
+        ),
+        (
+            f"  최소 검출 가능 효과: ±{result['minimum_detectable_effect']:.2f} "
+            f"— 이보다 작은 변화는 개선이라 부르지 않는다"
+        ),
     ]
     for f in result["cells_over_1"] + result["items_over_0_5"]:
         lines.append(f"    · {f}")
