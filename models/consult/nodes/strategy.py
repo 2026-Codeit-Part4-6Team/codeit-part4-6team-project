@@ -117,12 +117,20 @@ def strategy(state: ConsultState) -> dict:
         if not isinstance(summary, str) or not summary.strip():
             raise ValueError("LLM이 빈 전략 요약을 반환했습니다.")
 
-        actions, actions_error = _validate_action_items(parsed.get("actions"))
-        if actions is None:
-            raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
+        raw_actions = parsed.get("actions")
+        if not isinstance(raw_actions, list):
+            # LLM 응답이 계약을 어긴 것이지 우리 코드의 타입 계약 위반이 아니다 —
+            # 이 함수의 다른 검증(요약·근거 등)도 전부 ValueError로 통일한다.
+            raise ValueError(  # noqa: TRY004
+                "LLM이 유효한 actions 배열을 반환하지 않았습니다(actions_not_list)."
+            )
 
-        actions, repair = _repair_action_count(actions)
-        if repair == "retry":
+        # 개수(절단)를 항목별 형식 검증보다 먼저 처리한다 — 순서를 바꾸면
+        # 어차피 버릴 초과 항목(예: 4번째)의 형식 오류가 실제로 쓰일 앞
+        # MAX_ACTIONS개까지 실패시킨다(Codex 리뷰).
+        raw_actions, truncated_now = _truncate_actions(raw_actions)
+
+        if len(raw_actions) < MIN_ACTIONS:
             if retry_count < _MAX_RETRIES:
                 retry_count += 1
                 actions_retried = True
@@ -132,7 +140,11 @@ def strategy(state: ConsultState) -> dict:
             raise ValueError(
                 "LLM이 재생성 후에도 actions를 하나도 반환하지 않았습니다(actions_empty)."
             )
-        if repair == "truncated":
+
+        actions, actions_error = _validate_action_items(raw_actions)
+        if actions is None:
+            raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
+        if truncated_now:
             actions_truncated = True
 
         reasons = _parse_reasons(parsed.get("reasons"))
@@ -165,16 +177,24 @@ def strategy(state: ConsultState) -> dict:
     }
 
 
-def _validate_action_items(actions: object) -> tuple[list[dict] | None, str | None]:
-    """actions 항목별 형식(API 계약: type 4종 enum, content 1개 이상)을 검증하고
-    공백을 정리한 새 리스트를 반환한다 — 개수(1~3개) 제약은 여기서 보지 않는다,
-    개수만 벗어난 경우는 형식 오류가 아니라 복구 대상이라 _repair_action_count()가
-    따로 판단한다. 형식이 안 맞으면 (None, 실패 사유)를 반환한다 — 사유를 구분해야
-    로그만 보고 리스트 형태·enum·content 중 무엇이 원인인지 알 수 있다(Codex 리뷰:
-    전부 같은 메시지로 뭉뚱그려져 있었음)."""
-    if not isinstance(actions, list):
-        return None, "actions_not_list"
+def _truncate_actions(actions: list) -> tuple[list, bool]:
+    """개수가 MAX_ACTIONS를 넘으면 앞에서부터 그만큼만 남기고 잘라낸다(D-139
+    후속, PM 승인 — 많이 낸 것이지 답을 못 낸 게 아니므로 LLM 재호출 없이
+    바로 복구한다). 항목별 형식 검증(_validate_action_items)보다 반드시
+    먼저 호출해야 한다 — 순서를 바꾸면 어차피 버릴 초과 항목의 형식 오류가
+    실제로 쓰일 앞 MAX_ACTIONS개까지 실패시킨다(Codex 리뷰)."""
+    if len(actions) > MAX_ACTIONS:
+        return actions[:MAX_ACTIONS], True
+    return actions, False
 
+
+def _validate_action_items(actions: list) -> tuple[list[dict] | None, str | None]:
+    """actions 항목별 형식(API 계약: type 4종 enum, content 1개 이상)을 검증하고
+    공백을 정리한 새 리스트를 반환한다 — 반드시 _truncate_actions() 이후,
+    개수가 MAX_ACTIONS 이하로 정리된 리스트에 대해서만 호출한다. 형식이 안
+    맞으면 (None, 실패 사유)를 반환한다 — 사유를 구분해야 로그만 보고 리스트
+    형태·enum·content 중 무엇이 원인인지 알 수 있다(Codex 리뷰: 전부 같은
+    메시지로 뭉뚱그려져 있었음)."""
     normalized = []
     for action in actions:
         if not isinstance(action, dict):
@@ -188,23 +208,6 @@ def _validate_action_items(actions: object) -> tuple[list[dict] | None, str | No
         normalized.append({"type": action_type, "content": content.strip()})
 
     return normalized, None
-
-
-def _repair_action_count(actions: list[dict]) -> tuple[list[dict], str]:
-    """개수(MIN_ACTIONS~MAX_ACTIONS)가 계약을 벗어난 actions를 LLM 재호출 없이
-    우선 복구를 시도한다(D-139 후속, PM 승인 — "형식 오류"가 아니라 "확률적
-    변동"으로 재분류). 반환: (actions, 조치명).
-      "none"      개수가 이미 계약 범위 안이다.
-      "truncated" 초과분을 앞에서부터 MAX_ACTIONS개만 남기고 잘라낸다 — 많이
-                  낸 것이므로 LLM을 다시 부를 필요가 없다.
-      "retry"     0개라 잘라낼 게 없다 — 재생성이 필요하다는 신호만 반환한다
-                  (실제 재시도 여부·상한은 호출자가 판단).
-    """
-    if len(actions) > MAX_ACTIONS:
-        return actions[:MAX_ACTIONS], "truncated"
-    if len(actions) < MIN_ACTIONS:
-        return actions, "retry"
-    return actions, "none"
 
 
 def _parse_reasons(reasons: object) -> list[str] | None:

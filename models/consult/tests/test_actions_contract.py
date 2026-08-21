@@ -14,3 +14,10 @@ def test_action_limits_match_service_schema() -> None:
     meta = ConsultantStrategy.model_fields["actions"].metadata
     assert MIN_ACTIONS == next(m.min_length for m in meta if hasattr(m, "min_length"))
     assert MAX_ACTIONS == next(m.max_length for m in meta if hasattr(m, "max_length"))
+
+
+def test_action_limits_are_ints_not_just_equal_value() -> None:
+    """`MAX_ACTIONS == 3`은 `3.0`도 통과시키지만 `actions[:MAX_ACTIONS]` 슬라이싱은
+    float에 TypeError를 던진다 — 값만이 아니라 타입도 확인해야 한다(Codex 리뷰)."""
+    assert type(MIN_ACTIONS) is int
+    assert type(MAX_ACTIONS) is int

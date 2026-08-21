@@ -527,6 +527,46 @@ def test_truncates_excess_actions_without_retry(mock_call_llm, count) -> None:
 
 
 @patch("models.consult.nodes.strategy.call_llm")
+def test_truncates_before_validating_so_dropped_item_errors_dont_fail_request(
+    mock_call_llm,
+) -> None:
+    """4번째(어차피 잘릴) 항목이 형식 오류여도, 실제로 쓰일 앞 3개가 정상이면
+    그대로 절단해서 성공해야 한다(Codex 리뷰: 검증을 절단보다 먼저 하면 버릴
+    항목의 오류 때문에 전체가 실패하던 회귀)."""
+    actions = [
+        {"type": "menu", "content": "항목0"},
+        {"type": "menu", "content": "항목1"},
+        {"type": "menu", "content": "항목2"},
+        {"type": "invalid_type", "content": "버려질 항목"},
+    ]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 1
+    assert len(result["result"]["actions"]) == 3
+    assert result["actions_truncated"] is True
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_when_error_is_within_retained_actions_even_after_truncation(
+    mock_call_llm,
+) -> None:
+    """절단 후에도 남는(실제로 쓰일) 앞 3개 안에 형식 오류가 있으면 여전히
+    즉시 실패한다 — 절단이 검증 자체를 건너뛰게 하면 안 된다."""
+    actions = [
+        {"type": "invalid_type", "content": "첫 항목부터 잘못됨"},
+        {"type": "menu", "content": "항목1"},
+        {"type": "menu", "content": "항목2"},
+        {"type": "menu", "content": "항목3"},
+    ]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    with pytest.raises(ValueError, match="invalid_type"):
+        strategy(_state())
+
+
+@patch("models.consult.nodes.strategy.call_llm")
 def test_retries_once_when_actions_empty_then_succeeds(mock_call_llm) -> None:
     mock_call_llm.side_effect = [
         _response(_payload(actions=[])),  # 1차: 0개 → 잘라낼 게 없어 재생성

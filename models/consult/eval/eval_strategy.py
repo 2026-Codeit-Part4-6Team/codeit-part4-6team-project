@@ -303,10 +303,18 @@ def _evaluate_item(item: dict) -> dict:
     context_snapshot = final_state.get("context") or {}
     trend_path = check_trend_path(item, final_state) if final_state else None
 
-    # actions 0개 재생성·초과분 절단이 있었는지(D-139 후속, PM 승인) — final_state가
-    # 비어 있으면(그래프 실행 자체 실패) 신호가 없으므로 False로 둔다.
-    actions_retried = bool(final_state.get("actions_retried"))
-    actions_truncated = bool(final_state.get("actions_truncated"))
+    # actions 0개 재생성·초과분 절단이 있었는지(D-139 후속, PM 승인).
+    # final_state가 비어 있으면(그래프 실행 자체가 예외로 죽음 — 예: 재시도
+    # 소진) strategy() 노드가 정상 반환하지 못해 신호 자체를 볼 수 없다.
+    # False(미발생)로 단정하면 "재시도했지만 실패"와 "애초에 재시도 안 함"을
+    # 구분 못 하므로 None(측정 불가)으로 남긴다 — _build_report()가 None인
+    # 문항은 비율 분모에서 제외한다(Codex 리뷰).
+    if final_state:
+        actions_retried = bool(final_state.get("actions_retried"))
+        actions_truncated = bool(final_state.get("actions_truncated"))
+    else:
+        actions_retried = None
+        actions_truncated = None
 
     status_ok = response.get("status") == "ok"
     if not status_ok:
@@ -401,6 +409,9 @@ def _build_report(
     scores = [score for result in results for score in result["scores"].values()]
     latencies = [result["_latency_s"] for result in results]
     judge_checks = [result["_judge_ok"] for result in results if result["_judge_ok"] is not None]
+    # 그래프 실행 자체가 예외로 죽은 문항은 actions_retried/truncated가 None이라
+    # "측정 불가"다 — 비율 분모에서 제외한다(§10.4 완료 상태만 대상, Codex 리뷰).
+    actions_observed = [result for result in results if result["actions_retried"] is not None]
 
     def rate(count: int) -> float:
         return count / item_count if item_count else 0.0
@@ -435,8 +446,18 @@ def _build_report(
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
             # contract_compliance가 100%여도 진짜 고쳐진 건지 복구가 가려버린 건지
             # 구분하기 위한 지표(D-139 후속, PM 요청) — 둘 다 낮을수록 좋다.
-            "actions_retry_rate": rate(sum(result["actions_retried"] for result in results)),
-            "actions_truncate_rate": rate(sum(result["actions_truncated"] for result in results)),
+            "actions_retry_rate": (
+                sum(result["actions_retried"] for result in actions_observed)
+                / len(actions_observed)
+                if actions_observed
+                else 0.0
+            ),
+            "actions_truncate_rate": (
+                sum(result["actions_truncated"] for result in actions_observed)
+                / len(actions_observed)
+                if actions_observed
+                else 0.0
+            ),
             "trend_path_match_rate": trend_path_match_rate(results),
             "judge_failure_rate": (
                 sum(not judge_ok for judge_ok in judge_checks) / len(judge_checks)
