@@ -8,6 +8,12 @@ class ApiClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
+    def health(self) -> dict:
+        """인증이나 데이터 변경 없이 백엔드 연결 상태를 확인합니다."""
+        response = httpx.get(f"{self.base_url}/health", timeout=self.timeout)
+        response.raise_for_status()
+        return response.json()
+
     def generate(self, prompt: str) -> dict:
         """광고 콘텐츠 생성을 요청합니다."""
         response = httpx.post(

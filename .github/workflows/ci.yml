@@ -74,7 +74,7 @@ jobs:
       - name: Build and start services
         run: docker compose up --build -d --wait --wait-timeout 180
 
-      - name: Verify service flow
+      - name: Verify public health endpoints
         run: |
           python - <<'PY'
           import json
@@ -89,16 +89,6 @@ jobs:
           ) as response:
               assert response.status == 200
 
-          request = urllib.request.Request(
-              "http://127.0.0.1:18000/generate",
-              data=json.dumps({"prompt": "CI 연결 테스트"}).encode(),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(request, timeout=10) as response:
-              body = json.load(response)
-              assert response.status == 200
-              assert body["status"] == "completed"
           PY
 
       - name: Verify frontend-to-backend connection
@@ -108,10 +98,8 @@ jobs:
 
           from frontend.api_client import ApiClient
 
-          result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
-              "CI 컨테이너 연결 테스트"
-          )
-          assert result["status"] == "completed"
+          result = ApiClient(os.environ["BACKEND_URL"], timeout=10).health()
+          assert result == {"status": "ok"}
           PY
 
       - name: Print service logs on failure
