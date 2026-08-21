@@ -71,6 +71,10 @@ _LOWER_IS_BETTER = {
     "over_block_rate",
     "latency_p50_s",
     "latency_p95_s",
+    # actions 0개 재생성·초과분 절단 발생률(D-139 후속) — contract_compliance가
+    # 100%여도 진짜 고쳐진 건지 복구가 가려버린 건지 구분하려는 지표라 낮을수록 좋다.
+    "actions_retry_rate",
+    "actions_truncate_rate",
 }
 _PERCENT_METRICS = {
     "hallucination_rate",
@@ -80,6 +84,8 @@ _PERCENT_METRICS = {
     "trend_path_match_rate",
     "block_recall",
     "alternative_rate",
+    "actions_retry_rate",
+    "actions_truncate_rate",
 }
 
 

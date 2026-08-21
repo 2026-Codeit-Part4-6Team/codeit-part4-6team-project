@@ -107,6 +107,8 @@ def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
         },
         "tokens_used": 100,
         "retry_count": 0,
+        "actions_retried": False,
+        "actions_truncated": False,
         "sources": ["가게정보"],
     }
 
@@ -455,8 +457,6 @@ def test_raises_when_summary_field_missing(mock_call_llm) -> None:
 @pytest.mark.parametrize(
     ("invalid_actions", "expected_reason"),
     [
-        ([], "actions_wrong_length"),  # 0개
-        ([{"type": "menu", "content": "a"}] * 4, "actions_wrong_length"),  # 4개(3개 초과)
         ("actions 아님", "actions_not_list"),  # 리스트가 아님
         ([{"type": "invalid_type", "content": "내용"}], "invalid_type"),  # enum 밖
         ([{"type": ["menu"], "content": "내용"}], "invalid_type"),  # type이 리스트(해시 불가능 → TypeError 회귀 방지)
@@ -470,8 +470,9 @@ def test_raises_when_summary_field_missing(mock_call_llm) -> None:
 )
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_on_invalid_actions(mock_call_llm, invalid_actions, expected_reason) -> None:
-    """실패 사유를 구분해 예외 메시지에 남긴다 — C-001 같은 회귀에서 배열 길이·타입·
-    content 중 무엇이 원인인지 로그만 보고 알 수 있어야 한다."""
+    """실패 사유를 구분해 예외 메시지에 남긴다 — 리스트 형태·타입·content 중 무엇이
+    원인인지 로그만 보고 알 수 있어야 한다. 개수(0개·초과)는 형식 오류가 아니라
+    복구 대상이라 여기서 다루지 않는다(아래 절단·재시도 테스트 참고)."""
     mock_call_llm.return_value = _response(_payload(actions=invalid_actions))
 
     with pytest.raises(ValueError, match=expected_reason):
@@ -503,6 +504,114 @@ def test_accepts_actions_at_boundary_counts(mock_call_llm, count) -> None:
     result = strategy(_state())
 
     assert result["result"]["actions"] == actions
+
+
+# ── 섹션 6: actions 개수 복구 — 초과는 절단, 0개는 재생성(D-139 후속, PM 승인) ──
+
+
+@pytest.mark.parametrize("count", [4, 5, 9])
+@patch("models.consult.nodes.strategy.call_llm")
+def test_truncates_excess_actions_without_retry(mock_call_llm, count) -> None:
+    """초과분은 앞에서부터 MAX_ACTIONS(3)개만 남기고 그 자리에서 잘라낸다 —
+    LLM을 다시 부르지 않는다(많이 낸 것이지 답을 못 낸 게 아니므로)."""
+    actions = [{"type": "other", "content": f"항목{i}"} for i in range(count)]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 1
+    assert len(result["result"]["actions"]) == 3
+    assert result["result"]["actions"][0]["content"] == "항목0"
+    assert result["actions_truncated"] is True
+    assert result["actions_retried"] is False
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retries_once_when_actions_empty_then_succeeds(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: 0개 → 잘라낼 게 없어 재생성
+        _response(_payload()),  # 2차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["actions"] == _ACTIONS
+    assert result["retry_count"] == 1
+    assert result["actions_retried"] is True
+    assert result["actions_truncated"] is False
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_prompt_includes_correction_hint(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),
+        _response(_payload()),
+    ]
+
+    strategy(_state())
+
+    first_call_user_prompt = mock_call_llm.call_args_list[0].args[1]
+    second_call_user_prompt = mock_call_llm.call_args_list[1].args[1]
+    assert RETRY_ACTIONS_HINT not in first_call_user_prompt
+    assert RETRY_ACTIONS_HINT in second_call_user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_after_exhausting_actions_retries(mock_call_llm) -> None:
+    """0개가 3회(최초 1회+재생성 2회) 연속되면 예외를 던진다 — actions와 reasons가
+    합산 상한(_MAX_RETRIES=2)을 공유한다."""
+    mock_call_llm.return_value = _response(_payload(actions=[]))
+
+    with pytest.raises(ValueError, match="actions_empty"):
+        strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_and_reasons_retry_counts_both_accumulate(mock_call_llm) -> None:
+    """actions 재시도와 reasons 재시도가 한 호출 안에서 섞여도 retry_count에 둘 다 반영된다."""
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: actions 0개 → 재시도
+        _response(_payload(reasons=[])),  # 2차: 근거 없음 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    assert result["retry_count"] == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_hint_still_sent_after_earlier_reasons_retry(mock_call_llm) -> None:
+    """reasons 오류가 먼저 발생한 뒤 actions 0개 오류가 나면, 세 번째 요청에도
+    두 힌트가 모두 포함돼야 한다(Codex 리뷰: 카운터 우선순위 탓에 actions 힌트가
+    빠지던 회귀 + 그 반대로 reasons 힌트가 사라지지 않는지도 함께 검증)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도
+        _response(_payload(actions=[])),  # 2차: actions 0개 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    third_call_user_prompt = mock_call_llm.call_args_list[2].args[1]
+    assert RETRY_ACTIONS_HINT in third_call_user_prompt
+    assert RETRY_REASONS_HINT in third_call_user_prompt
+    assert result["retry_count"] == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_recovery_flags_default_false_when_no_repair_needed(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    result = strategy(_state())
+
+    assert result["actions_retried"] is False
+    assert result["actions_truncated"] is False
 
 
 # ── 섹션 5: 근거(reasons) 필수화 + 재생성 ─────────────────────────
@@ -643,108 +752,3 @@ def test_raises_immediately_on_malformed_actions_even_on_retry_attempt(mock_call
         strategy(_state())
 
     assert mock_call_llm.call_count == 2
-
-
-# ── 섹션 6: actions 개수 오류(actions_wrong_length) 재생성 ─────────────────
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_retries_once_when_actions_wrong_length_then_succeeds(mock_call_llm) -> None:
-    mock_call_llm.side_effect = [
-        _response(_payload(actions=[])),  # 1차: actions 0개
-        _response(_payload()),  # 2차: 정상
-    ]
-
-    result = strategy(_state())
-
-    assert mock_call_llm.call_count == 2
-    assert result["result"]["actions"] == _ACTIONS
-    assert result["retry_count"] == 1
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_retries_once_when_actions_too_many_then_succeeds(mock_call_llm) -> None:
-    too_many = [{"type": "menu", "content": "a"}] * 4
-    mock_call_llm.side_effect = [
-        _response(_payload(actions=too_many)),  # 1차: actions 4개
-        _response(_payload()),  # 2차: 정상
-    ]
-
-    result = strategy(_state())
-
-    assert mock_call_llm.call_count == 2
-    assert result["result"]["actions"] == _ACTIONS
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_actions_retry_prompt_includes_correction_hint(mock_call_llm) -> None:
-    mock_call_llm.side_effect = [
-        _response(_payload(actions=[])),
-        _response(_payload()),
-    ]
-
-    strategy(_state())
-
-    first_call_user_prompt = mock_call_llm.call_args_list[0].args[1]
-    second_call_user_prompt = mock_call_llm.call_args_list[1].args[1]
-    assert RETRY_ACTIONS_HINT not in first_call_user_prompt
-    assert RETRY_ACTIONS_HINT in second_call_user_prompt
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_accumulates_tokens_across_actions_retries(mock_call_llm) -> None:
-    mock_call_llm.side_effect = [
-        _response(_payload(actions=[]), tokens=100),
-        _response(_payload(), tokens=120),
-    ]
-
-    result = strategy(_state(tokens_used=10))
-
-    assert result["tokens_used"] == 10 + 100 + 120
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_raises_after_exhausting_actions_retries(mock_call_llm) -> None:
-    """actions_wrong_length가 3회(최초 1회+재생성 2회) 연속되면 예외를 던진다
-    — actions_wrong_length와 reasons가 합산 상한(_MAX_RETRIES=2)을 공유한다."""
-    mock_call_llm.return_value = _response(_payload(actions=[]))
-
-    with pytest.raises(ValueError, match="actions_wrong_length"):
-        strategy(_state())
-
-    assert mock_call_llm.call_count == 3
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_actions_retry_and_reasons_retry_counts_both_accumulate(mock_call_llm) -> None:
-    """actions 재시도와 reasons 재시도가 한 호출 안에서 섞여도 retry_count에 둘 다 반영된다."""
-    mock_call_llm.side_effect = [
-        _response(_payload(actions=[])),  # 1차: actions 개수 오류 → 재시도
-        _response(_payload(reasons=[])),  # 2차: 근거 없음 → 재시도
-        _response(_payload()),  # 3차: 정상
-    ]
-
-    result = strategy(_state())
-
-    assert mock_call_llm.call_count == 3
-    assert result["retry_count"] == 2
-
-
-@patch("models.consult.nodes.strategy.call_llm")
-def test_actions_hint_still_sent_after_earlier_reasons_retry(mock_call_llm) -> None:
-    """reasons 오류가 먼저 발생한 뒤 actions 개수 오류가 나면, 세 번째 요청에도
-    두 힌트가 모두 포함돼야 한다(Codex 리뷰: 카운터 우선순위 탓에 actions 힌트가
-    빠지던 회귀 + 그 반대로 reasons 힌트가 사라지지 않는지도 함께 검증)."""
-    mock_call_llm.side_effect = [
-        _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도
-        _response(_payload(actions=[])),  # 2차: actions 개수 오류 → 재시도
-        _response(_payload()),  # 3차: 정상
-    ]
-
-    result = strategy(_state())
-
-    assert mock_call_llm.call_count == 3
-    third_call_user_prompt = mock_call_llm.call_args_list[2].args[1]
-    assert RETRY_ACTIONS_HINT in third_call_user_prompt
-    assert RETRY_REASONS_HINT in third_call_user_prompt
-    assert result["retry_count"] == 2

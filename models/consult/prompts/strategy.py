@@ -15,8 +15,7 @@ SYSTEM_PROMPT = """너는 소상공인 마케팅 컨설턴트다.
 다음 JSON 형식으로만 답한다. 다른 텍스트는 포함하지 않는다:
 {"title": "전략 제목 한 문장", "summary": "전략 요약 한 문단", "actions": [{"type": "menu|promotion|target|other", "content": "실행 항목 한 문장"}], "reasons": ["근거 문장"]}
 title은 이 전략을 한눈에 요약하는 짧은 제목이다(이력 목록에 노출되는 라벨).
-actions는 반드시 1개 이상 3개 이하로만 포함한다(0개나 4개 이상은 잘못된 응답이다).
-type은 반드시 menu/promotion/target/other 중 하나다.
+actions는 1~3개만 포함한다. type은 반드시 menu/promotion/target/other 중 하나다.
 reasons는 1개 이상 포함하며, 각 항목은 반드시 아래에 주어진 정보(가게 정보, 있다면
 상권·트렌드 데이터)에서 실제로 확인 가능한 사실만 근거로 사용한다. 상권·트렌드
 데이터가 주어지지 않았으면 수치를 지어내지 말고, 가게 정보나 질문 내용에 실제로
@@ -51,8 +50,7 @@ RETRY_REASONS_HINT = (
 )
 
 RETRY_ACTIONS_HINT = (
-    "이전 응답의 actions 개수가 잘못됐습니다(0개이거나 4개 이상이었습니다). "
-    "이번에는 actions를 반드시 1개 이상 3개 이하로만 포함하세요."
+    "이전 응답에는 actions가 하나도 없었습니다. 이번에는 실행 가능한 항목을 1개 이상 포함하세요."
 )
 
 

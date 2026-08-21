@@ -1,6 +1,7 @@
 # 마케팅 전략 제안 노드 (가장 중요) — D4 섹션 1~5
 import json
 
+from models.consult.config import MAX_ACTIONS, MIN_ACTIONS
 from models.consult.graph.state import ConsultState
 from models.consult.prompts.strategy import (
     RETRY_ACTIONS_HINT,
@@ -11,7 +12,7 @@ from models.consult.prompts.strategy import (
 from models.shared.llm import call_llm
 
 _VALID_ACTION_TYPES = {"menu", "promotion", "target", "other"}
-# reasons(SDP §6.5)와 actions_wrong_length(D-139 예외, PM 승인 대기)를 합산한 상한.
+# reasons(SDP §6.5)와 actions 0개 재생성(D-139 후속, PM 승인)이 합산해서 쓰는 상한.
 # 개별 예산을 따로 두면 최초 호출 포함 최대 4회까지 늘어나 D-144가 전제한
 # "strategy 최대 3회 + 429 백오프"의 60초 예산을 넘길 수 있다(Codex 리뷰).
 _MAX_RETRIES = 2
@@ -57,21 +58,28 @@ def strategy(state: ConsultState) -> dict:
     반복되며, 그래프 조건부 엣지는 쓰지 않는다 — strategy_check 노드는 D9에 별도로
     구현될 "근거 유무·실행 가능성·LLM Judge" 검증이라 이번 범위와 다르다.
 
-    actions 개수 오류(actions_wrong_length, 0개나 4개 이상)도 재생성 대상에 포함한다
-    (D8 60문항 실측에서 status=error 5건 전부가 이 원인으로 확인됨 — 프롬프트의
-    "1~3개만" 지시를 LLM이 가끔 무시함). D-139(형식 오류는 즉시 실패)와 형식상
-    어긋나므로 PM에게 이 예외를 decisions.md 후속 결정으로 기록해달라고 요청했고
-    승인을 기다리는 중이다 — 미승인 상태로 이 코드가 남아 있다면 재시도 로직을
-    되돌려야 한다. 다른 actions 오류(enum 밖 type, content 누락 등)는 형식 자체가
-    신뢰할 수 없다고 보고 재생성 없이 즉시 예외를 던진다.
+    actions 개수(MIN_ACTIONS~MAX_ACTIONS=1~3)가 계약을 벗어나면 PM 승인(D-139 후속,
+    decisions.md 기록 대기 중)에 따라 두 가지로 나눠 처리한다 — 이 처리는 "형식
+    오류"가 아니라 "확률적 변동"으로 재분류됐다: D8 60문항 실측에서 status=error
+    5건이 전부 이 원인이었는데(프롬프트의 "1~3개만" 지시를 LLM이 가끔 무시함),
+    재시도하면 통과한다는 것 자체가 "재시도해도 똑같이 깨진다"는 D-139의 형식
+    오류 전제와 다르다는 근거였다.
+      - 4개 이상(초과): LLM 재호출 없이 앞 MAX_ACTIONS개만 잘라 그대로 쓴다
+        ("truncated") — 많이 낸 것이지 답을 못 낸 게 아니므로 재생성이 불필요하다.
+      - 0개(미달): 잘라낼 게 없으므로 재생성한다("retry", RETRY_ACTIONS_HINT 부가).
+    실측 확인 결과 5건 전부 0개 케이스였고 초과 케이스는 관찰되지 않았다(2026-08-21
+    재확인, 15회 샘플링 중 초과 0건). 다른 actions 오류(enum 밖 type, content 누락
+    등)는 형식 자체가 신뢰할 수 없다고 보고 재생성 없이 즉시 예외를 던진다.
 
-    actions_wrong_length와 reasons 부족은 재생성 예산(_MAX_RETRIES=2)을 함께
-    쓴다 — 따로 두면 최초 호출 포함 최대 4회까지 늘어나 D-144가 전제한 60초
+    actions 0개 재생성과 reasons 부족 재생성은 재생성 예산(_MAX_RETRIES=2)을
+    함께 쓴다 — 따로 두면 최초 호출 포함 최대 4회까지 늘어나 D-144가 전제한 60초
     예산을 넘길 위험이 있다(Codex 리뷰). 합산 상한을 넘기면 그 시점의 오류
     종류에 맞는 예외를 던진다.
 
     여러 번 호출한 토큰 사용량은 모두 합산해 state["tokens_used"]에 누적하고,
-    실제 재생성 횟수는 state["retry_count"]에 기록한다.
+    실제 재생성 횟수는 state["retry_count"]에, 이 문항에 재시도·절단이 일어났는지는
+    각각 state["actions_retried"]/state["actions_truncated"]에 기록한다 — 평가기가
+    actions_retry_rate·actions_truncate_rate를 계산하는 데 쓴다.
     """
     question = state["question"]
     store = state["store"]
@@ -83,6 +91,11 @@ def strategy(state: ConsultState) -> dict:
 
     total_tokens = 0
     retry_count = 0
+    # 재시도와 절단이 한 문항 안에서 둘 다 일어날 수 있어(드물지만) 문자열 하나로
+    # 겹쳐 쓰지 않고 불리언 두 개로 각각 기록한다 — 평가기의 actions_retry_rate·
+    # actions_truncate_rate가 서로 독립적인 지표이기 때문이다.
+    actions_retried = False
+    actions_truncated = False
     # 두 교정 힌트를 독립적으로 누적한다 — reasons 재시도 중 actions 오류가 나는 등
     # 순서가 섞여도(또는 그 반대) 직전에 필요해진 힌트가 빠지지 않아야 한다
     # (Codex 리뷰: 카운터 상태만으로 우선순위를 매기면 이후 actions 힌트가 영영
@@ -104,14 +117,23 @@ def strategy(state: ConsultState) -> dict:
         if not isinstance(summary, str) or not summary.strip():
             raise ValueError("LLM이 빈 전략 요약을 반환했습니다.")
 
-        actions, actions_error = _parse_actions(parsed.get("actions"))
+        actions, actions_error = _validate_action_items(parsed.get("actions"))
         if actions is None:
-            if actions_error == "actions_wrong_length" and retry_count < _MAX_RETRIES:
+            raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
+
+        actions, repair = _repair_action_count(actions)
+        if repair == "retry":
+            if retry_count < _MAX_RETRIES:
                 retry_count += 1
+                actions_retried = True
                 if RETRY_ACTIONS_HINT not in hints:
                     hints.append(RETRY_ACTIONS_HINT)
                 continue
-            raise ValueError(f"LLM이 유효한 actions 배열을 반환하지 않았습니다({actions_error}).")
+            raise ValueError(
+                "LLM이 재생성 후에도 actions를 하나도 반환하지 않았습니다(actions_empty)."
+            )
+        if repair == "truncated":
+            actions_truncated = True
 
         reasons = _parse_reasons(parsed.get("reasons"))
         if reasons is not None:
@@ -137,19 +159,21 @@ def strategy(state: ConsultState) -> dict:
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).
         "retry_count": state.get("retry_count", 0) + retry_count,
+        "actions_retried": actions_retried,
+        "actions_truncated": actions_truncated,
         **sources_update,
     }
 
 
-def _parse_actions(actions: object) -> tuple[list[dict] | None, str | None]:
-    """actions가 API 계약(type 4종 enum, content 1개 이상, 1~3개)을 지키는지 검증하고
-    공백을 정리한 새 리스트를 반환한다. 형식이 안 맞으면 (None, 실패 사유)를 반환한다 —
-    사유를 구분해야 로그만 보고 배열 길이·항목 형태·enum·content 중 무엇이 원인인지
-    알 수 있다(Codex 리뷰: 전부 같은 메시지로 뭉뚱그려져 있었음)."""
+def _validate_action_items(actions: object) -> tuple[list[dict] | None, str | None]:
+    """actions 항목별 형식(API 계약: type 4종 enum, content 1개 이상)을 검증하고
+    공백을 정리한 새 리스트를 반환한다 — 개수(1~3개) 제약은 여기서 보지 않는다,
+    개수만 벗어난 경우는 형식 오류가 아니라 복구 대상이라 _repair_action_count()가
+    따로 판단한다. 형식이 안 맞으면 (None, 실패 사유)를 반환한다 — 사유를 구분해야
+    로그만 보고 리스트 형태·enum·content 중 무엇이 원인인지 알 수 있다(Codex 리뷰:
+    전부 같은 메시지로 뭉뚱그려져 있었음)."""
     if not isinstance(actions, list):
         return None, "actions_not_list"
-    if not (1 <= len(actions) <= 3):
-        return None, "actions_wrong_length"
 
     normalized = []
     for action in actions:
@@ -164,6 +188,23 @@ def _parse_actions(actions: object) -> tuple[list[dict] | None, str | None]:
         normalized.append({"type": action_type, "content": content.strip()})
 
     return normalized, None
+
+
+def _repair_action_count(actions: list[dict]) -> tuple[list[dict], str]:
+    """개수(MIN_ACTIONS~MAX_ACTIONS)가 계약을 벗어난 actions를 LLM 재호출 없이
+    우선 복구를 시도한다(D-139 후속, PM 승인 — "형식 오류"가 아니라 "확률적
+    변동"으로 재분류). 반환: (actions, 조치명).
+      "none"      개수가 이미 계약 범위 안이다.
+      "truncated" 초과분을 앞에서부터 MAX_ACTIONS개만 남기고 잘라낸다 — 많이
+                  낸 것이므로 LLM을 다시 부를 필요가 없다.
+      "retry"     0개라 잘라낼 게 없다 — 재생성이 필요하다는 신호만 반환한다
+                  (실제 재시도 여부·상한은 호출자가 판단).
+    """
+    if len(actions) > MAX_ACTIONS:
+        return actions[:MAX_ACTIONS], "truncated"
+    if len(actions) < MIN_ACTIONS:
+        return actions, "retry"
+    return actions, "none"
 
 
 def _parse_reasons(reasons: object) -> list[str] | None:

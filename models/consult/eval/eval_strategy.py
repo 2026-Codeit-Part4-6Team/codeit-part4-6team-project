@@ -303,6 +303,11 @@ def _evaluate_item(item: dict) -> dict:
     context_snapshot = final_state.get("context") or {}
     trend_path = check_trend_path(item, final_state) if final_state else None
 
+    # actions 0개 재생성·초과분 절단이 있었는지(D-139 후속, PM 승인) — final_state가
+    # 비어 있으면(그래프 실행 자체 실패) 신호가 없으므로 False로 둔다.
+    actions_retried = bool(final_state.get("actions_retried"))
+    actions_truncated = bool(final_state.get("actions_truncated"))
+
     status_ok = response.get("status") == "ok"
     if not status_ok:
         return {
@@ -314,6 +319,8 @@ def _evaluate_item(item: dict) -> dict:
             "context_snapshot": context_snapshot,
             "trend_path": trend_path,
             "judge_error": None,
+            "actions_retried": actions_retried,
+            "actions_truncated": actions_truncated,
             "_status_ok": False,
             "_contract_ok": False,
             "_judge_ok": None,
@@ -343,6 +350,8 @@ def _evaluate_item(item: dict) -> dict:
         "context_snapshot": context_snapshot,
         "trend_path": trend_path,
         "judge_error": judge_error,
+        "actions_retried": actions_retried,
+        "actions_truncated": actions_truncated,
         "_status_ok": True,
         "_contract_ok": contract_ok,
         "_judge_ok": judge_ok,
@@ -405,6 +414,8 @@ def _build_report(
         "judge_error",
         "response",
         "context_snapshot",
+        "actions_retried",
+        "actions_truncated",
     )
     header = build_report_header(
         area=area,
@@ -422,6 +433,10 @@ def _build_report(
                 sum(bool(result["unexpected_numbers"]) for result in results)
             ),
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
+            # contract_compliance가 100%여도 진짜 고쳐진 건지 복구가 가려버린 건지
+            # 구분하기 위한 지표(D-139 후속, PM 요청) — 둘 다 낮을수록 좋다.
+            "actions_retry_rate": rate(sum(result["actions_retried"] for result in results)),
+            "actions_truncate_rate": rate(sum(result["actions_truncated"] for result in results)),
             "trend_path_match_rate": trend_path_match_rate(results),
             "judge_failure_rate": (
                 sum(not judge_ok for judge_ok in judge_checks) / len(judge_checks)
