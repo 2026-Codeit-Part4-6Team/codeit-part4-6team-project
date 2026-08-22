@@ -45,3 +45,4 @@ class CommonState(TypedDict):
 
     # ── 광고 연계 (v10 확정) ──
     source_gen_id: NotRequired[int | None]  # 컨설팅→광고 파생 추적
+    source_context: NotRequired[dict | None]  # 검증된 컨설팅 전략 원문
