@@ -213,7 +213,8 @@ Mock을 쓰면 **첫날부터 마지막 날까지 개발 계획서 대로 작업
 - **내가 만드는 테이블(4개)**: `users`, `payments`, `generations`, `waiting_copies`
 - **모델 담당 소유(3개)**: `market_cache`, `review_cache`, `banned_keywords`
   → **DB 테이블 설계**만 직접 해두고 데이터 적재 업무는 모델 담당자와 협의 후 진행 예정.
-- **관계**: `users(1) — payments(N)`, `users(1) — generations(N)`
+- **관계**: `users(1) — payments(N)`, `users(1) — generations(N)`, `generations.source_gen_id → generations.id` (nullable self-FK)
+- **D4 무결성**: `generations(user_id, idempotency_key)` UNIQUE, `request_hash`/`result_json`으로 멱등 replay 상태를 보존
 
 ### 6.3 ★ 모델 담당자와 API 계약 (D1에 반드시 합의)
 
@@ -455,7 +456,7 @@ sales-booster/
 │   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
 │   │   │                             #   chatbot_type·user_id·question·store
 │   │   │                             #   context·result·sources·tokens_used
-│   │   │                             #   validation·source_gen_id
+│   │   │                             #   validation·source_context
 │   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
 │   │   │                             #   security_input · regulation · security_output · self_check
 │   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸

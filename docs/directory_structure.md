@@ -151,7 +151,7 @@ sales-booster/
 │   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
 │   │   │                             #   chatbot_type·user_id·question·store
 │   │   │                             #   context·result·sources·tokens_used
-│   │   │                             #   validation·source_gen_id
+│   │   │                             #   validation·source_context
 │   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
 │   │   │                             #   security_input · regulation · security_output · self_check
 │   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸
