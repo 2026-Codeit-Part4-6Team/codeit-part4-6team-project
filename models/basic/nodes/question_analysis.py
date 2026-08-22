@@ -36,19 +36,6 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 def question_analysis_node(state: BasicState) -> dict:
     """LLM으로 질문과 가게 정보를 분석해 카피 생성에 쓸 질문을 재작성하고,
     정보가 부족하면 되묻기(reask) 상태로 전환한다."""
-    # Consultant 결과를 이어받은 요청은 이미 전략·근거가 검증된 상태다.
-    # 신규 광고처럼 정보 부족 재질문을 하면 연계 UX가 끊기고 토큰만 추가로 사용한다.
-    source_context = state.get("source_context")
-    if source_context:
-        extra = state.get("extra") or {}
-        strategy = source_context.get("strategy") or {}
-        keyword = extra.get("purpose") or strategy.get("summary") or state["question"]
-        return {
-            "status": "ok",
-            "question": state["question"],
-            "keyword": keyword,
-        }
-
     context = {
         "question": state["question"],
         "store": state["store"],
