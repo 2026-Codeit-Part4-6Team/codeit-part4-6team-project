@@ -10,10 +10,11 @@ from backend.schemas import (
     DemoPaymentResponse,
 )
 
+UNIT_PRICE = 10
 DEMO_PACKAGE_CATALOG = {
-    "starter": (5_000, 500),
-    "standard": (10_000, 1_100),
-    "pro": (30_000, 3_500),
+    "starter": (48_500, 5_000, 3),
+    "standard": (93_000, 10_000, 7),
+    "pro": (180_000, 20_000, 10),
 }
 
 
@@ -27,8 +28,8 @@ class DemoPaymentPersistenceError(Exception):
 
 def build_demo_catalog(*, enabled: bool) -> DemoPaymentCatalogResponse:
     packages = [
-        DemoPaymentPackage(id=package, amount=amount, credits=credits)
-        for package, (amount, credits) in DEMO_PACKAGE_CATALOG.items()
+        DemoPaymentPackage(id=package, amount=amount, credits=credits, discount_percent=discount)
+        for package, (amount, credits, discount) in DEMO_PACKAGE_CATALOG.items()
     ]
     return DemoPaymentCatalogResponse(
         demo_enabled=enabled,
@@ -37,11 +38,13 @@ def build_demo_catalog(*, enabled: bool) -> DemoPaymentCatalogResponse:
 
 
 def _response(payment: Payment, user: User) -> DemoPaymentResponse:
+    _amount, _credits, discount = DEMO_PACKAGE_CATALOG[payment.package]
     return DemoPaymentResponse(
         payment_id=payment.id,
         package=payment.package,
         amount=payment.amount,
         credits=payment.credits,
+        discount_percent=discount,
         balance=user.credits,
         status="completed",
         demo=True,
@@ -66,7 +69,7 @@ def complete_demo_payment(
             raise DemoPaymentConflict
         return _response(existing, user)
 
-    amount, credits = DEMO_PACKAGE_CATALOG[package]
+    amount, credits, _discount = DEMO_PACKAGE_CATALOG[package]
     payment = Payment(
         user_id=user.id,
         idempotency_key=normalized_key,

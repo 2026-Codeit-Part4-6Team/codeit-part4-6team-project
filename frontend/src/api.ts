@@ -100,6 +100,7 @@ export type DemoPaymentPackage = {
   id: "starter" | "standard" | "pro";
   amount: number;
   credits: number;
+  discount_percent: number;
 };
 
 export type DemoPaymentCatalogResponse = {

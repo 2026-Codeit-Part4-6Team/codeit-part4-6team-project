@@ -10,9 +10,9 @@ import {
 const closedCatalog: DemoPaymentCatalogResponse = {
   demo_enabled: false,
   packages: [
-    { id: "starter", amount: 0, credits: 0 },
-    { id: "standard", amount: 0, credits: 0 },
-    { id: "pro", amount: 0, credits: 0 },
+    { id: "starter", amount: 0, credits: 0, discount_percent: 0 },
+    { id: "standard", amount: 0, credits: 0, discount_percent: 0 },
+    { id: "pro", amount: 0, credits: 0, discount_percent: 0 },
   ],
 };
 
@@ -106,7 +106,7 @@ export function BillingPage({
             <span>DEMO PACKAGE</span>
             <h2>{item.id}</h2>
             <strong>{formatAmount(item.amount)}</strong>
-            <p>{item.credits.toLocaleString("ko-KR")} Credit</p>
+            <p>{item.credits.toLocaleString("ko-KR")} Credit · {item.discount_percent}% 할인</p>
             <button type="button" disabled={busyPackage !== null} onClick={() => void purchase(item.id)}>{busyPackage === item.id ? "처리 중…" : "데모 충전"}</button>
           </article>
         ))}

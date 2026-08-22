@@ -233,8 +233,9 @@ describe("ApiClient", () => {
         JSON.stringify({
           payment_id: 1,
           package: "starter",
-          amount: 5000,
-          credits: 500,
+          amount: 48500,
+          credits: 5000,
+          discount_percent: 3,
           balance: 600,
           status: "completed",
           demo: true,

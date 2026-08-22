@@ -38,9 +38,9 @@ def test_demo_catalog_is_available_only_when_enabled(client: TestClient):
     assert response.json() == {
         "demo_enabled": True,
         "packages": [
-            {"id": "starter", "amount": 5000, "credits": 500},
-            {"id": "standard", "amount": 10000, "credits": 1100},
-            {"id": "pro", "amount": 30000, "credits": 3500},
+            {"id": "starter", "amount": 48500, "credits": 5000, "discount_percent": 3},
+            {"id": "standard", "amount": 93000, "credits": 10000, "discount_percent": 7},
+            {"id": "pro", "amount": 180000, "credits": 20000, "discount_percent": 10},
         ],
     }
 
@@ -72,14 +72,15 @@ def test_demo_payment_is_idempotent_and_updates_credit_once(
     assert first.json() == {
         "payment_id": first.json()["payment_id"],
         "package": "starter",
-        "amount": 5000,
-        "credits": 500,
-        "balance": 600,
+        "amount": 48500,
+        "credits": 5000,
+        "discount_percent": 3,
+        "balance": 5100,
         "status": "completed",
         "demo": True,
     }
     db_session.refresh(owner)
-    assert owner.credits == 600
+    assert owner.credits == 5100
     assert db_session.query(Payment).filter_by(user_id=owner.id).count() == 1
     assert db_session.query(Payment).one().idempotency_key == key
 

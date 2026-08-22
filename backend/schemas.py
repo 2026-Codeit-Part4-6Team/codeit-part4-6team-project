@@ -498,6 +498,7 @@ class DemoPaymentPackage(StrictModel):
     id: Literal["starter", "standard", "pro"]
     amount: int = Field(gt=0)
     credits: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
 
 
 class DemoPaymentCatalogResponse(StrictModel):
@@ -520,6 +521,7 @@ class DemoPaymentResponse(StrictModel):
     package: Literal["starter", "standard", "pro"]
     amount: int = Field(gt=0)
     credits: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
     balance: int = Field(ge=0)
     status: Literal["completed"]
     demo: Literal[True]

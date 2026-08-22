@@ -28,9 +28,9 @@ describe("BillingPage payment gate", () => {
         demoCatalog={{
           demo_enabled: true,
           packages: [
-            { id: "starter", amount: 5000, credits: 500 },
-            { id: "standard", amount: 10000, credits: 1100 },
-            { id: "pro", amount: 30000, credits: 3500 },
+            { id: "starter", amount: 48500, credits: 5000, discount_percent: 3 },
+            { id: "standard", amount: 93000, credits: 10000, discount_percent: 7 },
+            { id: "pro", amount: 180000, credits: 20000, discount_percent: 10 },
           ],
         }}
       />,
@@ -38,7 +38,8 @@ describe("BillingPage payment gate", () => {
 
     expect(html).toContain("시연용 결제");
     expect(html).toContain("5,000원");
-    expect(html).toContain("500 Credit");
+    expect(html).toContain("5,000 Credit");
+    expect(html).toContain("3% 할인");
     expect((html.match(/데모 충전/g) ?? [])).toHaveLength(3);
   });
 });
