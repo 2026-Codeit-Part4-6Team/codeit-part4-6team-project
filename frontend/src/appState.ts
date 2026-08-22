@@ -12,6 +12,12 @@ export type AppRoute =
 export type AppViewState = {
   user: UserResponse | null;
   route: AppRoute;
+  generationPrefill?: GenerationPrefill;
+};
+
+export type GenerationPrefill = {
+  source_gen_id: number;
+  question: string;
 };
 
 export function authenticatedState(user: UserResponse): AppViewState {
@@ -19,7 +25,21 @@ export function authenticatedState(user: UserResponse): AppViewState {
 }
 
 export function navigate(state: AppViewState, route: AppRoute): AppViewState {
-  return { ...state, route };
+  return { user: state.user, route };
+}
+
+export function startBasicFromStrategy(
+  state: AppViewState,
+  sourceGenId: number,
+): AppViewState {
+  return {
+    ...state,
+    route: "basic_chatbot",
+    generationPrefill: {
+      source_gen_id: sourceGenId,
+      question: "이 전략으로 광고를 만들어줘",
+    },
+  };
 }
 
 export function loggedOutState(): AppViewState {

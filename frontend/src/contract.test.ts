@@ -38,6 +38,15 @@ describe("generation contract", () => {
     expect(() => buildEstimatePayload("basic", "   ", "instagram")).toThrow("질문");
   });
 
+  it("carries a consultant generation id only into a Basic follow-up", () => {
+    expect(buildEstimatePayload("basic", "이 전략으로 광고를 만들어줘", "instagram", {}, 7)).toMatchObject({
+      chatbot_type: "basic",
+      platform: "instagram",
+      source_gen_id: 7,
+    });
+    expect(buildEstimatePayload("consultant", "상권 전략", "instagram", {}, 7)).not.toHaveProperty("source_gen_id");
+  });
+
   it("adds the accepted credit limit to the generate payload", () => {
     const estimatePayload = {
       chatbot_type: "basic" as const,

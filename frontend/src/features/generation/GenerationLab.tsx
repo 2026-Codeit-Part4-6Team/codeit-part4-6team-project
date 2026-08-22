@@ -124,12 +124,13 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   );
 }
 
-export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; chatbotType?: ChatbotType }) {
+export function GenerationLab({ api, chatbotType = "basic", initialQuestion = "", initialSourceGenId, onStrategyToAd }: { api: ApiClient; chatbotType?: ChatbotType; initialQuestion?: string; initialSourceGenId?: number; onStrategyToAd?: (sourceGenId: number) => void }) {
   const mascot = chatbotType === "basic"
     ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
     : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion);
+  const [sourceGenId] = useState<number | null>(initialSourceGenId ?? null);
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
   const [generation, setGeneration] = useState<GenerationResponse | null>(null);
@@ -165,7 +166,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, question, platform, extra);
+      const payload = buildEstimatePayload(chatbotType, question, platform, extra, sourceGenId);
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, crypto.randomUUID());
       setPending(action.pending);
@@ -289,6 +290,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+          onStrategyToAd={onStrategyToAd}
         />
       )}
       {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}

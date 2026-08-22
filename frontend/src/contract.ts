@@ -15,6 +15,7 @@ export type EstimatePayload = {
   question: string;
   platform?: Platform | null;
   extra?: GenerateExtra;
+  source_gen_id?: number | null;
 };
 
 export type GeneratePayload = EstimatePayload & {
@@ -35,6 +36,7 @@ export function buildEstimatePayload(
   question: string,
   platform: Platform,
   extra: Partial<GenerateExtra> = {},
+  sourceGenId: number | null = null,
 ): EstimatePayload {
   const normalizedQuestion = question.trim();
   if (!normalizedQuestion) {
@@ -52,6 +54,9 @@ export function buildEstimatePayload(
     },
   };
   payload.platform = chatbotType === "basic" ? platform : null;
+  if (chatbotType === "basic" && sourceGenId !== null) {
+    payload.source_gen_id = sourceGenId;
+  }
   return payload;
 }
 
