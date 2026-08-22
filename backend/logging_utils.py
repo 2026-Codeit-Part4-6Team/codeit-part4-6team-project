@@ -1,5 +1,7 @@
 """로그에 남길 payload의 민감값과 대용량 값을 축약합니다."""
 
+from pydantic import BaseModel
+
 MAX_FIELD_CHARS = 300
 MAX_PAYLOAD_CHARS = 2_000
 MAX_LIST_ITEMS = 5
@@ -12,6 +14,15 @@ REDACT_KEYS = {
     "password",
     "password_hash",
 }
+REDACT_KEY_SUFFIXES = ("_key", "_token", "_secret")
+
+
+def _is_redacted_key(key: object) -> bool:
+    """정확한 기존 키와 비밀정보 접미사를 모두 판별합니다."""
+    if not isinstance(key, str):
+        return False
+    normalized = key.lower()
+    return normalized in REDACT_KEYS or normalized.endswith(REDACT_KEY_SUFFIXES)
 
 
 def redact_payload(value: object, _depth: int = 0) -> object:
@@ -19,10 +30,13 @@ def redact_payload(value: object, _depth: int = 0) -> object:
     if _depth > MAX_DEPTH:
         return "<...>"
 
+    if isinstance(value, BaseModel):
+        value = value.model_dump(mode="python", by_alias=True)
+
     if isinstance(value, dict):
         redacted: dict[object, object] = {}
         for key, item in value.items():
-            if isinstance(key, str) and key.lower() in REDACT_KEYS:
+            if _is_redacted_key(key):
                 size = len(item) if isinstance(item, str) else "?"
                 redacted[key] = f"<{key} omitted, len={size}>"
             else:
