@@ -11,6 +11,7 @@ from backend.schemas import RegisterRequest
 from backend.services.auth_service import (
     DuplicateUsernameError,
     GeocodingPolicy,
+    authenticate_user,
     build_user_response,
     register_user,
 )
@@ -45,6 +46,18 @@ def test_register_maps_concurrent_username_constraint_to_duplicate_error():
         )
 
     assert db.rollback.call_count == 2
+
+
+def test_authenticate_unknown_user_still_verifies_a_password_hash(monkeypatch):
+    """존재하지 않는 계정도 bcrypt 검증을 수행해 계정 존재 여부를 숨깁니다."""
+    db = Mock()
+    db.scalar.return_value = None
+    verify = Mock(return_value=False)
+    monkeypatch.setattr("backend.services.auth_service.verify_password", verify)
+
+    assert authenticate_user(db, "unknown", "wrong-password") is None
+
+    verify.assert_called_once()
 
 
 def test_build_user_response_virtual_reset_is_non_mutating():
@@ -90,9 +103,10 @@ def test_build_user_response_preserves_current_period_and_remaining():
 
 
 def test_register_user_uses_supplied_now_for_next_reset():
-    """회원가입 초기 reset 시각은 호출자가 전달한 now를 기준으로 결정합니다."""
+    """SQLite 회원가입 reset 시각은 전달한 now 기준 naive UTC로 bind합니다."""
     db = Mock()
     db.scalar.side_effect = [None, None]
+    db.get_bind.return_value.dialect.name = "sqlite"
     geocoder = Mock()
     geocoder.geocode = AsyncMock(return_value=GeocodingResult("도로명 주소", 37.5, 127.0))
     request = RegisterRequest(
@@ -117,4 +131,5 @@ def test_register_user_uses_supplied_now_for_next_reset():
     )
 
     saved_user = db.add.call_args.args[0]
-    assert saved_user.daily_free_reset_at == datetime(2026, 8, 13, 15, 0, tzinfo=UTC)
+    expected_reset = datetime(2026, 8, 13, 15, 0)  # noqa: DTZ001 - SQLite naive UTC
+    assert saved_user.daily_free_reset_at == expected_reset

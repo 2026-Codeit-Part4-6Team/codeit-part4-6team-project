@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,11 +17,15 @@ from backend.clients.geocoding_client import (
 from backend.models import User
 from backend.schemas import RegisterRequest, UserResponse
 from backend.services.usage_service import (
+    _bind_utc,
     effective_daily_usage,
     next_seoul_midnight_utc,
 )
 
 logger = logging.getLogger(__name__)
+
+# 존재하지 않는 사용자도 실제 계정과 같은 bcrypt 비용을 지불해 계정 열거를 막습니다.
+_DUMMY_PASSWORD_HASH = "$2b$12$/52SmX1dcVwt9j2y1ihQCON4OfIi0y0mWn0yYIiUNsf4Djl04T0w6"
 
 @dataclass(frozen=True)
 class GeocodingPolicy:
@@ -106,7 +111,12 @@ async def register_user(
         db.rollback()
         if not policy.fallback_enabled:
             raise
-        logger.warning("Geocoding provider failed; registration fallback coordinates are used")
+        registration_id = hashlib.sha256(request.username.encode("utf-8")).hexdigest()[:12]
+        logger.warning(
+            "Geocoding provider failed; registration fallback coordinates are used "
+            "registration_id=%s",
+            registration_id,
+        )
         geocoded = GeocodingResult(
             road_address=request.address.strip(),
             lat=policy.fallback_lat,
@@ -127,7 +137,7 @@ async def register_user(
         lng=geocoded.lng,
         credits=0,
         daily_free_used=0,
-        daily_free_reset_at=next_daily_free_reset_at(now),
+        daily_free_reset_at=_bind_utc(db, next_daily_free_reset_at(now)),
     )
     db.add(user)
     try:
@@ -147,6 +157,8 @@ def authenticate_user(db: Session, username: str, password: str) -> User | None:
     """사용자명과 비밀번호가 일치하는 사용자를 반환합니다."""
     normalized = username.strip().lower()
     user = db.scalar(select(User).where(User.username == normalized))
-    if user is None or not verify_password(password, user.password_hash):
+    password_hash = user.password_hash if user is not None else _DUMMY_PASSWORD_HASH
+    password_matches = verify_password(password, password_hash)
+    if user is None or not password_matches:
         return None
     return user

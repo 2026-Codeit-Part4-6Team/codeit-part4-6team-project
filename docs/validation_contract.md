@@ -724,7 +724,7 @@ graph.add_conditional_edges(
    컨설턴트는 카피를 만들지 않는다(전략 조언 = strategy.summary·actions·reasons).
 ② 표시광고법은 "광고"에 적용된다. 컨설팅 조언 자체는 광고가 아니다.
 ③ 컨설턴트 전략이 광고가 되는 경로는 [이 전략으로 광고 만들기](link_to_ads) 하나뿐이고,
-   그 결과물은 source_gen_id 로 기본 챗봇 파이프라인을 타면서 regulation_node 를 통과한다.
+   그 결과물은 source_context 로 기본 챗봇 파이프라인을 타면서 regulation_node 를 통과한다.
 ④ 붙이면 warn 시 전략 재생성 루프가 생겨 LLM 모델 API 호출이 늘고 $30 예산을 압박한다.
 
 단, 컨설턴트가 "이 지역 최고 카페로 포지셔닝하세요" 같은 표현을 낼 수 있으므로
