@@ -66,14 +66,20 @@ _REQUIRED = _CONDITIONS + ("run_at", "area", "item_count", "metrics")
 
 # 낮을수록 좋은 지표 — 화살표 방향이 뒤집힌다(§11.1 표)
 _LOWER_IS_BETTER = {
+    "actions_retry_rate",
+    "actions_truncate_rate",
     "hallucination_rate",
+    "judge_failure_rate",
     "failure_rate",
     "over_block_rate",
     "latency_p50_s",
     "latency_p95_s",
 }
 _PERCENT_METRICS = {
+    "actions_retry_rate",
+    "actions_truncate_rate",
     "hallucination_rate",
+    "judge_failure_rate",
     "failure_rate",
     "over_block_rate",
     "contract_compliance",

@@ -26,6 +26,7 @@ def test_consult_state_has_consult_specific_fields() -> None:
         "actions_truncated",
         "suggested_chips",
         "deadline",
+        "chips_fallback",
         "status",
         "issues",
     }
@@ -39,6 +40,7 @@ def test_consult_specific_fields_are_not_required() -> None:
         "actions_truncated",
         "suggested_chips",
         "deadline",
+        "chips_fallback",
         "status",
         "issues",
     }
