@@ -39,34 +39,35 @@ def suggested_chips(state: ConsultState) -> dict:
         json_mode=True,
         deadline=state.get("deadline"),
     )
-    chips = _parse_chips(raw)
+    chips, fallback = _parse_chips(raw)
 
     return {
         "suggested_chips": chips,
+        "chips_fallback": fallback,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }
 
 
-def _parse_chips(raw: str) -> list[str]:
+def _parse_chips(raw: str) -> tuple[list[str], bool]:
     """정확히 3개의 비어있지 않은 문자열인지 검증하고 공백을 정리한 새 리스트를
-    반환한다. 형식이 안 맞으면 고정 폴백 질문 3개를 반환한다(매번 새 리스트를
-    만들어 호출자가 수정해도 다음 호출에 영향 없게 한다)."""
+    (chips, fallback_사용여부)로 반환한다. 형식이 안 맞으면 고정 폴백 질문 3개를
+    반환한다(매번 새 리스트를 만들어 호출자가 수정해도 다음 호출에 영향 없게 한다)."""
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        return list(_FALLBACK_CHIPS)
+        return list(_FALLBACK_CHIPS), True
 
     if not isinstance(parsed, dict):
-        return list(_FALLBACK_CHIPS)
+        return list(_FALLBACK_CHIPS), True
 
     chips = parsed.get("chips")
     if not isinstance(chips, list) or len(chips) != _NUM_CHIPS:
-        return list(_FALLBACK_CHIPS)
+        return list(_FALLBACK_CHIPS), True
 
     normalized = []
     for chip in chips:
         if not isinstance(chip, str) or not chip.strip():
-            return list(_FALLBACK_CHIPS)
+            return list(_FALLBACK_CHIPS), True
         normalized.append(chip.strip())
 
-    return normalized
+    return normalized, False
