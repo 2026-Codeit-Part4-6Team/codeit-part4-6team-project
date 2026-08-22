@@ -25,6 +25,9 @@ describe("CreditDialog", () => {
     expect(html).toContain("70 Credit");
     expect(html).toContain("동의하고 생성");
     expect(html).toContain("취소");
+    expect(html).toContain('class="credit-dialog-header"');
+    expect(html).toContain('class="dialog-button dialog-button-primary"');
+    expect(html).toContain('class="dialog-button dialog-button-secondary"');
   });
 
   it("does not ask for consent on a free estimate", () => {

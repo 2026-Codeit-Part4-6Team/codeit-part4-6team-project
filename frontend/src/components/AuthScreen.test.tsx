@@ -27,5 +27,6 @@ describe("AuthScreen", () => {
     expect(html).toContain("/assets/brand/salesbooster-logo.png");
     expect(html).toContain("/assets/mascots/copyni.png");
     expect(html).toContain("/assets/mascots/bunseoki.png");
+    expect(html).not.toContain("<figcaption>");
   });
 });

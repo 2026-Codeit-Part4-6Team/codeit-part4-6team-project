@@ -6,6 +6,7 @@ import { authenticatedState, loggedOutState, navigate } from "./appState";
 const user: UserResponse = {
   id: 7,
   username: "owner",
+  is_admin: false,
   name: "김사장",
   email: null,
   business_name: "카페 코드잇",
@@ -19,7 +20,6 @@ const user: UserResponse = {
   daily_free_used: 3,
   daily_free_reset_at: null,
   daily_free_remaining: 7,
-  is_admin: false,
 };
 
 describe("D5 application view state", () => {

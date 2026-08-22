@@ -18,6 +18,7 @@ import {
 const user: UserResponse = {
   id: 1,
   username: "owner",
+  is_admin: false,
   name: null,
   email: null,
   business_name: "코드잇 카페",
@@ -31,7 +32,6 @@ const user: UserResponse = {
   daily_free_used: 1,
   daily_free_reset_at: null,
   daily_free_remaining: 1,
-  is_admin: false,
 };
 
 const summary: UserSummaryResponse = {

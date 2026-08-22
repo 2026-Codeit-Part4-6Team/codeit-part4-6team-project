@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
 import { createPendingGeneration } from "../../state";
@@ -7,6 +8,7 @@ import {
   isBillingConfirmationRequired,
   shouldShowFollowUpComposer,
   refreshGenerationEstimate,
+  GenerationLab,
 } from "./GenerationLab";
 
 const pending = createPendingGeneration(
@@ -28,6 +30,18 @@ afterEach(() => {
 });
 
 describe("GenerationLab orchestration", () => {
+  it("uses the wide canvas and primary composer structure for chatbot screens", () => {
+    const html = renderToStaticMarkup(
+      <GenerationLab
+        api={{} as ApiClient}
+        chatbotType="basic"
+      />,
+    );
+
+    expect(html).toContain('class="generation-page generation-page--wide"');
+    expect(html).toContain('class="card generation-card chat-generation-card chat-generation-card--primary"');
+  });
+
   it("deduplicates double confirmation with one Generate promise and key", async () => {
     const api = {
       generate: vi.fn().mockResolvedValue(response),

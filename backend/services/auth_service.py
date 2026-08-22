@@ -59,6 +59,7 @@ def build_user_response(
     return UserResponse(
         id=user.id,
         username=user.username,
+        is_admin=bool(user.is_admin),
         name=user.name,
         email=user.email,
         business_name=user.business_name,
@@ -72,7 +73,6 @@ def build_user_response(
         daily_free_used=daily_free_used,
         daily_free_reset_at=daily_free_reset_at,
         daily_free_remaining=max(0, daily_free_limit - daily_free_used),
-        is_admin=bool(user.is_admin),
     )
 
 

@@ -38,8 +38,11 @@ describe("ResultView", () => {
     expect(html).toContain("제안 2");
     expect(html).toContain("제안 3");
     expect(html).toContain("생성 실패");
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>선택 불가<\/button>/);
+    expect(html).toContain('class="proposal-action" disabled=""');
+    expect(html).toContain("선택 불가");
     expect(html).toContain("다시 생성");
+    expect(html).toContain('class="result-action-buttons"');
+    expect(html).toContain('class="action-button action-button-secondary regenerate-action"');
   });
 
   it("does not render publish controls for Consultant results", () => {
@@ -78,6 +81,7 @@ describe("ResultView", () => {
 
     expect(html).toContain("게시 승인 완료");
     expect(html).toContain("제안 3 게시됨");
+    expect(html).toContain('class="proposal-action is-published"');
   });
 
   it.each(["basic", "consultant"] as const)(

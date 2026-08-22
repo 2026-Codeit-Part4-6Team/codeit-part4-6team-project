@@ -6,6 +6,7 @@ import { GenerationLab } from "./features/generation/GenerationLab";
 import { BillingPage } from "./features/billing/BillingPage";
 import { MyPage } from "./components/MyPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { StoreProfilePage } from "./components/StoreProfilePage";
 
 type ProtectedRouteViewProps = {
   api: ApiClient;
@@ -29,6 +30,8 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout, onC
     content = <MyPage api={api} user={user} onBack={() => onNavigate("dashboard")} onBilling={() => onNavigate("billing")} />;
   } else if (route === "settings") {
     content = <SettingsPage api={api} user={user} onUserChanged={onUserChanged} onBack={() => onNavigate("dashboard")} />;
+  } else if (route === "store_settings") {
+    content = <StoreProfilePage api={api} user={user} onBack={() => onNavigate("dashboard")} onSaved={onUserChanged} />;
   } else {
     content = <BillingPage api={api} currentCredits={user.credits} onCreditsChanged={onCreditsChanged} onBack={() => onNavigate("dashboard")} />;
   }

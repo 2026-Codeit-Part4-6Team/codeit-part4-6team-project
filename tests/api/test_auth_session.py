@@ -55,8 +55,10 @@ def test_login_sets_secure_session_attributes_and_me_works(session_client):
     assert me_response.status_code == 200
     assert me_response.json()["username"] == "owner"
     assert response.json()["daily_free_remaining"] == 10
+    assert response.json()["is_admin"] is False
     assert me_response.json()["daily_free_reset_at"] is not None
     assert me_response.json()["daily_free_remaining"] == 10
+    assert me_response.json()["is_admin"] is False
 
 
 def test_login_failures_use_same_401_response(session_client):

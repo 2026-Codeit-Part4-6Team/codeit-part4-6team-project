@@ -64,10 +64,11 @@ export function ResultCards({
                 : isSelected
                   ? "선택됨"
                   : "이 제안 선택";
+            const actionClass = isPublished ? " is-published" : isSelected ? " is-selected" : "";
             return (
-              <article className={`card proposal${isPublished ? " proposal-published" : ""}`} key={index}>
+              <article className={`card proposal${isPublished ? " proposal-published" : ""}${isSelected ? " proposal-selected" : ""}`} key={index}>
                 <div className="proposal-visual">{imageSource ? <img className="proposal-image" src={imageSource} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>
-                <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className="proposal-action" disabled={!canSelect || publishedProposalIndex !== null} aria-pressed={isSelected || isPublished} onClick={() => onSelectProposal?.(proposalIndex)}>{actionLabel}</button></div>
+                <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className={`proposal-action${actionClass}`} disabled={!canSelect || publishedProposalIndex !== null} aria-pressed={isSelected || isPublished} onClick={() => onSelectProposal?.(proposalIndex)}><span className="proposal-action-icon" aria-hidden="true">{isPublished ? "✓" : isSelected ? "✓" : canSelect ? "＋" : "–"}</span><span>{actionLabel}</span></button></div>
               </article>
             );
           })}
