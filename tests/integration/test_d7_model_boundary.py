@@ -12,7 +12,6 @@ import pytest
 
 from backend.schemas import MODEL_RESULT_ADAPTER
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_MODEL_BOUNDARY_SMOKE") != "1",
     reason=(

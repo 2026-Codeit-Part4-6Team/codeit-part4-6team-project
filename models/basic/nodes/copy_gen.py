@@ -1,9 +1,10 @@
 import json
 
-from ..graph.state import BasicState
-from ..llm import call_llm, classify_llm_error
+from models.shared.llm import call_llm
 
-MAX_RETRY = 2
+from ..config import COPY_MAX_RETRY
+from ..graph.state import BasicState
+from ..llm_errors import classify_llm_error
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고법을 준수한다.
 '최고', '유일', '1등'처럼 근거 없는 과장 표현과 질병 예방·치료 효능 표현은 쓰지 않는다.
@@ -43,9 +44,10 @@ def copy_gen_node(state: BasicState) -> dict:
 
     try:
         raw, tokens = call_llm(
-            system=SYSTEM_PROMPT,
-            user=json.dumps(payload, ensure_ascii=False),
+            SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
             json_mode=True,
+            deadline=state.get("deadline"),
         )
     # BLE001 억제 사유: call_llm의 모든 실패(429/timeout/기타 API 오류)를 잡아 status=error로 안전하게 전환하기 위해 의도적으로 넓게 잡음
     except Exception as exc:  # noqa: BLE001
@@ -87,9 +89,9 @@ def copy_gen_node(state: BasicState) -> dict:
 
     all_failed = all(c["copy"] is None for c in candidates)
     if all_failed:
-        retry_count = state.get("retry_count", 0) + 1
-        updates["retry_count"] = retry_count
-        if retry_count >= MAX_RETRY:
+        retry_count = state.get("copy_retry_count", 0) + 1
+        updates["copy_retry_count"] = retry_count
+        if retry_count >= COPY_MAX_RETRY:
             updates["status"] = "error"
             updates["issues"] = state.get("issues", []) + [
                 {
