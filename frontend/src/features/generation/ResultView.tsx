@@ -12,6 +12,7 @@ type ResultViewProps = {
   onPublish: (index: ProposalIndex, imageB64: string | null) => void | Promise<void>;
   onRegenerate: () => void;
   onSuggestedChip?: (chip: string) => void;
+  onStrategyToAd?: (sourceGenId: number) => void;
 };
 
 export function isSuccessfulGeneration(response: GenerationResponse): boolean {
@@ -36,6 +37,7 @@ export function ResultView({
   onPublish,
   onRegenerate,
   onSuggestedChip,
+  onStrategyToAd,
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
     useState<ProposalIndex | null>(null);
@@ -69,6 +71,7 @@ export function ResultView({
         response={response}
         platform={platform}
         onSuggestedChip={onSuggestedChip}
+        onStrategyToAd={onStrategyToAd}
         onSelectProposal={setSelectedProposalIndex}
         selectedProposalIndex={selectedProposalIndex}
         publishedProposalIndex={publishedProposalIndex}
