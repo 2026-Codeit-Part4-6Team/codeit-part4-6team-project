@@ -20,10 +20,12 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--canvas); }
+html { background: var(--canvas); font-size: 112.5%; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); font-size: 17px; }
-html[data-font-scale="large"] { font-size: 112.5%; }
-html[data-font-scale="xlarge"] { font-size: 125%; }
+/* 기본 글자 크기도 읽기 편한 '크게' 수준으로 시작합니다. */
+html[data-font-scale="default"] { font-size: 112.5%; }
+html[data-font-scale="large"] { font-size: 125%; }
+html[data-font-scale="xlarge"] { font-size: 137.5%; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: wait; opacity: 0.58; }
