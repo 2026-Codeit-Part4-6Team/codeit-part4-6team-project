@@ -1,6 +1,7 @@
 """로그에 남길 payload의 민감값과 대용량 값을 축약합니다."""
 
-from pydantic import BaseModel
+from dataclasses import fields, is_dataclass
+from typing import Any
 
 MAX_FIELD_CHARS = 300
 MAX_PAYLOAD_CHARS = 2_000
@@ -10,11 +11,15 @@ MAX_DEPTH = 4
 REDACT_KEYS = {
     "api_key",
     "authorization",
+    "cookie",
     "image_b64",
+    "image_url",
     "password",
     "password_hash",
+    "session",
+    "thumbnail_b64",
 }
-REDACT_KEY_SUFFIXES = ("_key", "_token", "_secret")
+REDACT_KEY_SUFFIXES = ("_key", "_token", "_secret", "_password", "_b64", "_credential")
 
 
 def _is_redacted_key(key: object) -> bool:
@@ -25,13 +30,32 @@ def _is_redacted_key(key: object) -> bool:
     return normalized in REDACT_KEYS or normalized.endswith(REDACT_KEY_SUFFIXES)
 
 
+def _to_plain(value: Any) -> Any:
+    """Pydantic 모델·dataclass를 재귀 순회 가능한 값으로 변환합니다.
+
+    로그 축약기가 지원하지 않는 객체의 repr을 그대로 남기면 대용량 값이
+    로그를 채우거나, 변환 예외가 원래 장애를 가릴 수 있습니다. 변환 실패는
+    로깅 실패로 전파하지 않고 제한된 repr로 대체합니다.
+    """
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        try:
+            return dump(mode="json", by_alias=True)
+        except Exception:  # noqa: BLE001 - 로깅이 원래 장애를 가리면 안 됩니다.
+            return repr(value)[:MAX_FIELD_CHARS]
+
+    if is_dataclass(value) and not isinstance(value, type):
+        return {field.name: getattr(value, field.name) for field in fields(value)}
+
+    return value
+
+
 def redact_payload(value: object, _depth: int = 0) -> object:
     """민감값을 제거하고 깊이·문자열·목록 크기를 제한한 사본을 반환합니다."""
     if _depth > MAX_DEPTH:
         return "<...>"
 
-    if isinstance(value, BaseModel):
-        value = value.model_dump(mode="python", by_alias=True)
+    value = _to_plain(value)
 
     if isinstance(value, dict):
         redacted: dict[object, object] = {}
