@@ -125,25 +125,3 @@ def test_missing_keyword_falls_back_to_rewritten_question(mock_call_llm):
     result = question_analysis_node(_state())
 
     assert result["keyword"] == "여름 신메뉴 홍보 문구"
-
-
-@patch("models.basic.nodes.question_analysis.call_llm")
-def test_strategy_link_skips_reask_and_llm_call(mock_call_llm):
-    """컨설팅 전략 연계 요청은 일반 신규 광고처럼 재질문하지 않는다."""
-    result = question_analysis_node(
-        _state(
-            question="이 전략으로 광고 문구를 만들어줘",
-            extra={"purpose": "주말 이벤트 홍보"},
-            source_context={
-                "strategy": {"summary": "주말 방문을 늘리는 이벤트 홍보", "actions": []},
-                "reasons": ["상권 분석"],
-            },
-        )
-    )
-
-    mock_call_llm.assert_not_called()
-    assert result == {
-        "status": "ok",
-        "question": "이 전략으로 광고 문구를 만들어줘",
-        "keyword": "주말 이벤트 홍보",
-    }

@@ -98,8 +98,6 @@ def _build_initial_state(request: dict) -> dict:
         "extra": request.get("extra") or {},
         # 컨설팅→광고 파생 추적(v10). 넘기지 않으면 연계 경로가 끊긴다.
         "source_gen_id": request.get("source_gen_id"),
-        # Service는 소유권 검증된 컨설팅 전략 원문을 source_context로 전달한다.
-        "source_context": request.get("source_context"),
         # D-144 — 그래프 전체 시간 예산. 이게 없으면 재생성 2회 + self_check 1회 +
         # 429 백오프(2→4→8초)가 서비스 타임아웃 60초를 잠식해 504 가 난다.
         "deadline": time.monotonic() + LLM_DEADLINE_SECONDS,
