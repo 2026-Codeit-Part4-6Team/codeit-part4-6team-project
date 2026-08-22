@@ -155,7 +155,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function requestEstimate() {
+  async function requestEstimate(questionOverride?: string) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -166,7 +166,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, question, platform, extra, sourceGenId);
+      const payload = buildEstimatePayload(chatbotType, questionOverride ?? question, platform, extra, sourceGenId);
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, crypto.randomUUID());
       setPending(action.pending);
@@ -208,6 +208,14 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
       setBusy(false);
     }
     if (immediateRetry !== null) await generate(immediateRetry);
+  }
+
+  function reask(answer: string) {
+    const combinedQuestion = `${question}\n\n추가 답변: ${answer}`;
+    setQuestion(combinedQuestion);
+    setGeneration(null);
+    setPending(null);
+    void requestEstimate(combinedQuestion);
   }
 
   async function publish(index: ProposalIndex, imageB64: string | null) {
@@ -294,6 +302,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
+          onReask={reask}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
           onStrategyToAd={onStrategyToAd}
         />
