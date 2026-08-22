@@ -69,10 +69,16 @@ export function ResultView({
         selectedProposalIndex={selectedProposalIndex}
         publishedProposalIndex={publishedProposalIndex}
       />
-      <div className="result-actions">
+      <div className="result-actions" aria-label="생성 결과 작업">
+        <div className="result-action-copy">
+          <span>다음 단계</span>
+          <small>{publishedProposalIndex !== null ? "게시 승인이 완료되었습니다." : "제안을 선택하거나 새로 만들어 보세요."}</small>
+        </div>
+        <div className="result-action-buttons">
         {response.chatbot_type === "basic" && publishedProposalIndex === null && (
           <button
             type="button"
+            className="action-button action-button-primary publish-action"
             disabled={selectedProposalIndex === null || publishing}
             onClick={() => {
               if (selectedProposalIndex !== null) {
@@ -80,12 +86,15 @@ export function ResultView({
               }
             }}
           >
-            {publishing ? "승인 중…" : "선택한 제안 게시 승인"}
+            <span className="action-button-icon" aria-hidden="true">{publishing ? "…" : "✓"}</span>
+            <span>{publishing ? "승인 중…" : "선택한 제안 게시 승인"}</span>
           </button>
         )}
-        <button type="button" className="secondary" onClick={onRegenerate}>
-          다시 생성
+        <button type="button" className="action-button action-button-secondary regenerate-action" onClick={onRegenerate}>
+          <span className="action-button-icon" aria-hidden="true">↻</span>
+          <span>다시 생성</span>
         </button>
+        </div>
       </div>
     </>
   );

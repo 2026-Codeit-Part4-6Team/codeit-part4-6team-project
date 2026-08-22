@@ -601,6 +601,12 @@ select:focus-visible {
   box-shadow: var(--shadow);
 }
 
+.credit-dialog-header { display: flex; align-items: flex-start; gap: 16px; }
+.credit-dialog-icon { width: 48px; height: 48px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg, var(--primary), #756bf0); color: #fff; font-size: 24px; box-shadow: 0 10px 24px rgba(61, 52, 165, .22); }
+.credit-dialog-header .kicker { margin-bottom: 6px; }
+.credit-dialog-header h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); }
+.credit-dialog-subtitle { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }
+
 .credit-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -631,6 +637,22 @@ select:focus-visible {
   gap: 10px;
 }
 
+.dialog-actions { align-items: center; margin-top: 8px; }
+.dialog-button,
+.action-button { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 14px; padding: 13px 20px; font-weight: 800; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease; }
+.dialog-button:hover:not(:disabled),
+.action-button:hover:not(:disabled) { transform: translateY(-2px); }
+.dialog-button:disabled,
+.action-button:disabled { cursor: wait; }
+.dialog-button-primary,
+.action-button-primary { border: 0; background: linear-gradient(135deg, var(--primary), #756bf0); color: #fff; box-shadow: 0 10px 22px rgba(61, 52, 165, .2); }
+.dialog-button-primary:hover:not(:disabled),
+.action-button-primary:hover:not(:disabled) { box-shadow: 0 14px 28px rgba(61, 52, 165, .28); }
+.dialog-button-secondary,
+.action-button-secondary { border: 1px solid rgba(61, 52, 165, .18); background: var(--surface-soft); color: var(--primary); }
+.action-button-icon,
+.proposal-action-icon { font-size: 1.1em; font-weight: 900; line-height: 1; }
+
 .waiting-screen {
   text-align: center;
 }
@@ -658,6 +680,16 @@ select:focus-visible {
   outline: 2px solid var(--success);
 }
 
+.proposal-selected { border-color: rgba(61, 52, 165, .6); box-shadow: 0 0 0 4px rgba(61, 52, 165, .1), var(--shadow); }
+.proposal-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.proposal-action.is-selected { border-color: var(--primary); background: #f0edf8; box-shadow: 0 5px 14px rgba(61, 52, 165, .12); }
+.proposal-action.is-published { border-color: var(--success); background: rgba(35, 122, 87, .1); color: var(--success); }
+.result-actions { align-items: center; margin-top: 22px; padding: 16px 18px; border: 1px solid rgba(37, 33, 67, .08); border-radius: 18px; background: rgba(255, 255, 255, .82); box-shadow: 0 10px 28px rgba(37, 33, 67, .05); }
+.result-action-copy { margin-right: auto; }
+.result-action-copy span { display: block; color: var(--ink); font-weight: 850; }
+.result-action-copy small { display: block; margin-top: 4px; color: var(--muted); }
+.result-action-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+
 @keyframes waiting-spin {
   to { transform: rotate(360deg); }
 }
@@ -666,6 +698,10 @@ select:focus-visible {
   .credit-summary {
     grid-template-columns: 1fr;
   }
+  .result-actions { align-items: stretch; flex-direction: column; }
+  .result-action-buttons { display: grid; grid-template-columns: 1fr; }
+  .dialog-actions { display: grid; grid-template-columns: 1fr; }
+  .dialog-button { width: 100%; }
 }
 
 .history-row {
