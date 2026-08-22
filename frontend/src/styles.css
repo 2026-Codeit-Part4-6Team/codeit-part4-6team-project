@@ -264,7 +264,7 @@ select:focus-visible {
 .sidebar-nav-item img { width: 22px; height: 22px; object-fit: contain; }
 
 .dashboard-content { min-width: 0; min-height: 100vh; padding: clamp(38px, 6vw, 86px); }
-.store-profile-card { width: min(100%, 680px); display: grid; gap: 18px; }
+.store-profile-card { width: min(100%, 680px); display: grid; gap: 18px; padding: 28px; }
 .store-profile-card label { display: grid; gap: 8px; color: var(--muted); font-weight: 700; }
 .store-profile-card input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; background: #fff; color: var(--ink); font: inherit; }
 .store-profile-card input:read-only { background: #f5f3fa; color: var(--muted); }
@@ -579,6 +579,7 @@ select:focus-visible {
 
 @media (max-width: 760px) {
   .account-page { padding: 0; }
+  .store-profile-card { padding: 20px; }
   .summary-grid, .model-options { grid-template-columns: 1fr; }
   .section-heading, .history-row { align-items: stretch; flex-direction: column; }
   .history-row > div:last-child { justify-content: space-between; width: 100%; }
