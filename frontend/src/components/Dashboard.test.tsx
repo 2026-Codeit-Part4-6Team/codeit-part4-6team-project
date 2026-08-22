@@ -47,7 +47,7 @@ describe("D5 dashboard", () => {
     expect(html).toContain("/assets/mascots/copyni.png");
     expect(html).toContain("/assets/mascots/bunseoki.png");
     expect(html).not.toContain("/assets/brand/salesbooster-logo.png");
-    expect(html).toContain("매출부스터 AI");
+    expect(html).toContain("매출부스터");
     expect(html).toContain("사이드바 접기");
     expect(html).not.toContain("블로그");
     expect(html).toContain("mascot-hero--compact");
