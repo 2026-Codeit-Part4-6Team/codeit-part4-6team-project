@@ -86,6 +86,13 @@ _SCENARIOS = {
     "error": STATE_ERROR,
 }
 
+SOURCE_CONTEXT = {
+    "generation_id": 7,
+    "strategy": {"summary": "점심 직장인 타깃",
+                 "actions": [{"type": "menu", "content": "런치 세트 2종 출시"}]},
+    "reasons": ["동일 상권 객단가 평균 대비 12% 낮음"],
+    "sources": ["상권분석"],
+}
 
 # ═════════════════════════════════════════════════════════════════════════════
 # A. assemble_response() — 그래프 의존성 0
@@ -323,10 +330,10 @@ def test_graph_is_compiled_once_across_requests(graph):
     assert graph["builds"] == 1, f"그래프가 {graph['builds']}회 컴파일됐다"
 
 
-def test_deadline_and_source_gen_id_reach_the_graph(graph):
-    """D-144 시간 예산과 컨설팅→광고 연계 키가 그래프까지 전달된다."""
-    _run(graph, "ok", source_gen_id=42)
+def test_deadline_and_source_context_reach_the_graph(graph):
+    """D-291 시간 예산과 컨설팅→광고 연계 Context 가 그래프까지 전달된다(D-306)."""
+    _run(graph, "ok", source_context=SOURCE_CONTEXT)
     state = graph["last_state"]
-    assert state["source_gen_id"] == 42
+    assert state["source_context"] == SOURCE_CONTEXT
     assert isinstance(state["deadline"], float) and state["deadline"] > 0
     assert state["extra"] == {}
