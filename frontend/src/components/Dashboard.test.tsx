@@ -55,6 +55,7 @@ describe("D5 dashboard", () => {
     expect(html).toContain("dashboard-kicker");
     expect(html).toContain("dashboard-greeting-title");
     expect(html).toContain("feature-card-cta");
+    expect(html).toContain("feature-card--visual");
     expect(html).not.toContain("관리자 계정");
   });
 

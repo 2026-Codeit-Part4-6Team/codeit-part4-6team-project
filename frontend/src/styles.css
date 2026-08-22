@@ -313,12 +313,14 @@ select:focus-visible {
   overflow: hidden;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
+.feature-card--visual { min-height: 250px; padding-right: 40%; }
 .feature-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(37, 33, 67, 0.09); }
 .feature-card img { width: 44px; height: 44px; object-fit: contain; }
-.feature-card .feature-mascot { position: absolute; right: -8px; bottom: -16px; width: 47%; height: 88%; object-fit: contain; object-position: bottom; opacity: .94; pointer-events: none; }
+.feature-card .feature-mascot { position: absolute; right: -8px; bottom: -16px; width: 56%; height: 96%; object-fit: contain; object-position: bottom; opacity: .98; pointer-events: none; }
 .feature-card small { position: relative; z-index: 1; color: var(--primary); font-weight: 850; }
 .feature-card strong { font-size: clamp(23px, 2.2vw, 29px); font-weight: 650; }
-.feature-card strong, .feature-card span { position: relative; z-index: 1; max-width: 64%; }
+.feature-card strong, .feature-card span { position: relative; z-index: 1; max-width: 100%; }
+.feature-card--visual strong, .feature-card--visual span { max-width: 100%; }
 .feature-card span { color: var(--muted); font-size: clamp(16px, 1.4vw, 19px); }
 .feature-card-cta { color: var(--primary) !important; font-size: 15px !important; font-weight: 850; }
 .feature-card-basic { background: linear-gradient(135deg, #fff 55%, #f0ebff 100%); }
