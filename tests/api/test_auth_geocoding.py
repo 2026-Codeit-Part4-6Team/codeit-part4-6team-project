@@ -154,6 +154,9 @@ def test_register_uses_configured_fallback_only_for_provider_failure(
 
     assert response.status_code == 201
     assert "fallback" in caplog.text.lower()
+    assert "registration_id=" in caplog.text
+    assert payload["username"] not in caplog.text
+    assert payload["address"].strip() not in caplog.text
     with testing_session() as session:
         user = session.scalar(select(User).where(User.username == "owner"))
         assert user is not None

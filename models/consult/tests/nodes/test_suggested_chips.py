@@ -55,6 +55,7 @@ def test_returns_three_chips_from_llm(mock_call_llm) -> None:
     result = suggested_chips(_state())
 
     assert result["suggested_chips"] == _CHIPS
+    assert result["chips_fallback"] is False
 
 
 @patch("models.consult.nodes.suggested_chips.call_llm")
@@ -136,6 +137,7 @@ def test_falls_back_when_response_is_not_json(mock_call_llm) -> None:
     result = suggested_chips(_state())
 
     assert result["suggested_chips"] == _FALLBACK_CHIPS
+    assert result["chips_fallback"] is True
 
 
 @pytest.mark.parametrize(
@@ -161,6 +163,7 @@ def test_falls_back_on_wrong_shape(mock_call_llm, malformed_payload) -> None:
     result = suggested_chips(_state())
 
     assert result["suggested_chips"] == _FALLBACK_CHIPS
+    assert result["chips_fallback"] is True
 
 
 @patch("models.consult.nodes.suggested_chips.call_llm")
