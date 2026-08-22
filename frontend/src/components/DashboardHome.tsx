@@ -7,20 +7,11 @@ type DashboardHomeProps = {
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   return (
     <section className="dashboard-home" aria-labelledby="dashboard-title">
-      <div className="mascot-hero mascot-hero--compact">
+      <div className="mascot-hero mascot-hero--compact dashboard-hero--text-only">
         <div className="dashboard-greeting">
           <p className="kicker dashboard-kicker">AI 성장 파트너</p>
           <h1 id="dashboard-title" className="dashboard-greeting-title">안녕하세요, 사장님!</h1>
           <p className="dashboard-greeting-copy"><strong>카피니와 분석이</strong>가 광고 제작부터 상권 전략까지 함께합니다.</p>
-          <img
-            className="hero-brand-logo"
-            src="/assets/brand/salesbooster-logo.png"
-            alt="매출부스터 AI"
-          />
-        </div>
-        <div className="mascot-duo" aria-label="카피니와 분석이">
-          <img className="mascot-duo-copyni" src="/assets/mascots/copyni.png" alt="광고 제작 파트너 카피니" />
-          <img className="mascot-duo-bunseoki" src="/assets/mascots/bunseoki.png" alt="상권 분석 파트너 분석이" />
         </div>
       </div>
 

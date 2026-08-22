@@ -281,6 +281,9 @@ select:focus-visible {
 .dashboard-home { min-height: calc(100vh - clamp(76px, 12vw, 172px)); display: grid; align-content: center; gap: 28px; }
 .mascot-hero { width: min(100%, 920px); min-height: 310px; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; justify-self: center; overflow: hidden; border: 1px solid rgba(61, 52, 165, .12); border-radius: 28px; padding: 34px 42px 0; background: linear-gradient(130deg, #fff 0%, #f1edff 55%, #fff1d6 100%); box-shadow: var(--shadow); }
 .mascot-hero--compact { width: min(100%, 940px); min-height: 236px; padding: 22px 34px 0; }
+.dashboard-hero--text-only { width: min(100%, 840px); min-height: 188px; grid-template-columns: 1fr; padding: 26px 38px; text-align: center; }
+.dashboard-hero--text-only .dashboard-greeting { max-width: 620px; margin: 0 auto; padding-bottom: 0; }
+.dashboard-hero--text-only .dashboard-greeting-copy { margin-inline: auto; }
 .dashboard-greeting { position: relative; z-index: 2; align-self: center; padding-bottom: 34px; }
 .dashboard-kicker { margin-bottom: 8px; font-size: .7rem; }
 .dashboard-greeting-title { margin-bottom: 12px; font-size: clamp(28px, 2.4vw, 34px); font-weight: 750; letter-spacing: -0.045em; }
