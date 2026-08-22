@@ -148,6 +148,37 @@ class PreviewGenerateResponse(StrictModel):
     result: PreviewGenerationResult
 
 
+class PaymentPackage(StrictModel):
+    """서버가 소유하는 크레딧 패키지 가격입니다(VAT 별도)."""
+
+    id: Literal["starter", "standard", "pro"]
+    credits: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
+
+
+class PaymentCatalogResponse(StrictModel):
+    currency: Literal["KRW"]
+    vat_included: Literal[False]
+    unit_price: int = Field(gt=0)
+    packages: list[PaymentPackage]
+
+
+class PaymentRequest(StrictModel):
+    package: Literal["starter", "standard", "pro"]
+
+
+class PaymentResponse(StrictModel):
+    payment_id: int = Field(gt=0)
+    package: Literal["starter", "standard", "pro"]
+    credits: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
+    vat_included: Literal[False]
+    balance: int = Field(ge=0)
+    status: Literal["completed"]
+
+
 class GenerateExtra(StrictModel):
     """두 챗봇이 공유하는 선택형 추가 입력."""
 

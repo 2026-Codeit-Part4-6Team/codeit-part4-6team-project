@@ -67,12 +67,14 @@ class Payment(Base):
 
     __tablename__ = "payments"
     __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_payment_user_key"),
         CheckConstraint("amount >= 0", name="ck_payments_amount"),
         CheckConstraint("credits >= 0", name="ck_payments_credits"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    idempotency_key: Mapped[str | None] = mapped_column(String(36), nullable=True)
     package: Mapped[str] = mapped_column(String(20), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     credits: Mapped[int] = mapped_column(Integer, nullable=False)

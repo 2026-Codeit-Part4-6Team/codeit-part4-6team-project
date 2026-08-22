@@ -29,6 +29,31 @@ export type UserResponse = {
   daily_free_remaining: number;
 };
 
+export type PaymentPackage = {
+  id: "starter" | "standard" | "pro";
+  credits: number;
+  amount: number;
+  discount_percent: number;
+};
+
+export type PaymentCatalogResponse = {
+  currency: "KRW";
+  vat_included: false;
+  unit_price: number;
+  packages: PaymentPackage[];
+};
+
+export type PaymentResponse = {
+  payment_id: number;
+  package: PaymentPackage["id"];
+  credits: number;
+  amount: number;
+  discount_percent: number;
+  vat_included: false;
+  balance: number;
+  status: "completed";
+};
+
 export type GenerationResponse = {
   generation_id: number;
   status: string;
@@ -138,6 +163,18 @@ export class ApiClient {
 
   me(): Promise<UserResponse> {
     return this.request("/users/me", { method: "GET" });
+  }
+
+  paymentCatalog(): Promise<PaymentCatalogResponse> {
+    return this.request("/payments/catalog", { method: "GET" });
+  }
+
+  purchasePackage(packageId: PaymentPackage["id"], idempotencyKey: string): Promise<PaymentResponse> {
+    return this.request("/payments", {
+      method: "POST",
+      body: JSON.stringify({ package: packageId }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
   }
 
   userSummary(): Promise<UserSummaryResponse> {
