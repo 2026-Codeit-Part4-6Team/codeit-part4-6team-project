@@ -24,12 +24,14 @@ _DEFAULT_PLATFORM = "instagram"
 
 def _build_image_prompt(store: dict, copy: str, platform: str | None) -> str:
     """가게 정보·카피·플랫폼을 바탕으로 이미지 생성 프롬프트를 만든다."""
-    style = _PLATFORM_IMAGE_STYLE.get(platform, _PLATFORM_IMAGE_STYLE[_DEFAULT_PLATFORM])
+    style = _PLATFORM_IMAGE_STYLE.get(
+        platform, _PLATFORM_IMAGE_STYLE[_DEFAULT_PLATFORM]
+    )
     prompt = f"{store.get('type', '가게')} 광고 이미지. 소재: {copy}. {style}"
 
     if platform == "banner":
         prompt += (
-            f' 화면 중앙에 다음 한국어 문구를 굵고 큼직한 컬러 타이포그래피로 '
+            f" 화면 중앙에 다음 한국어 문구를 굵고 큼직한 컬러 타이포그래피로 "
             f'정확한 철자로 표시한다: "{copy}"'
         )
     return prompt
@@ -48,6 +50,7 @@ def image_gen_node(state: BasicState) -> dict:
     for c in state["ranked_copies"]:
         if not c.get("copy"):
             updated.append(c)
+            prompts.append(None)
             continue
 
         prompt = _build_image_prompt(store, c["copy"], platform)
@@ -63,7 +66,11 @@ def image_gen_node(state: BasicState) -> dict:
                 {
                     **c,
                     "image_b64": None,
-                    "error": {"field": "image", "reason": reason, "message": str(exc)},
+                    "error": {
+                        "field": "image",
+                        "reason": reason,
+                        "message": str(exc) or "이미지 생성 중 오류가 발생했습니다.",
+                    },
                 }
             )
             prompts.append(None)
