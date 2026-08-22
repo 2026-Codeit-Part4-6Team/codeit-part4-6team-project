@@ -46,4 +46,23 @@ describe("ResultCards", () => {
     expect(html).toContain("<details");
     expect(html).not.toContain(">menu<");
   });
+
+  it("uses a dedicated portrait presentation for X-banner proposals", () => {
+    const html = renderToStaticMarkup(
+      <ResultCards
+        platform="xbanner"
+        response={{
+          generation_id: 3,
+          status: "done",
+          chatbot_type: "basic",
+          result: { title: "X-배너 제안", proposals: [{ copy: "세로 배너 문구", image_b64: "encoded" }] },
+          usage: { plan: "paid", credits_used: 50 },
+        }}
+      />,
+    );
+
+    expect(html).toContain('class="result-section result-section--xbanner"');
+    expect(html).toContain("세로형 X-배너");
+    expect(html).toContain('class="card proposal proposal--xbanner"');
+  });
 });
