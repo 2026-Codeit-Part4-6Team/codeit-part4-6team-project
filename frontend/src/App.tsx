@@ -46,8 +46,8 @@ export function App() {
     setView((current) => navigate(current, route));
   }
 
-  function onStrategyToAd(sourceGenId: number) {
-    setView((current) => startBasicFromStrategy(current, sourceGenId));
+  function onStrategyToAd(sourceGenId: number, purpose: string) {
+    setView((current) => startBasicFromStrategy(current, sourceGenId, purpose));
   }
 
   async function logout() {

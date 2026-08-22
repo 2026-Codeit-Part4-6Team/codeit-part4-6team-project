@@ -12,7 +12,7 @@ type ResultViewProps = {
   onPublish: (index: ProposalIndex, imageB64: string | null) => void | Promise<void>;
   onRegenerate: () => void;
   onSuggestedChip?: (chip: string) => void;
-  onStrategyToAd?: (sourceGenId: number) => void;
+  onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
 };
 
 export function isSuccessfulGeneration(response: GenerationResponse): boolean {

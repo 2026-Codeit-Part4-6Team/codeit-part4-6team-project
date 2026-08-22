@@ -13,7 +13,7 @@ type ProtectedRouteViewProps = {
   user: UserResponse;
   route: AppRoute;
   onNavigate: (route: AppRoute) => void;
-  onStrategyToAd?: (sourceGenId: number) => void;
+  onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
   onLogout: () => void;
   onCreditsChanged?: (credits: number) => void;
   onUserChanged?: (user: UserResponse) => void;
@@ -24,7 +24,7 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onStrategyToA
   if (route === "dashboard") {
     content = <DashboardHome onNavigate={onNavigate} />;
   } else if (route === "basic_chatbot") {
-    content = <GenerationLab key="basic-generation" api={api} chatbotType="basic" initialQuestion={generationPrefill?.question} initialSourceGenId={generationPrefill?.source_gen_id} />;
+    content = <GenerationLab key="basic-generation" api={api} chatbotType="basic" initialQuestion={generationPrefill?.question} initialPurpose={generationPrefill?.purpose} initialSourceGenId={generationPrefill?.source_gen_id} />;
   } else if (route === "consultant_chatbot") {
     content = <GenerationLab key="consultant-generation" api={api} chatbotType="consultant" onStrategyToAd={onStrategyToAd} />;
   } else if (route === "mypage") {

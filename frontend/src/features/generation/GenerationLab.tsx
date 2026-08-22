@@ -124,14 +124,14 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   );
 }
 
-export function GenerationLab({ api, chatbotType = "basic", initialQuestion = "", initialSourceGenId, onStrategyToAd }: { api: ApiClient; chatbotType?: ChatbotType; initialQuestion?: string; initialSourceGenId?: number; onStrategyToAd?: (sourceGenId: number) => void }) {
+export function GenerationLab({ api, chatbotType = "basic", initialQuestion = "", initialPurpose = "", initialSourceGenId, onStrategyToAd }: { api: ApiClient; chatbotType?: ChatbotType; initialQuestion?: string; initialPurpose?: string; initialSourceGenId?: number; onStrategyToAd?: (sourceGenId: number, purpose: string) => void }) {
   const mascot = chatbotType === "basic"
     ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
     : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [question, setQuestion] = useState(initialQuestion);
   const [sourceGenId] = useState<number | null>(initialSourceGenId ?? null);
-  const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
+  const [extra, setExtra] = useState<GenerateExtra>({ purpose: initialPurpose || null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
   const [generation, setGeneration] = useState<GenerationResponse | null>(null);
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);

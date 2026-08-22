@@ -39,7 +39,7 @@ describe("generation contract", () => {
   });
 
   it("carries a consultant generation id only into a Basic follow-up", () => {
-    expect(buildEstimatePayload("basic", "이 전략으로 광고를 만들어줘", "instagram", {}, 7)).toMatchObject({
+    expect(buildEstimatePayload("basic", "이 전략으로 광고 문구를 만들어줘", "instagram", {}, 7)).toMatchObject({
       chatbot_type: "basic",
       platform: "instagram",
       source_gen_id: 7,
