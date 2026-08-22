@@ -6,6 +6,8 @@ from models.basic.graph.build_basic import build_basic_graph
 from models.shared.config import LLM_DEADLINE_SECONDS
 from models.shared.llm_errors import classify_llm_error
 
+from .config import IMAGE_DEADLINE_SECONDS
+
 logger = logging.getLogger(__name__)
 
 _graph: Any = None
@@ -63,9 +65,9 @@ def _build_initial_state(request: dict) -> dict:
         "platform": request["platform"],
         "store": request["store"],
         "extra": request.get("extra") or {},
-        # 컨설팅→광고 파생 추적(v10). 넘기지 않으면 연계 경로가 끊긴다.
         "source_gen_id": request.get("source_gen_id"),
         "deadline": time.monotonic() + LLM_DEADLINE_SECONDS,
+        "image_deadline": time.monotonic() + IMAGE_DEADLINE_SECONDS,
         "tokens_used": 0,
     }
 
@@ -100,7 +102,6 @@ def assemble_response(state):
             "reason": "unknown",
             "message": "모델 처리 중 오류가 발생했습니다.",
         }
-
 
     # blocked
     last_issue = (state.get("issues") or [{}])[-1]

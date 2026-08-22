@@ -63,15 +63,19 @@ def _build_xbanner_bottom_prompt(store: dict) -> str:
     )
 
 
-def _generate_xbanner(store: dict, copy: str) -> str:
+def _generate_xbanner(store: dict, copy: str, deadline: float | None = None) -> str:
     """X배너를 상단(카피+비주얼)/하단(가게 정보) 두 장으로 나눠 생성한 뒤
     세로로 이어붙여 base64 PNG 하나로 반환한다."""
     size = _PLATFORM_IMAGE_SIZE["xbanner"]
 
-    top_b64 = generate_image(_build_xbanner_top_prompt(store, copy), size=size)
+    top_b64 = generate_image(
+        _build_xbanner_top_prompt(store, copy), size=size, deadline=deadline
+    )
     top_img = Image.open(io.BytesIO(base64.b64decode(top_b64)))
 
-    bottom_b64 = generate_image(_build_xbanner_bottom_prompt(store), size=size)
+    bottom_b64 = generate_image(
+        _build_xbanner_bottom_prompt(store), size=size, deadline=deadline
+    )
     bottom_img = Image.open(io.BytesIO(base64.b64decode(bottom_b64)))
 
     width = max(top_img.width, bottom_img.width)
@@ -91,6 +95,7 @@ def image_gen_node(state: BasicState) -> dict:
     이어붙인 결과를 사용한다."""
     store = state["store"]
     platform = state.get("platform")
+    deadline = state.get("image_deadline")
     updated = []
     images = []
     prompts = []
@@ -102,14 +107,14 @@ def image_gen_node(state: BasicState) -> dict:
 
         try:
             if platform == "xbanner":
-                image_b64 = _generate_xbanner(store, c["copy"])
+                image_b64 = _generate_xbanner(store, c["copy"], deadline=deadline)
                 prompt_record = _build_xbanner_top_prompt(store, c["copy"])
             else:
                 size = _PLATFORM_IMAGE_SIZE.get(
                     platform, _PLATFORM_IMAGE_SIZE[_DEFAULT_PLATFORM]
                 )
                 prompt_record = _build_image_prompt(store, c["copy"], platform)
-                image_b64 = generate_image(prompt_record, size=size)
+                image_b64 = generate_image(prompt_record, size=size, deadline=deadline)
 
             updated.append({**c, "image_b64": image_b64})
             images.append(image_b64)
