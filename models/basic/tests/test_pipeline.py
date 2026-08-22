@@ -14,6 +14,8 @@ _STORE = {
     "lng": 127.0,
 }
 
+_FAKE_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
 
 def _fake_call_llm(
     system: str, user: str, json_mode: bool = False, deadline: float | None = None
@@ -46,12 +48,18 @@ def _fake_call_llm(
                 {
                     "sufficient": False,
                     "rewritten_question": question,
+                    "keyword": "",
                     "message": "무엇을 광고하고 싶으신지 조금 더 알려주세요.",
                 }
             )
         else:
             content = json.dumps(
-                {"sufficient": True, "rewritten_question": question, "message": ""}
+                {
+                    "sufficient": True,
+                    "rewritten_question": question,
+                    "keyword": question,
+                    "message": "",
+                }
             )
         return content, 10
 
@@ -67,15 +75,14 @@ def _fake_get_trend(question, industry=None):
         "keyword": industry or "카페",
         "direction": "상승",
         "related": ["아이스 아메리카노"],
-        "weather": None,
     }
 
 
 @pytest.fixture(autouse=True)
 def _mock_external_calls():
-    """외부 API(OpenAI, 상권/트렌드 API)를 모두 모킹해 e2e 테스트를 CI에서도
-    네트워크/크리덴셜 없이 실행 가능하게 한다. 나머지 의존성(check_input/
-    check_output/self_check/check_regulation/generate_image/search_benchmark)은
+    """외부 API(OpenAI, 상권/트렌드 API, 이미지 생성, CLIP)를 전부 모킹해 e2e
+    테스트를 CI에서도 네트워크/무거운 모델 로드 없이 빠르고 안정적으로 실행되게
+    한다. 나머지 의존성(check_input/check_output/self_check/check_regulation)은
     현재 전부 D1 스텁이라 모킹 없이도 예외 없이 통과한다."""
     with (
         patch(
@@ -90,6 +97,11 @@ def _mock_external_calls():
         patch(
             "models.basic.nodes.trend_for_copy.get_trend", side_effect=_fake_get_trend
         ),
+        patch(
+            "models.basic.nodes.image_gen.generate_image",
+            return_value=_FAKE_IMAGE_B64,
+        ),
+        patch("models.basic.nodes.image_review._clip_score", return_value=0.9),
     ):
         yield
 
