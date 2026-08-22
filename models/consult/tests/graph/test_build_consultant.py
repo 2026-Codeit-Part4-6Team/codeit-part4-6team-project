@@ -90,7 +90,9 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
     mock_strategy_call_llm,
 ) -> None:
     """market_for_consult·trend_for_consult가 둘 다 성공하면 sources에 두 출처가
-    모두 쌓이고, strategy는 기본 출처("가게정보")를 덧붙이지 않는다."""
+    모두 쌓이고, strategy는 기본 출처("가게정보")를 덧붙이지 않는다. strategy는 두
+    조회가 모두 끝난 뒤 한 번만 실행돼야 한다(v2 섹션F 필수 동작 — fan-in 노드가
+    incoming edge 수만큼 중복 실행되지 않는지 확인)."""
     mock_get_market.return_value = {
         "total_count": 43,
         "same_industry_count": 12,
@@ -133,6 +135,7 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
     result = graph.invoke(_initial_state())
 
     assert result["sources"] == ["상권분석", "트렌드"]
+    mock_strategy_call_llm.assert_called_once()
 
 
 @patch("models.consult.nodes.strategy.call_llm")
