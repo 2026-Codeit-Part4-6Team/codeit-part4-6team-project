@@ -280,10 +280,11 @@ select:focus-visible {
 .sidebar.is-collapsed .sidebar-nav-item img { width: 24px; height: 24px; }
 .dashboard-home { min-height: calc(100vh - clamp(76px, 12vw, 172px)); display: grid; align-content: center; gap: 28px; }
 .mascot-hero { width: min(100%, 920px); min-height: 310px; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; justify-self: center; overflow: hidden; border: 1px solid rgba(61, 52, 165, .12); border-radius: 28px; padding: 34px 42px 0; background: linear-gradient(130deg, #fff 0%, #f1edff 55%, #fff1d6 100%); box-shadow: var(--shadow); }
-.mascot-hero--compact { width: min(100%, 790px); min-height: 270px; padding-top: 24px; }
+.mascot-hero--compact { width: min(100%, 940px); min-height: 236px; padding: 22px 34px 0; }
 .dashboard-greeting { position: relative; z-index: 2; align-self: center; padding-bottom: 34px; }
-.dashboard-greeting h1 { margin-bottom: 18px; font-size: clamp(30px, 3vw, 42px); font-weight: 750; letter-spacing: -0.045em; }
-.dashboard-greeting p:not(.kicker) { max-width: 460px; margin-bottom: 22px; color: #625d76; font-size: clamp(16px, 1.4vw, 19px); line-height: 1.65; }
+.dashboard-kicker { margin-bottom: 8px; font-size: .7rem; }
+.dashboard-greeting-title { margin-bottom: 12px; font-size: clamp(28px, 2.4vw, 34px); font-weight: 750; letter-spacing: -0.045em; }
+.dashboard-greeting-copy { max-width: 480px; margin-bottom: 18px; color: #625d76; font-size: clamp(17px, 1.45vw, 20px); line-height: 1.6; }
 .dashboard-greeting p strong { color: var(--primary); }
 .hero-brand-logo { display: block; width: clamp(200px, 24vw, 270px); height: auto; margin: -10px 0 -24px; }
 .mascot-duo { position: relative; align-self: stretch; min-height: 276px; }
@@ -291,14 +292,14 @@ select:focus-visible {
 .mascot-duo-copyni { left: -8%; }
 .mascot-duo-bunseoki { right: -10%; }
 
-.feature-card-grid { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(260px, 350px)); justify-content: center; gap: clamp(26px, 5vw, 80px); }
+.feature-card-grid { width: min(100%, 940px); display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); justify-self: center; gap: clamp(18px, 3vw, 34px); }
 .feature-card {
   position: relative;
-  min-height: 233px;
+  min-height: 228px;
   display: grid;
   align-content: center;
   justify-items: start;
-  gap: 17px;
+  gap: 13px;
   border: 1px solid rgba(37, 33, 67, 0.08);
   border-radius: 15px;
   padding: 34px 38px;
@@ -313,9 +314,10 @@ select:focus-visible {
 .feature-card img { width: 44px; height: 44px; object-fit: contain; }
 .feature-card .feature-mascot { position: absolute; right: -8px; bottom: -16px; width: 47%; height: 88%; object-fit: contain; object-position: bottom; opacity: .94; pointer-events: none; }
 .feature-card small { position: relative; z-index: 1; color: var(--primary); font-weight: 850; }
-.feature-card strong { font-size: clamp(24px, 2.3vw, 30px); font-weight: 550; }
+.feature-card strong { font-size: clamp(23px, 2.2vw, 29px); font-weight: 650; }
 .feature-card strong, .feature-card span { position: relative; z-index: 1; max-width: 64%; }
 .feature-card span { color: var(--muted); font-size: clamp(16px, 1.4vw, 19px); }
+.feature-card-cta { color: var(--primary) !important; font-size: 15px !important; font-weight: 850; }
 .feature-card-basic { background: linear-gradient(135deg, #fff 55%, #f0ebff 100%); }
 .feature-card-consultant { background: linear-gradient(135deg, #fff 55%, #fff0d4 100%); }
 
@@ -324,6 +326,7 @@ select:focus-visible {
 
 /* Preserved generation connection */
 .generation-page { width: min(100%, 920px); margin: 0 auto; padding: clamp(28px, 4vw, 58px) 0; }
+.generation-page--wide { width: min(100%, 1160px); }
 .generation-heading { margin-bottom: 30px; }
 .generation-heading-with-mascot { min-height: 150px; display: flex; align-items: center; justify-content: space-between; gap: 28px; overflow: hidden; border-radius: 24px; padding: 24px 30px; background: linear-gradient(130deg, #fff 0%, #f2eeff 65%, #fff0d6 100%); }
 .generation-heading h1 { margin-bottom: 12px; font-size: clamp(32px, 4vw, 52px); letter-spacing: -0.04em; }
@@ -332,6 +335,11 @@ select:focus-visible {
 .generation-mascot { width: 150px; height: 150px; flex: 0 0 auto; object-fit: contain; object-position: center top; filter: drop-shadow(0 10px 14px rgba(37, 33, 67, .12)); }
 .generation-card { padding: 30px; display: grid; gap: 20px; }
 .chat-generation-card { padding: 24px; gap: 18px; }
+.chat-generation-card--primary { padding: clamp(28px, 3vw, 38px); gap: 22px; }
+.chat-generation-card--primary .chat-context-header { padding: 20px; }
+.chat-generation-card--primary .chat-context-header strong { font-size: 1.1rem; }
+.chat-generation-card--primary .chat-composer-label textarea { min-height: 170px; font-size: 1rem; }
+.chat-generation-card--primary > .primary { min-height: 58px; font-size: 1rem; }
 .chat-context-header { display: flex; align-items: flex-start; gap: 13px; padding: 16px; border-radius: 14px; background: var(--sidebar-card); color: #fff; }
 .chat-context-header strong { display: block; margin-bottom: 5px; font-size: 1rem; }
 .chat-context-header p { margin: 0; color: #d6d1e6; font-size: .84rem; line-height: 1.5; }
@@ -470,13 +478,15 @@ select:focus-visible {
   .dashboard-content { min-height: 100vh; padding: 88px 18px 48px; }
   .dashboard-home { min-height: calc(100vh - 136px); }
   .mascot-hero { grid-template-columns: 1fr; padding: 28px 24px 0; text-align: center; }
+  .mascot-hero--compact { min-height: 0; padding-top: 24px; }
   .dashboard-greeting { padding-bottom: 10px; }
-  .dashboard-greeting p:not(.kicker) { margin-inline: auto; }
+  .dashboard-greeting-copy { margin-inline: auto; }
   .hero-brand-logo { width: min(72vw, 250px); margin-inline: auto; }
   .mascot-duo { min-height: 230px; }
   .mascot-duo img { max-height: 245px; }
   .feature-card-grid { grid-template-columns: minmax(0, 1fr); width: min(100%, 430px); }
   .feature-card { min-height: 190px; }
+  .generation-page--wide { width: 100%; }
   .generation-heading-with-mascot { align-items: flex-end; padding: 22px; }
   .generation-mascot { width: 100px; height: 120px; }
   .estimate-card,

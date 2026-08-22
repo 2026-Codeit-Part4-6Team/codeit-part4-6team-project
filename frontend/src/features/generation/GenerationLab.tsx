@@ -227,7 +227,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
   }
 
   return (
-    <section className="generation-page" aria-labelledby="generation-title">
+    <section className="generation-page generation-page--wide" aria-labelledby="generation-title">
       <div className="generation-heading generation-heading-with-mascot">
         <div>
           <p className="kicker">{chatbotType === "basic" ? "BASIC CHATBOT" : "CONSULTANT CHATBOT"}</p>
@@ -238,7 +238,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
         <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
-      <form className="card generation-card chat-generation-card" onSubmit={estimate}>
+      <form className="card generation-card chat-generation-card chat-generation-card--primary" onSubmit={estimate}>
         <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <label>광고 형식
           <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
