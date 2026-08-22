@@ -91,8 +91,9 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
 ) -> None:
     """market_for_consult·trend_for_consult가 둘 다 성공하면 sources에 두 출처가
     모두 쌓이고, strategy는 기본 출처("가게정보")를 덧붙이지 않는다. strategy는 두
-    조회가 모두 끝난 뒤 한 번만 실행돼야 한다(v2 섹션F 필수 동작 — fan-in 노드가
-    incoming edge 수만큼 중복 실행되지 않는지 확인)."""
+    조회가 모두 끝난 뒤 한 번만 실행돼야 한다(v2 섹션F 필수 동작). 호출 횟수 1회
+    만으로는 "조기 실행 후 1회"까지는 못 잡으므로, 실제로 넘어간 프롬프트에 상권·
+    트렌드 양쪽 고유값이 다 들어있는지도 확인한다(Codex 리뷰)."""
     mock_get_market.return_value = {
         "total_count": 43,
         "same_industry_count": 12,
@@ -136,6 +137,9 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
 
     assert result["sources"] == ["상권분석", "트렌드"]
     mock_strategy_call_llm.assert_called_once()
+    _, strategy_user_prompt = mock_strategy_call_llm.call_args.args
+    assert "12곳" in strategy_user_prompt
+    assert "상승" in strategy_user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -241,21 +245,24 @@ def test_market_and_trend_run_in_parallel_not_sequential(
     mock_chips_call_llm,
     mock_strategy_call_llm,
 ) -> None:
-    """market_for_consult·trend_for_consult에 각각 인위적 지연을 주면, 전체 실행
-    시간이 두 지연의 합이 아니라 더 큰 쪽에 가까워야 한다(v2 섹션F — 순차 실행이면
-    합에 가까워 이 테스트가 실패한다)."""
-    import time
+    """market_for_consult·trend_for_consult가 실제로 동시에 실행되는지 확인한다.
+    두 mock이 threading.Barrier(2)에서 서로를 기다리게 한다 — 순차 실행이면 먼저
+    도착한 쪽이 둘째를 영원히 못 만나 타임아웃 예외를 던지고, 병렬 실행이면 둘 다
+    거의 동시에 도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아 느린 CI에서
+    정상적인 병렬 실행까지 실패로 오판하지 않는다(Codex 리뷰 — 기존 sleep+임계값
+    비교는 느린 환경에서 flaky할 수 있다는 지적)."""
+    import threading
 
-    delay = 0.3
+    barrier = threading.Barrier(2, timeout=2.0)
 
-    def slow_market(*args, **kwargs):
-        time.sleep(delay)
+    def rendezvous_market(*args, **kwargs):
+        barrier.wait()
 
-    def slow_trend(*args, **kwargs):
-        time.sleep(delay)
+    def rendezvous_trend(*args, **kwargs):
+        barrier.wait()
 
-    mock_get_market.side_effect = slow_market
-    mock_get_trend.side_effect = slow_trend
+    mock_get_market.side_effect = rendezvous_market
+    mock_get_trend.side_effect = rendezvous_trend
     mock_question_call_llm.return_value = (
         json.dumps(
             {
@@ -274,12 +281,11 @@ def test_market_and_trend_run_in_parallel_not_sequential(
     )
     graph = build_consultant()
 
-    start = time.monotonic()
+    # 순차 실행이면 barrier.wait()이 타임아웃돼 BrokenBarrierError가 여기서 전파된다.
     graph.invoke(_initial_state())
-    elapsed = time.monotonic() - start
 
-    # 순차면 2*delay(0.6s) 근처, 병렬이면 delay(0.3s) 근처 — 그 중간값을 경계로 판정
-    assert elapsed < delay * 1.5
+    mock_get_market.assert_called_once()
+    mock_get_trend.assert_called_once()
 
 
 def test_default_path_skips_link_to_ads() -> None:

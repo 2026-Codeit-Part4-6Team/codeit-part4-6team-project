@@ -44,8 +44,11 @@ def build_consultant() -> CompiledStateGraph:
     graph.add_edge("question_analysis", "suggested_chips")
     graph.add_edge("suggested_chips", "market_for_consult")
     graph.add_edge("suggested_chips", "trend_for_consult")
-    graph.add_edge("market_for_consult", "strategy")
-    graph.add_edge("trend_for_consult", "strategy")
+    # 개별 add_edge 2개(market_for_consult→strategy, trend_for_consult→strategy)는
+    # 둘 다 strategy의 같은 branch-to 채널에 쓸 뿐이라 "모두 완료 후 1회 실행"이
+    # 공식적으로 보장되지 않는다 — LangGraph는 리스트 폼일 때만 별도 join 채널
+    # (NamedBarrierValue)을 만들어 이를 보장한다(Codex 리뷰, LangGraph 소스 확인).
+    graph.add_edge(["market_for_consult", "trend_for_consult"], "strategy")
     graph.add_edge("strategy", "strategy_check")
     graph.add_edge("strategy_check", "security_output")
     graph.add_edge("security_output", "self_check_node")
