@@ -6,7 +6,7 @@ type DashboardHomeProps = {
 
 export function DashboardHome({ onNavigate }: DashboardHomeProps) {
   return (
-    <section className="dashboard-home" aria-labelledby="dashboard-title">
+    <section className="dashboard-home dashboard-home--responsive" aria-labelledby="dashboard-title">
       <div className="mascot-hero mascot-hero--compact dashboard-hero--text-only">
         <div className="dashboard-greeting">
           <p className="kicker dashboard-kicker">AI 성장 파트너</p>

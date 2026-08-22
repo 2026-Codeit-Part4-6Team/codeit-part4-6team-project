@@ -52,6 +52,7 @@ describe("D5 dashboard", () => {
     expect(html).not.toContain("블로그");
     expect(html).toContain("mascot-hero--compact");
     expect(html).toContain("dashboard-hero--text-only");
+    expect(html).toContain("dashboard-home--responsive");
     expect(html).toContain("dashboard-kicker");
     expect(html).toContain("dashboard-greeting-title");
     expect(html).toContain("feature-card-cta");
