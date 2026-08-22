@@ -98,8 +98,15 @@ def _add_generation(db: Session, user: User, *, result_json: str) -> Generation:
 @patch("models.consult.nodes.strategy.call_llm")
 @patch("models.consult.nodes.suggested_chips.call_llm")
 @patch("models.consult.nodes.question_analysis.call_llm")
-def _run_consult_model(mock_qa, mock_chips, mock_strategy) -> dict:
-    """실제 그래프를 mock LLM으로 실행해 assemble_response()가 만드는 진짜 ok 결과를 얻는다."""
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.market_for_consult.get_market")
+def _run_consult_model(mock_get_market, mock_get_trend, mock_qa, mock_chips, mock_strategy) -> dict:
+    """실제 그래프를 mock LLM으로 실행해 assemble_response()가 만드는 진짜 ok 결과를 얻는다.
+
+    get_market()/get_trend()도 mock한다 — 안 하면 실 API 키가 설정된 환경에서
+    실제 상권 API·캐시 DB에 접근해 이 테스트가 환경 의존적이고 느려진다(Codex 리뷰)."""
+    mock_get_market.return_value = None
+    mock_get_trend.return_value = None
     mock_qa.return_value = (
         json.dumps(
             {"rewritten_question": "상권 전략을 알려줘", "is_sufficient": True, "missing_info": [], "keyword": None}
@@ -142,6 +149,7 @@ def test_real_consult_result_round_trips_through_source_context(tmp_path):
 
         assert model_request.source_context is not None
         assert model_request.source_context.strategy.summary == result["strategy"]["summary"]
+        assert [a.model_dump() for a in model_request.source_context.strategy.actions] == result["strategy"]["actions"]
         assert model_request.source_context.reasons == result["reasons"]
         assert model_request.source_context.sources == result["sources"]
 
