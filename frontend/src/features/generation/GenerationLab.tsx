@@ -239,16 +239,21 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
         <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
+      {chatbotType === "basic" && initialSourceGenId && (
+        <aside className="strategy-prefill-banner" aria-label="컨설팅 전략 연계">
+          <span className="strategy-prefill-icon" aria-hidden="true">✦</span>
+          <div><strong>컨설팅 전략을 이어서 만들고 있어요</strong><p>전략에 맞춰 광고 형식과 문구를 다듬어 보세요. 필요한 내용은 자유롭게 수정할 수 있습니다.</p></div>
+          {initialPurpose && <span className="strategy-prefill-tag">{initialPurpose}</span>}
+        </aside>
+      )}
+
       <form className="card generation-card chat-generation-card chat-generation-card--primary" onSubmit={estimate}>
         <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
-        {chatbotType === "basic" && <label>광고 형식
-          <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
-            <option value="instagram">Instagram</option>
-            <option value="xbanner">X-배너</option>
-          </select>
-        </label>}
+        {chatbotType === "basic" && <fieldset className="platform-picker"><legend>광고 형식</legend><div className="platform-options">
+          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
+        </div></fieldset>}
         {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
-        <label className="chat-composer-label">첫 메시지
+        <label className="chat-composer-label">광고 요청
           <textarea
             value={question}
             onChange={(event) => { setPending(null); setQuestion(event.target.value); }}
