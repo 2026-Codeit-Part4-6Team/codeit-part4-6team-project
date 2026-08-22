@@ -19,7 +19,7 @@ def _get_client():
     return _client
 
 
-def generate_image(prompt: str) -> str:
+def generate_image(prompt: str, size: str = IMAGE_SIZE) -> str:
     """프롬프트를 받아 이미지를 생성하고 base64 인코딩된 이미지 문자열을 반환한다.
 
     OpenAI gpt-image-2를 사용한다. RateLimitError(429)만 재시도 대상이며,
@@ -32,7 +32,7 @@ def generate_image(prompt: str) -> str:
             response = client.images.generate(
                 model=IMAGE_MODEL,
                 prompt=prompt,
-                size=IMAGE_SIZE,
+                size=size,
                 quality=IMAGE_QUALITY,
                 n=1,
             )
