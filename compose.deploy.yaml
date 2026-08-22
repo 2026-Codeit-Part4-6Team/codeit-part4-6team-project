@@ -6,10 +6,13 @@ services:
       - .env
     environment:
       APP_ENV: production
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
     volumes:
       - "${APP_DATA_DIR:-/srv/team6/data}:/app/data"
+      - "${HF_HOME_HOST_PATH:-/srv/team6/models}:/app/.cache/huggingface"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

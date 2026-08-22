@@ -36,6 +36,7 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    stale_recovery_seconds: int
     chatbot_mode: str
     session_secret_key: str
     session_max_age_seconds: int
@@ -80,6 +81,7 @@ def load_settings() -> Settings:
         model_request_timeout_seconds=_read_int(
             "MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60
         ),
+        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 120, minimum=1),
         chatbot_mode=chatbot_mode,
         session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),

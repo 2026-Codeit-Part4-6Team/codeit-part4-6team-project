@@ -76,8 +76,21 @@ def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
     module = importlib.import_module(module_name)
     run = getattr(module, "run", None)
     if not callable(run):
-        raise RuntimeError(f"{module_name}.run callable을 찾을 수 없습니다.")
+        raise RuntimeError(  # noqa: TRY004 - 런타임 모듈 계약 위반을 공통 오류로 노출합니다.
+            f"{module_name}.run callable을 찾을 수 없습니다."
+        )
     return run
+
+
+def preload_actual_model_weights() -> None:
+    """실제 모델 런타임의 Hugging Face 가중치를 앱 기동 시 미리 로드합니다."""
+    module = importlib.import_module("models.basic.nodes.image_review")
+    preload = getattr(module, "preload_clip", None)
+    if not callable(preload):
+        raise RuntimeError(  # noqa: TRY004 - 런타임 모델 계약 위반을 공통 오류로 노출합니다.
+            "models.basic.nodes.image_review.preload_clip callable을 찾을 수 없습니다."
+        )
+    preload()
 
 
 def create_chatbot_client(settings: "Settings") -> ChatbotClient:

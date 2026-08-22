@@ -72,3 +72,22 @@ def test_factory_fails_startup_when_actual_run_is_missing(monkeypatch, module_na
 def test_factory_rejects_unknown_mode():
     with pytest.raises(ValueError, match="chatbot_mode"):
         chatbot_client.create_chatbot_client(_settings("hybrid"))
+
+
+def test_preload_actual_model_weights_calls_clip_preloader(monkeypatch):
+    calls = []
+
+    class ImageReview:
+        @staticmethod
+        def preload_clip():
+            calls.append("clip")
+
+    monkeypatch.setattr(
+        chatbot_client.importlib,
+        "import_module",
+        lambda name: ImageReview if name == "models.basic.nodes.image_review" else None,
+    )
+
+    chatbot_client.preload_actual_model_weights()
+
+    assert calls == ["clip"]

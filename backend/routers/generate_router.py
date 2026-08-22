@@ -55,6 +55,7 @@ async def generate(
             now=datetime.now(UTC),
             free_limit=settings.daily_free_limit,
             model_timeout_seconds=settings.model_request_timeout_seconds,
+            stale_recovery_seconds=settings.stale_recovery_seconds,
         )
     except InsufficientCredits as error:
         raise HTTPException(

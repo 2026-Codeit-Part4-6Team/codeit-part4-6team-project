@@ -20,7 +20,10 @@ services:
       BASIC_CREDIT_COST: ${BASIC_CREDIT_COST:-50}
       CONSULTANT_CREDIT_COST: ${CONSULTANT_CREDIT_COST:-10}
       MODEL_REQUEST_TIMEOUT_SECONDS: ${MODEL_REQUEST_TIMEOUT_SECONDS:-180}
+      STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-120}
       CHATBOT_MODE: ${CHATBOT_MODE:-mock}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
@@ -35,6 +38,7 @@ services:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
     volumes:
       - "./data:/app/data"
+      - "${HF_HOME_HOST_PATH:-./.cache/huggingface}:/app/.cache/huggingface"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

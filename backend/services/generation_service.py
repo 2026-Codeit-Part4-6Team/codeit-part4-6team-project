@@ -341,11 +341,11 @@ def recover_stale_generating(
     user: User,
     *,
     now: datetime,
-    model_timeout_seconds: int,
+    stale_recovery_seconds: int,
 ) -> bool:
     """same-key retry에서 stale generating reservation을 정확히 한 번 복구합니다."""
-    if model_timeout_seconds <= 0:
-        raise ValueError("model_timeout_seconds는 양수여야 합니다.")
+    if stale_recovery_seconds <= 0:
+        raise ValueError("stale_recovery_seconds는 양수여야 합니다.")
     if generation.status != "generating":
         return False
     if generation.created_at is None:
@@ -353,7 +353,7 @@ def recover_stale_generating(
 
     normalized_now = as_utc(now)
     started_at = as_utc(generation.created_at)
-    stale_at = started_at + timedelta(seconds=2 * model_timeout_seconds)
+    stale_at = started_at + timedelta(seconds=stale_recovery_seconds)
     if normalized_now < stale_at:
         return False
 
@@ -431,6 +431,7 @@ async def generate(
     now,
     free_limit: int,
     model_timeout_seconds: int,
+    stale_recovery_seconds: int = 120,
 ) -> GenerationResponse:
     """D4 생성 요청의 idempotency, reservation, model, persistence를 조율합니다."""
     normalized_key = _normalize_idempotency_key(idempotency_key)
@@ -448,7 +449,7 @@ async def generate(
                 existing,
                 user,
                 now=now,
-                model_timeout_seconds=model_timeout_seconds,
+                stale_recovery_seconds=stale_recovery_seconds,
             )
             if recovered:
                 raise _internal_error("stale_generation_recovered")
