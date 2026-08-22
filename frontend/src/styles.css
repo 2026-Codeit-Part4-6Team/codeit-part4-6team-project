@@ -582,6 +582,14 @@ select:focus-visible {
 .strategy-prefill-banner strong { display: block; font-size: 15px; }
 .strategy-prefill-banner p { margin: 4px 0 0; color: #756e96; font-size: 13px; }
 .strategy-prefill-tag { margin-left: auto; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 10px; border-radius: 999px; background: #ebe7ff; color: #4a3bb5; font-size: 12px; }
+.reask-card { max-width: 1180px; margin: 20px auto 0; padding: 24px; border: 1px solid #e4defe; border-radius: 20px; background: linear-gradient(135deg, #fbfaff, #fff); box-shadow: 0 12px 30px rgba(57, 43, 130, .08); }
+.reask-heading { display: flex; align-items: flex-start; gap: 14px; }
+.reask-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: #eeeaff; color: #4a3bb5; font-weight: 800; }
+.reask-heading h2 { margin: 2px 0 4px; color: #29234f; font-size: 19px; }
+.reask-heading p:last-child { margin: 0; color: #716b8e; line-height: 1.55; }
+.reask-form { display: grid; gap: 10px; margin-top: 18px; }
+.reask-form textarea { min-height: 86px; resize: vertical; }
+.reask-form button { justify-self: end; min-width: 210px; }
 .platform-picker { margin: 0; padding: 0; border: 0; }
 .platform-picker legend { margin-bottom: 8px; font-weight: 700; }
 .platform-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -727,6 +735,7 @@ select:focus-visible {
   .strategy-prefill-banner { align-items: flex-start; }
   .strategy-prefill-tag { display: none; }
   .platform-options { grid-template-columns: 1fr; }
+  .reask-form button { width: 100%; }
   .credit-summary {
     grid-template-columns: 1fr;
   }

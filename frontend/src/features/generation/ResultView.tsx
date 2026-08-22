@@ -13,6 +13,7 @@ type ResultViewProps = {
   onRegenerate: () => void;
   onSuggestedChip?: (chip: string) => void;
   onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
+  onReask?: (answer: string) => void;
 };
 
 export function isSuccessfulGeneration(response: GenerationResponse): boolean {
@@ -38,14 +39,17 @@ export function ResultView({
   onRegenerate,
   onSuggestedChip,
   onStrategyToAd,
+  onReask,
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
     useState<ProposalIndex | null>(null);
+  const [answer, setAnswer] = useState("");
 
   if (!isSuccessfulGeneration(response)) {
     return (
-      <section className="card blocked-result" role="alert">
-        <p>{nonSuccessMessage(response)}</p>
+      <section className="reask-card" role="alert">
+        <div className="reask-heading"><span className="reask-icon" aria-hidden="true">?</span><div><p className="kicker">ONE MORE DETAIL</p><h2>광고 방향을 조금만 더 알려주세요</h2><p>{nonSuccessMessage(response)}</p></div></div>
+        {onReask && <form className="reask-form" onSubmit={(event) => { event.preventDefault(); const trimmed = answer.trim(); if (trimmed) onReask(trimmed); }}><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="예: 여름 딸기빙수를 홍보하고 싶어요. 20대 고객이 주말에 방문하도록 만들어주세요." aria-label="추가 답변" rows={3} /><button type="submit" className="primary" disabled={!answer.trim()}>이 내용으로 이어서 만들기</button></form>}
       </section>
     );
   }
