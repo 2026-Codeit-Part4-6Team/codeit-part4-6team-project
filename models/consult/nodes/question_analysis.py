@@ -28,8 +28,7 @@ def question_analysis(state: ConsultState) -> dict:
     keyword(트렌드 조회용 검색어)도 함께 추출한다 — PM 결정(D-079)에 따라 트렌드
     조회는 질문 원문이 아니라 이 keyword를 써야 한다. 질문 원문은 매번 달라 캐시
     적중률이 0이 되어 네이버 트렌드 API 월 5만 건 한도를 그대로 소모하기 때문이다.
-    아직 이 keyword를 실제로 소비하는 트렌드 노드는 없다(D6에서 연결 예정) — 지금은
-    D5의 get_trend() 실구현에 대비해 미리 추출만 해둔다.
+    D6의 trend_for_consult 노드가 이 keyword로 get_trend()를 호출해 소비한다.
     """
     question = state["question"]
     store = state["store"]
