@@ -40,7 +40,8 @@ describe("D5 application view state", () => {
       route: "basic_chatbot",
       generationPrefill: {
         source_gen_id: 42,
-        question: "이 전략으로 광고를 만들어줘",
+        question: "이 전략으로 광고 문구를 만들어줘",
+        purpose: "동네 고객 중심 홍보",
       },
     });
   });
