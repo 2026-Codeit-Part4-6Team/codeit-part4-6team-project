@@ -64,16 +64,17 @@ export function Sidebar({ user, route, open, collapsed, onClose, onNavigate, onL
   return (
     <aside id="app-sidebar" className={`sidebar${open ? " is-open" : ""}${collapsed ? " is-collapsed" : ""}`}>
       <div className="sidebar-brand">
-        <BrandMark />
+        <BrandMark onClick={() => selectRoute("dashboard")} />
         <button type="button" className="sidebar-collapse" aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-pressed={collapsed} onClick={onToggle}>{collapsed ? "»" : "«"}</button>
         <button type="button" className="sidebar-close" onClick={onClose} aria-label="메뉴 닫기">×</button>
       </div>
 
-      <button type="button" className="store-card" onClick={() => selectRoute("dashboard")}>
+      <button type="button" className="store-card" onClick={() => selectRoute("store_settings")}>
         <span className="store-card-label"><img src="/assets/home.svg" alt="" /> 내 가게</span>
         <strong>{user.business_name ?? user.username}</strong>
         {user.is_admin === true && <span className="admin-badge">관리자 계정</span>}
         <span className="store-address"><img src="/assets/map-pin.svg" alt="" /> {storeAddress(user)}</span>
+        <span className="store-card-action">가게 정보 수정 →</span>
       </button>
 
       <section className="sidebar-section usage-section" aria-labelledby="usage-title">

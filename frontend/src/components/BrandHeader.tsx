@@ -2,13 +2,14 @@ import { BrandMark } from "./BrandMark";
 
 type BrandHeaderProps = {
   subtitle: string;
+  onClick?: () => void;
 };
 
-export function BrandHeader({ subtitle }: BrandHeaderProps) {
+export function BrandHeader({ subtitle, onClick }: BrandHeaderProps) {
   return (
     <header className="brand-header">
       <div className="brand-title-row">
-        <BrandMark />
+        <BrandMark onClick={onClick} />
       </div>
       <p>{subtitle}</p>
     </header>

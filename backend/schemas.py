@@ -82,6 +82,14 @@ class RegisterRequest(StrictModel):
         return value
 
 
+class StoreProfileUpdate(StrictModel):
+    """로그인 사용자가 수정할 수 있는 가게 프로필 필드입니다."""
+
+    business_name: str = Field(min_length=1, max_length=200)
+    business_type: str = Field(min_length=1, max_length=100)
+    address_detail: str | None = Field(default=None, max_length=500)
+
+
 class LoginRequest(StrictModel):
     """서비스 로그인 요청."""
 

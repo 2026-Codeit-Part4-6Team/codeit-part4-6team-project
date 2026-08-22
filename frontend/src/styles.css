@@ -225,6 +225,8 @@ select:focus-visible {
 .admin-badge { display: inline-block; margin: -3px 0 13px; border-radius: 999px; padding: 5px 9px; background: rgba(240, 164, 48, .18); color: var(--accent); font-size: 12px; font-weight: 800; }
 .store-address { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); line-height: 1.45; }
 .store-address img { width: 18px; height: 21px; margin-top: 1px; }
+.store-card-action { display: block; margin-top: 16px; color: var(--accent); font-size: 13px; font-weight: 700; }
+.brand-mark-button { border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 
 .sidebar-section { padding: 18px clamp(26px, 2.6vw, 38px) 22px; border-bottom: 1px solid var(--line); }
 .sidebar-section h2 { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; font-size: 17px; font-weight: 550; }
@@ -262,6 +264,12 @@ select:focus-visible {
 .sidebar-nav-item img { width: 22px; height: 22px; object-fit: contain; }
 
 .dashboard-content { min-width: 0; min-height: 100vh; padding: clamp(38px, 6vw, 86px); }
+.store-profile-card { width: min(100%, 680px); display: grid; gap: 18px; }
+.store-profile-card label { display: grid; gap: 8px; color: var(--muted); font-weight: 700; }
+.store-profile-card input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; background: #fff; color: var(--ink); font: inherit; }
+.store-profile-card input:read-only { background: #f5f3fa; color: var(--muted); }
+.store-profile-card small { color: var(--muted); font-weight: 400; line-height: 1.45; }
+.store-profile-card .primary { justify-self: start; }
 .dashboard-shell.is-sidebar-collapsed { grid-template-columns: 92px minmax(0, 1fr); }
 .sidebar.is-collapsed .sidebar-brand { justify-content: center; padding-inline: 12px; }
 .sidebar.is-collapsed .brand-mark-word,
