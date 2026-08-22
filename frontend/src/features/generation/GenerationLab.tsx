@@ -246,6 +246,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
             <option value="xbanner">X-배너</option>
           </select>
         </label>}
+        {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
         <label className="chat-composer-label">첫 메시지
           <textarea
             value={question}
@@ -282,6 +283,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
       {generation && (
         <ResultView
           response={generation}
+          platform={platform}
           publishing={busy}
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}

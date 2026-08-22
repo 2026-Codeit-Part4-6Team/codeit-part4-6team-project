@@ -355,6 +355,8 @@ select:focus-visible {
 .chat-avatar-image { width: 42px; height: 42px; flex: 0 0 auto; border: 2px solid rgba(255,255,255,.3); border-radius: 13px; background: #fff3df; object-fit: cover; object-position: center 8%; }
 .chat-composer-label textarea { min-height: 116px; border-color: rgba(61, 52, 165, .25); background: #fdfbf7; }
 .generation-card label { display: grid; gap: 8px; font-size: 15px; font-weight: 700; }
+.platform-guidance { margin: -6px 0 0; padding: 13px 15px; border: 1px solid rgba(61, 52, 165, .16); border-radius: 12px; background: #f2efff; color: #514a79; line-height: 1.55; }
+.platform-guidance strong { color: var(--primary); }
 .generation-card textarea,
 .generation-card select {
   width: 100%;
@@ -392,6 +394,11 @@ select:focus-visible {
 .proposal-image-placeholder { display: grid; place-items: center; align-content: center; gap: 6px; color: var(--primary); background: linear-gradient(135deg, #f0edf8, #e4e0ff); }
 .proposal-image-placeholder span { font-size: .7rem; font-weight: 900; letter-spacing: .12em; }
 .proposal-image-placeholder small { color: #6d6884; font-size: .78rem; }
+.result-format-note { margin: -8px 0 4px; color: var(--muted); font-size: .88rem; }
+.result-section--xbanner .result-format-note { color: var(--primary); font-weight: 700; }
+.proposal--xbanner { grid-template-columns: minmax(210px, 32%) minmax(0, 1fr); }
+.proposal--xbanner .proposal-visual { display: grid; place-items: center; padding: 12px; background: linear-gradient(145deg, #f1edff, #fff4df); }
+.proposal--xbanner .proposal-image { width: min(100%, 260px); height: min(560px, 70vh); min-height: 0; aspect-ratio: 1 / 3; object-fit: contain; }
 .proposal-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding: 20px 24px; }
 .proposal-copy span { color: var(--primary); font-size: 13px; font-weight: 800; }
 .proposal-copy p { margin: 20px 0; line-height: 1.8; white-space: pre-wrap; }
@@ -590,6 +597,7 @@ select:focus-visible {
   .extra-grid, .follow-up-form { grid-template-columns: 1fr; flex-direction: column; }
   .proposal { display: block; }
   .proposal-image { height: auto; min-height: 0; aspect-ratio: 4 / 3; }
+  .proposal--xbanner .proposal-image { width: min(100%, 240px); height: min(520px, 70vh); aspect-ratio: 1 / 3; object-fit: contain; }
   .proposal-copy { padding: 18px 10px 10px; }
 }
 
