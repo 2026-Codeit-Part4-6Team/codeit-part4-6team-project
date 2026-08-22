@@ -512,7 +512,8 @@ select:focus-visible {
 .account-page {
   max-width: 980px;
   margin: 0 auto;
-  padding: 72px clamp(28px, 5vw, 78px) 90px;
+  /* dashboard-content가 공통 좌우·상하 여백을 제공하므로 중복 padding을 두지 않는다. */
+  padding: 0;
 }
 .back-link {
   margin-bottom: 30px;
@@ -581,7 +582,7 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
-  .account-page { padding: 42px 20px 60px; }
+  .account-page { padding: 0; }
   .summary-grid, .model-options { grid-template-columns: 1fr; }
   .section-heading, .history-row { align-items: stretch; flex-direction: column; }
   .history-row > div:last-child { justify-content: space-between; width: 100%; }
