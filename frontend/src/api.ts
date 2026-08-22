@@ -14,6 +14,7 @@ export class ApiError extends Error {
 export type UserResponse = {
   id: number;
   username: string;
+  is_admin: boolean;
   name: string | null;
   email: string | null;
   business_name: string | null;

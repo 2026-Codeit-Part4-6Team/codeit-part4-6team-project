@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { applyFontScale, readFontScale, saveFontScale, type FontScale } from "../fontScale";
 
 type ModelId = "service_basic" | "service_advanced" | "pending";
 
@@ -12,7 +14,15 @@ const models: Array<{ id: ModelId; name: string; detail: string }> = [
 
 export function SettingsPage({ onBack }: { onBack: () => void }) {
   const [modelType, setModelType] = useState<ModelId>("service_basic");
+  const [fontScale, setFontScale] = useState<FontScale>(() => (
+    typeof window === "undefined" ? "default" : readFontScale(window.localStorage)
+  ));
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    applyFontScale(fontScale);
+    if (typeof window !== "undefined") saveFontScale(fontScale, window.localStorage);
+  }, [fontScale]);
 
   function changeModel(value: ModelId) {
     setModelType(value);
@@ -31,6 +41,14 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
           </div>
           {saved && <p className="saved-note">환경설정 미리보기에 반영했습니다.</p>}
           <button type="button" className="primary settings-save" onClick={() => setSaved(true)}>설정 저장</button>
+        </section>
+        <section className="card settings-card settings-font-card">
+          <div><p className="kicker">ACCESSIBILITY</p><h2>글자 크기</h2><p>화면에서 읽기 편한 크기로 조절하세요.</p></div>
+          <div className="font-scale-options" role="group" aria-label="글자 크기 선택">
+            <button type="button" aria-pressed={fontScale === "default"} className={fontScale === "default" ? "selected" : ""} onClick={() => setFontScale("default")}>기본</button>
+            <button type="button" aria-pressed={fontScale === "large"} className={fontScale === "large" ? "selected" : ""} onClick={() => setFontScale("large")}>크게</button>
+            <button type="button" aria-pressed={fontScale === "xlarge"} className={fontScale === "xlarge" ? "selected" : ""} onClick={() => setFontScale("xlarge")}>더 크게</button>
+          </div>
         </section>
         <section className="card settings-card muted-settings"><p className="kicker">MORE LATER</p><h2>추가 설정</h2><p>팀 의견을 받은 뒤 필요한 설정을 이 영역에 추가합니다.</p></section>
       </div>

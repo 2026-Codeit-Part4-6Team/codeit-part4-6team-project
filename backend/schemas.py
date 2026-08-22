@@ -111,6 +111,7 @@ class UserResponse(StrictModel):
 
     id: int
     username: str
+    is_admin: bool
     name: str | None
     email: EmailStr | None
     business_name: str | None

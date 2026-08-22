@@ -7,6 +7,7 @@ import { ProtectedRouteView } from "./AppRoutes";
 const user: UserResponse = {
   id: 7,
   username: "owner",
+  is_admin: false,
   name: null,
   email: null,
   business_name: "카페 코드잇",

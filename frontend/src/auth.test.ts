@@ -24,6 +24,7 @@ const validFields: RegistrationFields = {
 const user: UserResponse = {
   id: 1,
   username: "owner",
+  is_admin: false,
   name: null,
   email: null,
   business_name: "코드잇 카페",

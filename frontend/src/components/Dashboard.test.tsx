@@ -17,6 +17,7 @@ const user: UserResponse = {
   road_address: "서울 강남구 테헤란로 1",
   lat: 37.5,
   lng: 127.0,
+  is_admin: false,
   credits: 65,
   daily_free_used: 3,
   daily_free_reset_at: null,
@@ -50,6 +51,23 @@ describe("D5 dashboard", () => {
     expect(html).toContain("매출부스터 AI");
     expect(html).toContain("사이드바 접기");
     expect(html).not.toContain("블로그");
+    expect(html).toContain("mascot-hero--compact");
+    expect(html).not.toContain("관리자 계정");
+  });
+
+  it("marks an administrator account separately in the sidebar", () => {
+    const html = renderToStaticMarkup(
+      <DashboardLayout
+        user={{ ...user, is_admin: true }}
+        route="dashboard"
+        onNavigate={() => undefined}
+        onLogout={() => undefined}
+      >
+        <DashboardHome onNavigate={() => undefined} />
+      </DashboardLayout>,
+    );
+
+    expect(html).toContain("관리자 계정");
   });
 
   it("falls back to the registered address when no road address exists", () => {
