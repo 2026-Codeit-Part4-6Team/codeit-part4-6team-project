@@ -135,6 +135,150 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
     assert result["sources"] == ["상권분석", "트렌드"]
 
 
+@patch("models.consult.nodes.strategy.call_llm")
+@patch("models.consult.nodes.suggested_chips.call_llm")
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.market_for_consult.get_market")
+def test_graph_uses_trend_result_when_only_market_fails(
+    mock_get_market,
+    mock_get_trend,
+    mock_question_call_llm,
+    mock_chips_call_llm,
+    mock_strategy_call_llm,
+) -> None:
+    """상권 조회만 실패해도 트렌드 결과로 strategy가 실행된다(v2 섹션F 병렬화
+    후에도 부분 성공 허용 원칙이 유지되는지 확인)."""
+    mock_get_market.return_value = None
+    mock_get_trend.return_value = {
+        "keyword": "아이스아메리카노",
+        "direction": "상승",
+        "related": ["냉커피"],
+        "weather": None,
+    }
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 어떻게 홍보하면 좋을까요?",
+                "is_sufficient": True,
+                "missing_info": [],
+                "keyword": "아이스아메리카노",
+            }
+        ),
+        100,
+    )
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_strategy_call_llm.return_value = (
+        json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
+        100,
+    )
+    graph = build_consultant()
+
+    result = graph.invoke(_initial_state())
+
+    assert result["sources"] == ["트렌드"]
+    assert result["context"]["market"] is None
+    assert result["context"]["trend"]["direction"] == "상승"
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+@patch("models.consult.nodes.suggested_chips.call_llm")
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.market_for_consult.get_market")
+def test_graph_uses_market_result_when_only_trend_fails(
+    mock_get_market,
+    mock_get_trend,
+    mock_question_call_llm,
+    mock_chips_call_llm,
+    mock_strategy_call_llm,
+) -> None:
+    """트렌드 조회만 실패해도 상권 결과로 strategy가 실행된다(v2 섹션F)."""
+    mock_get_market.return_value = {
+        "total_count": 43,
+        "same_industry_count": 12,
+        "nearest_distance_m": 55,
+        "industry_breakdown": {"카페": 12},
+    }
+    mock_get_trend.return_value = None
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 어떻게 홍보하면 좋을까요?",
+                "is_sufficient": True,
+                "missing_info": [],
+                "keyword": "아이스아메리카노",
+            }
+        ),
+        100,
+    )
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_strategy_call_llm.return_value = (
+        json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
+        100,
+    )
+    graph = build_consultant()
+
+    result = graph.invoke(_initial_state())
+
+    assert result["sources"] == ["상권분석"]
+    assert result["context"]["market"]["same_industry_count"] == 12
+    assert result["context"]["trend"] is None
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+@patch("models.consult.nodes.suggested_chips.call_llm")
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.market_for_consult.get_market")
+def test_market_and_trend_run_in_parallel_not_sequential(
+    mock_get_market,
+    mock_get_trend,
+    mock_question_call_llm,
+    mock_chips_call_llm,
+    mock_strategy_call_llm,
+) -> None:
+    """market_for_consult·trend_for_consult에 각각 인위적 지연을 주면, 전체 실행
+    시간이 두 지연의 합이 아니라 더 큰 쪽에 가까워야 한다(v2 섹션F — 순차 실행이면
+    합에 가까워 이 테스트가 실패한다)."""
+    import time
+
+    delay = 0.3
+
+    def slow_market(*args, **kwargs):
+        time.sleep(delay)
+
+    def slow_trend(*args, **kwargs):
+        time.sleep(delay)
+
+    mock_get_market.side_effect = slow_market
+    mock_get_trend.side_effect = slow_trend
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 어떻게 홍보하면 좋을까요?",
+                "is_sufficient": True,
+                "missing_info": [],
+                "keyword": "아이스아메리카노",
+            }
+        ),
+        100,
+    )
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_strategy_call_llm.return_value = (
+        json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
+        100,
+    )
+    graph = build_consultant()
+
+    start = time.monotonic()
+    graph.invoke(_initial_state())
+    elapsed = time.monotonic() - start
+
+    # 순차면 2*delay(0.6s) 근처, 병렬이면 delay(0.3s) 근처 — 그 중간값을 경계로 판정
+    assert elapsed < delay * 1.5
+
+
 def test_default_path_skips_link_to_ads() -> None:
     """link_to_ads는 사용자가 버튼을 눌렀을 때만 호출돼야 하므로 기본 경로에 없어야 한다."""
     drawable = build_consultant().get_graph()
@@ -147,7 +291,9 @@ def test_default_path_skips_link_to_ads() -> None:
 
 
 def test_default_path_has_expected_topology() -> None:
-    """빈 노드 9개가 SDP §6.1 순서 그대로 START→END로 순차 연결돼 있어야 한다."""
+    """SDP §6.1 순서대로 연결돼 있어야 한다. market_for_consult·trend_for_consult는
+    서로의 결과를 쓰지 않아(v2 섹션F) suggested_chips에서 갈라졌다가 strategy 앞에서
+    합류하는 병렬 구간이고, 나머지는 순차 연결이다."""
     drawable = build_consultant().get_graph()
 
     assert set(drawable.nodes.keys()) == {
@@ -170,7 +316,8 @@ def test_default_path_has_expected_topology() -> None:
         ("security_input", "question_analysis"),
         ("question_analysis", "suggested_chips"),
         ("suggested_chips", "market_for_consult"),
-        ("market_for_consult", "trend_for_consult"),
+        ("suggested_chips", "trend_for_consult"),
+        ("market_for_consult", "strategy"),
         ("trend_for_consult", "strategy"),
         ("strategy", "strategy_check"),
         ("strategy_check", "security_output"),

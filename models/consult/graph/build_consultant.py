@@ -17,8 +17,10 @@ from models.consult.nodes.trend_for_consult import trend_for_consult
 def build_consultant() -> CompiledStateGraph:
     """빈 노드로 START→END까지 연결된 컨설턴트 챗봇 그래프를 조립한다.
 
-    지금은 SDP §6.1 파이프라인 순서대로 순차 연결만 한다. 병렬 조회(상권/트렌드)나
-    재생성 조건부 엣지는 해당 노드에 실제 로직이 들어가는 이후 섹션에서 추가한다.
+    SDP §6.1 파이프라인 순서를 따르되, market_for_consult·trend_for_consult는 서로의
+    결과를 쓰지 않아 suggested_chips 직후 병렬로 갈라졌다가 strategy 앞에서 합류한다
+    (v2 섹션F). context(merge_dicts)·sources(operator.add) reducer가 이미 병렬 쓰기를
+    지원하도록 설계돼 있고, 두 노드 다 tokens_used를 건드리지 않아 충돌 여지가 없다.
 
     link_to_ads는 기본 경로에 연결하지 않는다. SDP §6.3상 사용자가 [이 전략으로
     광고 만들기] 버튼을 눌렀을 때만 호출돼야 하는데, 기본 경로에 넣으면 모든 상담
@@ -41,7 +43,8 @@ def build_consultant() -> CompiledStateGraph:
     graph.add_edge("security_input", "question_analysis")
     graph.add_edge("question_analysis", "suggested_chips")
     graph.add_edge("suggested_chips", "market_for_consult")
-    graph.add_edge("market_for_consult", "trend_for_consult")
+    graph.add_edge("suggested_chips", "trend_for_consult")
+    graph.add_edge("market_for_consult", "strategy")
     graph.add_edge("trend_for_consult", "strategy")
     graph.add_edge("strategy", "strategy_check")
     graph.add_edge("strategy_check", "security_output")
