@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 scripts/build_legal_kb.py
 shared_data/legal_kb.md  →  shared_data/legal_kb.json
@@ -131,6 +130,31 @@ def validate(chunks: list[dict]) -> list[str]:
     return errs
 
 
+
+def warn_if_index_stale(kb_hash: str) -> None:
+    """KB 를 다시 만들었으면 벡터 인덱스도 다시 만들어야 한다.
+
+    ★ embed_text 가 바뀌면 기존 벡터는 다른 문장의 임베딩이다.
+      legal_retriever 가 로딩 시점에 해시를 비교해 로컬 모드로 내려가지만,
+      그때는 이미 평가가 돌고 있어 "왜 vector 가 아니지" 로 시간을 쓴다.
+      만든 직후에 알려주는 편이 훨씬 싸다.
+    """
+    meta_path = C.LEGAL_INDEX_META
+    if not meta_path.exists():
+        return                              # 인덱스를 안 쓰는 환경이면 조용히 넘어간다
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return
+    if meta.get("source_sha256") != kb_hash:
+        print(
+            "\n⚠️  legal_index 가 낡았다 — KB 가 바뀌었는데 벡터는 예전 문장의 것이다.\n"
+            "    `uv run python scripts/build_legal_index.py` 를 실행하라.\n"
+            "    지금 평가를 돌리면 검색이 조용히 local 모드로 내려간다.",
+            file=sys.stderr,
+        )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="재생성 없이 동기화 여부만 확인")
@@ -179,6 +203,8 @@ def main() -> int:
         print(f"   {k:<10} {v}")
     print(f"   트리거 총 {sum(len(c['triggers']) for c in chunks)}개 / "
           f"예외 {sum(len(c['exceptions']) for c in chunks)}개")
+
+    warn_if_index_stale(payload["source_sha256"])
     return 0
 
 

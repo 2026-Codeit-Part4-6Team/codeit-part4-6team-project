@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 scripts/build_legal_index.py
 shared_data/legal_kb.json  →  shared_data/legal_index/{vectors.npy, meta.json}
@@ -18,6 +17,7 @@ shared_data/legal_kb.json  →  shared_data/legal_index/{vectors.npy, meta.json}
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -28,7 +28,34 @@ from validation import config as C
 BATCH = 64
 
 
+
+def assert_kb_is_current() -> None:
+    """legal_kb.json 이 legal_kb.md 의 최신 상태인지 확인한다.
+
+    ★ 이 검사가 없으면 조용히 낡은 벡터가 만들어진다
+      md 를 고치고 build_legal_kb.py 를 안 돌린 채 여기를 실행하면
+        · 낡은 json 청크로 임베딩하고
+        · meta.source_sha256 에 낡은 해시를 넣는다
+      legal_retriever 는 json ↔ meta 를 비교하므로 **검사를 통과한다.**
+      즉 "최신 KB 로 인덱스를 만들었다" 고 믿은 채 예전 문장의 벡터를 쓰게 된다.
+      어느 단계에서도 안 잡히는 유일한 경로라 여기서 막는다.
+    """
+    if not C.LEGAL_KB_MD.exists():
+        return
+    md_hash = hashlib.sha256(C.LEGAL_KB_MD.read_bytes()).hexdigest()
+    kb = json.loads(C.LEGAL_KB_JSON.read_text(encoding="utf-8"))
+    if kb.get("source_sha256") != md_hash:
+        raise SystemExit(
+            "❌ legal_kb.md 가 legal_kb.json 보다 최신이다.\n"
+            f"   md   : {md_hash[:16]}\n"
+            f"   json : {kb.get('source_sha256', '')[:16]}\n"
+            "   → `uv run python scripts/build_legal_kb.py` 를 먼저 실행하라.\n"
+            "     이대로 진행하면 낡은 청크로 임베딩하고, 그 사실이 어디서도 드러나지 않는다."
+        )
+
+
 def main() -> int:
+    assert_kb_is_current()
     if not C.LEGAL_KB_JSON.exists():
         print("❌ legal_kb.json 이 없다. scripts/build_legal_kb.py 를 먼저 실행하라.", file=sys.stderr)
         return 1
