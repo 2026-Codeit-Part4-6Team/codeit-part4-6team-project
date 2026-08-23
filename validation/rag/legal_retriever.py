@@ -29,17 +29,49 @@ logger = logging.getLogger(__name__)
 # ═════════════════════════════════════════════════════════════════════════════
 # KB 로딩
 # ═════════════════════════════════════════════════════════════════════════════
+class LegalKBMissing(RuntimeError):
+    """legal_kb 를 읽지 못했다 — 규제 검증을 무력화한 채 진행하지 않는다."""
+
+
+_MISSING_MSG = (
+    "legal_kb 를 읽지 못했다: {reason}\n"
+    "  경로: {path}\n"
+    "  → `uv run python scripts/build_legal_kb.py` 를 실행하고 "
+    "shared_data/legal_kb.json 을 커밋했는지 확인하라.\n"
+    "  이 파일이 없으면 1단 트리거 사전이 비어 check_regulation 이 "
+    "모든 카피를 pass 시킨다(규제 검증 무력화).\n"
+    "  KB 없이 다른 작업을 하려면 VALIDATION_REQUIRE_LEGAL_KB=0 을 설정한다."
+)
+
+
 @lru_cache(maxsize=1)
 def load_kb() -> dict[str, Any]:
-    """legal_kb.json 을 1회만 읽는다. 없으면 빈 KB 로 degrade."""
+    """legal_kb.json 을 1회만 읽는다.
+
+    ★ 읽지 못하면 조용히 빈 KB 로 넘어가지 않는다.
+      빈 KB 는 "규제 위반이 없다" 가 아니라 "검사할 수단이 없다" 이고,
+      둘을 같은 pass 로 처리하면 규제 검증이 통째로 무력화된 사실이 드러나지 않는다.
+    """
+    empty = {"chunks": [], "source_sha256": "", "count": 0}
+
     if not C.LEGAL_KB_JSON.exists():
-        logger.warning(
-            "legal_kb.json 이 없다 (%s). "
-            "`python scripts/build_legal_kb.py` 를 먼저 실행하라. 규제 검증은 pass 로 동작한다.",
-            C.LEGAL_KB_JSON,
-        )
-        return {"chunks": [], "source_sha256": "", "count": 0}
-    return json.loads(C.LEGAL_KB_JSON.read_text(encoding="utf-8"))
+        reason = "파일이 존재하지 않는다"
+    else:
+        try:
+            data = json.loads(C.LEGAL_KB_JSON.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            reason = f"읽기·파싱 실패({type(exc).__name__})"
+        else:
+            count = len(data.get("chunks") or [])
+            if count >= C.MIN_LEGAL_KB_CHUNKS:
+                return data
+            reason = f"청크가 {count}개뿐이다(최소 {C.MIN_LEGAL_KB_CHUNKS}개 필요)"
+
+    message = _MISSING_MSG.format(reason=reason, path=C.LEGAL_KB_JSON)
+    if C.REQUIRE_LEGAL_KB:
+        raise LegalKBMissing(message)
+    logger.error(message)
+    return empty
 
 
 @lru_cache(maxsize=1)

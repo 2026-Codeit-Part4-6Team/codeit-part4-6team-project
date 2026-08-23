@@ -38,6 +38,19 @@ JUDGE_TEMPERATURE = 0.0          # 재현성 — 골든 평가가 매번 달라�
 RETRIEVE_TOP_K = int(os.getenv("VALIDATION_TOP_K", "3"))
 JUDGE_CACHE_SIZE = int(os.getenv("VALIDATION_JUDGE_CACHE", "512"))
 
+# ★ legal_kb 가 비어 있을 때 어떻게 할 것인가 (CI 사고 대응)
+#   legal_kb.json 은 build_legal_kb.py 가 만드는 생성물이다. 이 파일이 없으면
+#   1단 트리거 사전이 비어 check_regulation 이 **모든 카피를 조용히 pass** 시킨다 —
+#   규제 검증이 통째로 무력화되는데 로그 경고 한 줄만 남는다(fail-open).
+#   D-271 이 fail-open 을 배제했는데 KB 부재 경로만 예외로 남아 있었다.
+#   기본값 1: KB 가 비면 즉시 RuntimeError 로 멈춘다.
+#   개발 중 KB 없이 다른 작업을 하려면 0 으로 내린다.
+REQUIRE_LEGAL_KB = os.getenv("VALIDATION_REQUIRE_LEGAL_KB", "1") != "0"
+
+# KB 가 정상이라면 최소 이만큼은 있어야 한다(현재 36청크).
+# 파싱이 일부만 성공한 경우도 잡는다.
+MIN_LEGAL_KB_CHUNKS = int(os.getenv("VALIDATION_MIN_KB_CHUNKS", "30"))
+
 # 2단 판정을 아예 끄는 스위치 (예산 소진 / 장애 / 오프라인 데모용)
 # "0" 이면 1단 키워드 + KB 규칙 대안만으로 degrade 동작한다.
 RAG_ENABLED = os.getenv("VALIDATION_RAG_ENABLED", "1") != "0"

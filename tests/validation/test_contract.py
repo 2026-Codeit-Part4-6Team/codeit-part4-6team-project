@@ -10,6 +10,47 @@ from validation.regulation import check_regulation
 from validation.security import check_input, check_output
 from validation.self_check import self_check
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 0. ★ 전제 확인 — 이 테스트가 먼저 실패해야 원인이 바로 보인다
+#    legal_kb.json 이 없으면 아래 골든 문항 5개가 "warn 인데 pass" 로 실패하는데,
+#    그 메시지만 보고 "KB 가 없구나" 를 알아내기 어렵다.
+#    (2026-08-22 CI 사고 — 5개 실패의 원인을 찾는 데 시간이 걸렸다)
+# ═════════════════════════════════════════════════════════════════════════════
+def test_legal_kb_is_loaded_before_anything_else():
+    """legal_kb.json 이 로드되는가.
+
+    이 파일은 scripts/build_legal_kb.py 가 만드는 **생성물**이며 Git 에 커밋한다.
+    없으면 1단 트리거 사전이 비어 check_regulation 이 모든 카피를 pass 시킨다 —
+    법률 규제 검증이 무력화된 채 CI 만 초록불이 될 수 있다.
+    """
+    from validation.rag.legal_retriever import chunks
+
+    loaded = chunks()
+    assert len(loaded) >= 30, (
+        f"legal_kb 청크가 {len(loaded)}개뿐이다.\n"
+        "→ `uv run python scripts/build_legal_kb.py` 실행 후 "
+        "shared_data/legal_kb.json 을 커밋했는지 확인하라."
+    )
+
+
+def test_legal_kb_json_is_in_sync_with_markdown():
+    """legal_kb.md 를 고치고 json 을 다시 만들지 않으면 옛 트리거로 판정한다."""
+    import hashlib
+    import json as _json
+
+    from validation import config as C
+
+    if not (C.LEGAL_KB_MD.exists() and C.LEGAL_KB_JSON.exists()):
+        pytest.skip("KB 파일이 없다 — 앞의 테스트가 원인을 알려준다")
+
+    md_hash = hashlib.sha256(C.LEGAL_KB_MD.read_bytes()).hexdigest()
+    stored = _json.loads(C.LEGAL_KB_JSON.read_text(encoding="utf-8"))
+    assert stored.get("source_sha256") == md_hash, (
+        "legal_kb.md 가 legal_kb.json 보다 최신이다.\n"
+        "→ `uv run python scripts/build_legal_kb.py` 를 다시 실행하고 커밋하라."
+    )
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 1. 계약서 §10 원본 — 반환 타입·필드·action 오타를 잡는다
 # ═════════════════════════════════════════════════════════════════════════════
@@ -157,7 +198,7 @@ def test_golden_no_over_block_input(text):
 
 
 def test_over_block_rate_under_threshold():
-    """규제 검증 쪽 과잉 차단률도 함께 잰다.
+    """법률 규제 검증 쪽 과잉 차단률도 함께 잰다.
 
     ⚠️ CI 는 2단 LLM 없이 돌기 때문에 1단 트리거 + 예외 사전만으로 측정된다.
        즉 여기 숫자는 '최악의 경우' 값이다. 2단이 붙으면 더 좋아진다.
