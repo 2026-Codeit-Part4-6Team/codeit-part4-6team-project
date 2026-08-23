@@ -1,10 +1,10 @@
 """
 validation/regulation.py
-규제 준수 검증 (RAG) — 1단 키워드 스크리닝 → 2단 legal_kb RAG 판정
+법률 규제 준수 검증 (RAG) — 1단 키워드 스크리닝 → 2단 legal_kb RAG 판정
 
 반환 규격 (계약서 §5.2)
     action      : "pass" | "warn" | "block"
-    law         : 근거 조문 (예: "표시광고법 제3조")
+    law         : 근거 법률 조문 (예: "표시광고법 제3조")
     reason      : 왜 안 되는지
     alternative : 대안 문구
     message     : 사용자 안내
@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 
 from . import config as C
-from .patterns import normalize
+from .patterns import normalize, squeeze
 from .rag import legal_retriever as retriever
 from .rag import llm_judge
 
@@ -35,21 +35,20 @@ def _bigrams(s: str) -> set[str]:
 
 
 def _best_alternative(chunk: dict, copy: str) -> str:
-    """허용 예시 중 입력 카피와 가장 가까운 것을 고른다.
+    """사용자에게 제시할 대안 문구를 고른다.
 
-    ★ good_examples[0] 을 그냥 쓰면 엉뚱한 대안이 나간다.
-      REG-027 은 허용 예시가 '점심 11~14시 전 메뉴 50% 할인' / '3만원 이상 주문 시
-      배달비 무료' 두 개인데, 입력이 "무료 배달"인데 앞의 것을 주면 사용자는
-      "이게 왜 대안이지?" 가 된다. 대안 제시율은 100%여도 쓸모가 0이 된다.
+    ★ alternatives(대안 문구)를 먼저 쓰고, 없으면 good_examples(허용 예시)로 폴백한다.
+      두 필드는 역할이 다르다 — 허용 예시는 llm_judge 의 few-shot 이라 경계 사례를
+      담아야 하고(다른 트리거에 걸려도 무방), 대안 문구는 사용자에게 나가므로
+      어떤 트리거에도 걸리면 안 된다. v7 에서 겸용하다 충돌했다.
     """
-    goods = [g for g in (chunk.get("good_examples") or []) if g.strip()]
-    if len(goods) <= 1:
-        return goods[0] if goods else ""
-    cb = _bigrams(normalize(copy))
-    best = max(goods, key=lambda g: len(cb & _bigrams(normalize(g))))
-    # 겹침이 1개뿐이면 '~니다' 같은 어미가 우연히 맞은 것이다.
-    # 이때는 KB 작성자가 첫 번째로 둔 대표 대안을 쓴다.
-    return best if len(cb & _bigrams(normalize(best))) >= 2 else goods[0]
+    pool = chunk.get("alternatives") or chunk.get("good_examples") or []
+    if not pool:
+        return ""
+    # 원문과 가장 덜 겹치는 것을 고른다 — 같은 표현을 되풀이하지 않는다
+    low = normalize(copy)
+    return min(pool, key=lambda a: len(set(normalize(a)) & set(low)))
+
 
 
 def _result(action: str, law: str = "", reason: str = "",
@@ -77,15 +76,28 @@ def screen(copy: str) -> list[dict]:
     low = normalize(copy)
     if not low.strip():
         return []
+    # ★ 공백을 없앤 사본에서도 검사한다 (불변성 대응).
+    #   "면 역 력  강화" 처럼 공백을 끼워 넣으면 트리거 '면역력 강화' 가 쪼개져
+    #   normalize 만으로는 못 잡는다 — 실측 불변성 86.1%, 뒤집힌 30건 중 29건이 공백 계열.
+    #   check_input 은 v7 에서 이미 양쪽을 보게 고쳤고, screen() 만 남아 있었다.
+    tight = squeeze(copy)
 
     hits: list[dict] = []
     for chunk in retriever.chunks():
-        masked = low
+        masked, masked_tight = low, tight
         for exc in chunk.get("exceptions", []):
             e = normalize(exc)
             if e:
                 masked = masked.replace(e, " ")
-        matched = [t for t in chunk.get("triggers", []) if (n := normalize(t)) and n in masked]
+            # 예외도 같은 기준으로 마스킹해야 한다 — 안 하면 예외가 무력해져
+            # 과잉 차단이 되살아난다(R-051·R-055·R-058).
+            et = squeeze(exc)
+            if et:
+                masked_tight = masked_tight.replace(et, " ")
+        matched = [
+            t for t in chunk.get("triggers", [])
+            if ((n := normalize(t)) and n in masked) or ((q := squeeze(t)) and q in masked_tight)
+        ]
         if matched:
             hits.append({
                 "id": chunk["id"],
@@ -95,6 +107,29 @@ def screen(copy: str) -> list[dict]:
                 "triggers": sorted(matched, key=len, reverse=True),
             })
     return hits
+
+
+
+def _safe_alternative(alternative: str, fallback: str) -> str:
+    """대안이 **다른 법률 조문에 다시 걸리지 않는지** 확인하고, 걸리면 폴백한다.
+
+    ★ 왜 필요한가 (실측 근거)
+      2단 LLM 이 만든 대안 24건 중 4건(R-021·R-026·R-033·R-040)이
+      재검사에서 warn 이 났다 — "이렇게 고치세요" 라고 준 문구가 또 걸린다.
+      사용자는 시키는 대로 고쳐도 계속 막히는 무한 루프에 빠진다.
+      check_regulation 의 존재 이유가 "차단이 아니라 대안 제시"(§6.2.1)이므로
+      대안이 유효하지 않으면 함수 전체가 무의미해진다.
+
+    ★ 1단만 돌린다 — 2단 LLM 을 다시 부르지 않는다.
+      재검사에 또 LLM 을 쓰면 호출이 2배가 되고, 그 판정이 또 흔들린다.
+      1단 키워드로 "명백히 걸리는지" 만 보면 충분하다.
+    """
+    if not alternative:
+        return fallback
+    if not screen(alternative):          # 1단에 안 걸리면 그대로 쓴다
+        return alternative
+    logger.info("LLM 대안이 다시 트리거에 걸림 → KB 허용 예시로 폴백: %r", alternative[:40])
+    return fallback or alternative
 
 
 def _worst(hits: list[dict]) -> dict:
@@ -189,7 +224,14 @@ def check_regulation(copy: str) -> dict:
         # 과잉 차단을 막는 핵심 경로다. ('최고급 원두', '마약김밥' 등)
         return _result("pass")
 
-    law = verdict["law"] or retriever.by_id().get(hits[0]["id"], {}).get("law", "")
+    # ★ law 는 LLM 이 쓴 값을 쓰지 않고 **검색된 법률 조문에서 직접 가져온다**.
+    #   실측: LLM 이 쓴 law 가 검색 법률 조문과 안 맞는 경우가 24건 중 3건(12.5%)이었다.
+    #   법 조항은 창작 대상이 아니다 — 지어낸 조항을 사용자에게 보여주면
+    #   "표시광고법 제3조" 같은 문구가 근거 없이 나간다.
+    #   verdict["law"] 는 로그로만 남겨 LLM 환각률을 계속 추적한다.
+    law = retriever.by_id().get(_worst(hits)["id"], {}).get("law", "")
+    if verdict.get("law") and verdict["law"] != law:
+        logger.info("LLM 이 다른 law 를 제시함 (무시): %r vs KB %r", verdict["law"], law)
     trigger = verdict["trigger"] or _worst(hits)["triggers"][0]
 
     # ── block 정규화 — 불법 품목 근거가 있을 때만 block 을 인정한다 ─────────
@@ -206,10 +248,13 @@ def check_regulation(copy: str) -> dict:
         verdict["verdict"] = "warn"
 
     # ── warn ────────────────────────────────────────────────────────────────
-    alternative = verdict["alternative"].strip()
-    if not alternative:
-        chunk = retriever.by_id().get(_worst(hits)["id"], {})
-        alternative = _best_alternative(chunk, copy)
+    chunk = retriever.by_id().get(_worst(hits)["id"], {})
+    kb_alternative = _best_alternative(chunk, copy)
+
+    # ★ LLM 이 만든 대안이 **다른 법률 조문에 다시 걸리는지** 확인한다.
+    #   "이렇게 고치세요" 라고 준 문구가 또 막히면 사용자는 무한 루프에 빠진다.
+    #   실측: LLM 대안 24건 중 7건이 재검사에서 걸렸다(대안 유효성 70.8%).
+    alternative = _safe_alternative(verdict["alternative"].strip(), kb_alternative)
     if not alternative:
         return _degrade(hits, copy)
 

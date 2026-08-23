@@ -13,6 +13,28 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+
+def _load_dotenv() -> None:
+    """프로젝트 루트 .env 를 프로세스 환경에 올린다.
+
+    ★ os.getenv 는 **셸 환경변수**만 본다. .env 파일에 써도 아무도 안 읽으면
+      기본값이 그대로 쓰인다 — 실제로 VALIDATION_TOP_K=2 를 .env 에 넣었는데
+      top_k 가 3 으로 돌아 측정이 무의미해졌다.
+      이미 셸에 설정된 값은 덮어쓰지 않는다(CI·일회성 실행이 우선).
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+_load_dotenv()
+
 # ── 경로 ──────────────────────────────────────────────────────────────────────
 # validation/config.py -> validation/ -> 프로젝트 루트
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +58,12 @@ JUDGE_TIMEOUT_SEC = float(os.getenv("VALIDATION_JUDGE_TIMEOUT", "8"))
 JUDGE_MAX_TOKENS = int(os.getenv("VALIDATION_JUDGE_MAX_TOKENS", "400"))
 JUDGE_TEMPERATURE = 0.0          # 재현성 — 골든 평가가 매번 달라지면 안 된다
 RETRIEVE_TOP_K = int(os.getenv("VALIDATION_TOP_K", "3"))
+# ★ 1단 트리거가 지목한 법률 조문 수만큼만 가져온다(D-검색개선).
+#   1단은 이미 "어느 조항에 걸렸는지" 를 안다. 고정 k=3 은 정답이 1~2개인 문항에서
+#   나머지를 채우느라 precision 을 깎았다 — 실측 0.389.
+#   동적 k 는 recall 0.958 을 유지하면서 precision 0.958 로 올린다.
+DYNAMIC_TOP_K = os.getenv("VALIDATION_DYNAMIC_TOP_K", "1") != "0"
+MAX_TOP_K = int(os.getenv("VALIDATION_MAX_TOP_K", "3"))
 JUDGE_CACHE_SIZE = int(os.getenv("VALIDATION_JUDGE_CACHE", "512"))
 
 # ★ legal_kb 가 비어 있을 때 어떻게 할 것인가 (CI 사고 대응)
@@ -70,3 +98,11 @@ MIN_REASONS = int(os.getenv("SELF_CHECK_MIN_REASONS", "1"))
 def has_openai_key() -> bool:
     """키가 없으면 2단 RAG 를 건너뛰고 degrade 경로를 탄다."""
     return bool(os.getenv("OPENAI_API_KEY"))
+
+# ── 하이브리드 검색 가중치 (실측으로 조정한다) ────────────────────────────────
+# 이 도메인에서는 어휘 신호가 임베딩보다 강하다 — legal_kb 의 위반 예시가
+# 사용자 카피와 거의 같은 표현이기 때문이다(골든 24문항 실측:
+# 어휘 Hit@1 0.958 vs 벡터 0.625). 그래서 어휘에 더 큰 가중치를 준다.
+HYBRID_W_LEXICAL = float(os.getenv("VALIDATION_HYBRID_W_LEXICAL", "0.5"))
+HYBRID_W_VECTOR = float(os.getenv("VALIDATION_HYBRID_W_VECTOR", "0.3"))
+HYBRID_W_PREFER = float(os.getenv("VALIDATION_HYBRID_W_PREFER", "0.4"))

@@ -1,0 +1,13 @@
+{
+ "block_recall": 0.9,
+ "over_block_rate": 0.25,
+ "alternative_rate": 1.0,
+ "alternative_validity": 0.875,
+ "safety_score": 0.95,
+ "macro_f1": 0.9189,
+ "ragas_score": 0.6563,
+ "mrr": 0.9792,
+ "ndcg_at_3": 0.8742,
+ "invariance_rate": 0.75,
+ "kb_coverage_rate": 0.7778
+}

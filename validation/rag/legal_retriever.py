@@ -11,7 +11,7 @@ legal_kb 검색기.
     · $30 한도가 소진되거나 OpenAI 장애 시에도 서비스가 죽으면 안 된다.
     · 팀원이 키 없이 로컬에서 개발할 수 있어야 한다.
   로컬 모드는 정확도가 낮지만, 어차피 1단 트리거가 이미 후보를 좁혀준 뒤라
-  "관련 조문 3개"를 뽑는 데는 충분하다.
+  "관련 법률 조문 3개"를 뽑는 데는 충분하다.
 """
 
 from __future__ import annotations
@@ -134,25 +134,26 @@ def embed_query(text: str) -> list[float] | None:
         return None
 
 
-def _vector_search(query: str, k: int) -> list[dict] | None:
-    _load_vectors()
-    if _vector_state != "ready":
+def _vector_scores(query: str) -> dict[str, float] | None:
+    """법률 조문별 코사인 유사도(0~1). 인덱스나 키가 없으면 None."""
+    if _load_vectors() is None:
         return None
-    vec = embed_query(query)
-    if vec is None:
-        return None
-    import numpy as np
+    try:
+        import numpy as np
+        from openai import OpenAI
 
-    q = np.asarray(vec, dtype="float32")
-    q /= (np.linalg.norm(q) + 1e-9)
-    scores = _vectors @ q                      # 저장 시 이미 정규화 → 내적 = 코사인
-    order = np.argsort(-scores)[:k]
-    idx = by_id()
-    return [
-        {**idx[_vector_ids[i]], "score": float(scores[i]), "mode": "vector"}
-        for i in order
-        if _vector_ids[i] in idx
-    ]
+        resp = OpenAI(timeout=C.EMBED_TIMEOUT_SECONDS).embeddings.create(
+            model=C.EMBED_MODEL, input=[query]
+        )
+        q = np.asarray(resp.data[0].embedding, dtype="float32")
+        q /= (np.linalg.norm(q) or 1.0)
+        raw = _vectors @ q                      # 정규화된 벡터라 내적 = 코사인
+        return {cid: float((v + 1.0) / 2.0)     # -1~1 → 0~1 로 옮긴다
+                for cid, v in zip(_vector_ids, raw, strict=False)}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("벡터 검색 실패 → 어휘 검색만 사용: %s", type(e).__name__)
+        return None
+
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -163,35 +164,80 @@ def _bigrams(s: str) -> set[str]:
     return {s[i:i + 2] for i in range(len(s) - 1)} or {s}
 
 
-def _local_search(query: str, k: int, prefer_ids: list[str] | None = None) -> list[dict]:
+def _lexical_scores(query: str) -> dict[str, float]:
+    """법률 조문별 어휘 일치 점수(0~1). bigram Jaccard + 트리거 직접 매칭."""
     qb = _bigrams(query)
+    out: dict[str, float] = {}
+    for c in chunks():
+        jacc = len(qb & _bigrams(c.get("embed_text", ""))) / (
+            len(qb | _bigrams(c.get("embed_text", ""))) or 1
+        )
+        # 트리거 문자열이 질의에 그대로 들어 있으면 강한 신호다 —
+        # legal_kb 의 위반 예시가 사용자 카피와 거의 같은 표현이기 때문이다.
+        hit = min(sum(1 for t in c.get("triggers", []) if t and t in query) * 0.25, 1.0)
+        out[c["id"]] = min(jacc + hit, 1.0)
+    return out
+
+
+def _hybrid_search(query: str, k: int, prefer_ids: list[str] | None) -> list[dict]:
+    """벡터 유사도 · 어휘 일치 · 1단 트리거 힌트를 결합해 상위 k개를 고른다.
+
+    ★ 왜 벡터만 쓰면 안 되나 (실측 근거)
+      골든 24문항에서 벡터 단독은 recall 0.833 · Hit@1 0.625 였는데,
+      어휘 검색은 recall 1.000 · Hit@1 0.958 이었다.
+      legal_kb 의 '위반 예시' 가 사용자 카피와 거의 같은 표현이라
+      이 도메인에서는 어휘 신호가 임베딩 유사도보다 강하다.
+      게다가 36개 법률 조문이 전부 '광고 규제' 라 임베딩 공간에서 서로 가깝다.
+
+    ★ 그렇다고 벡터를 버리지 않는 이유
+      표현이 다른 변형(예: "저희가 제일입니다")은 어휘로 못 잡는다.
+      §6.2.1 이 RAG 로 간 이유가 그것이므로 둘을 합친다.
+
+    ★ prefer_ids 를 반드시 받는다
+      1단이 이미 "REG-001 에 걸렸다" 를 알고 있다. 벡터 경로가 그 정보를
+      버리는 것이 성능 저하의 직접 원인이었다.
+    """
+    vec = _vector_scores(query) if C.RAG_ENABLED else None
+    lex = _lexical_scores(query)
     prefer = set(prefer_ids or [])
+    mode_label = "hybrid" if vec else "local"
+
     scored: list[tuple[float, dict]] = []
     for c in chunks():
-        cb = _bigrams(c.get("embed_text", ""))
-        jacc = len(qb & cb) / (len(qb | cb) or 1)
-        # 1단 트리거로 이미 지목된 조항에 강한 가중치를 준다 —
-        # 로컬 모드의 정확도는 여기서 대부분 확보된다.
-        boost = 0.5 if c["id"] in prefer else 0.0
-        hit = sum(1 for t in c.get("triggers", []) if t and t in query) * 0.05
-        scored.append((jacc + boost + hit, c))
-    scored.sort(key=lambda x: -x[0])
-    return [{**c, "score": round(s, 4), "mode": "local"} for s, c in scored[:k]]
+        score = C.HYBRID_W_LEXICAL * lex.get(c["id"], 0.0)
+        if vec:
+            score += C.HYBRID_W_VECTOR * vec.get(c["id"], 0.0)
+        if c["id"] in prefer:
+            score += C.HYBRID_W_PREFER
+        scored.append((score, c))
 
+    scored.sort(key=lambda x: -x[0])
+    return [{**c, "score": round(sc, 4), "mode": mode_label} for sc, c in scored[:k]]
+
+
+def _local_search(query: str, k: int, prefer_ids: list[str] | None = None) -> list[dict]:
+    """벡터 없이 어휘만으로 검색한다(하위 호환 — 기존 호출부용)."""
+    lex = _lexical_scores(query)
+    prefer = set(prefer_ids or [])
+    scored = [(lex.get(c["id"], 0.0) + (0.5 if c["id"] in prefer else 0.0), c)
+              for c in chunks()]
+    scored.sort(key=lambda x: -x[0])
+    return [{**c, "score": round(sc, 4), "mode": "local"} for sc, c in scored[:k]]
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 공개 API
 # ═════════════════════════════════════════════════════════════════════════════
 def search(query: str, k: int | None = None, prefer_ids: list[str] | None = None) -> list[dict]:
     """관련 법률 조문 청크를 k개 반환한다. 어떤 경우에도 예외를 던지지 않는다."""
-    k = k or C.RETRIEVE_TOP_K
+    if k is None:
+        # 1단이 지목한 법률 조문 수를 그대로 쓴다 — 없으면 기본값
+        k = (min(max(len(prefer_ids or []), 1), C.MAX_TOP_K)
+             if C.DYNAMIC_TOP_K and prefer_ids else C.RETRIEVE_TOP_K)
     if not chunks():
         return []
-    if C.RAG_ENABLED:
-        hits = _vector_search(query, k)
-        if hits:
-            return hits
-    return _local_search(query, k, prefer_ids)
+    # ★ 벡터가 성공해도 어휘 신호를 버리지 않는다 — 둘을 합쳐 한 번에 순위를 낸다.
+    #   예전에는 벡터가 성공하면 로컬을 아예 안 타서 1단 트리거 힌트가 버려졌다.
+    return _hybrid_search(query, k, prefer_ids)
 
 
 def mode() -> str:
