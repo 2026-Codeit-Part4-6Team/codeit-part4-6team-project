@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from validation import config as C
+from validation import config as C  # noqa: E402
 
 HEADER_RE = re.compile(r"^##\s+(REG-\d+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(warn|block)\s*$")
 SECTION_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")

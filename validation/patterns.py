@@ -132,12 +132,12 @@ CTA_CONTEXT = [
 LEAK_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("api_key", re.compile(r"\b(sk|rk)-[A-Za-z0-9_\-]{16,}\b")),
     ("aws_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
-    ("bearer", re.compile(r"\bBearer\s+[A-Za-z0-9._\-]{20,}\b", re.IGNORECASE)),
+    ("bearer", re.compile(r"\bBearer\s+[A-Za-z0-9._\-]{20,}\b", re.I)),
     ("private_key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("system_prompt", re.compile(
         r"(당신은|너는)\s*(소상공인|광고|카피).{0,30}(어시스턴트|도우미|전문가)입니다"
-        r"|SYSTEM_PROMPT|system\s*:\s*you are", re.IGNORECASE)),
-    ("db_url", re.compile(r"\b(postgres|postgresql|mysql|mongodb)(\+\w+)?://\S+", re.IGNORECASE)),
+        r"|SYSTEM_PROMPT|system\s*:\s*you are", re.I)),
+    ("db_url", re.compile(r"\b(postgres|postgresql|mysql|mongodb)(\+\w+)?://\S+", re.I)),
 ]
 
 RRN_RE = re.compile(r"\b(\d{6})[-\s]?([1-8]\d{6})\b")            # 주민등록번호

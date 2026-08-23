@@ -18,7 +18,7 @@ from .. import config as C
 
 logger = logging.getLogger(__name__)
 
-_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
+_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.M)
 
 SYSTEM_PROMPT = """너는 한국 광고 규제 검토 담당자다. 소상공인이 쓴 광고 문구가
 표시·광고의 공정화에 관한 법률, 식품 등의 표시·광고에 관한 법률에 위반되는지
