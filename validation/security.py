@@ -13,6 +13,7 @@ from __future__ import annotations
 from . import config as C
 from . import patterns as P
 
+
 # ── 반환 헬퍼 ────────────────────────────────────────────────────────────────
 def _input_result(action: str, message: str = "") -> dict:
     return {"action": action, "message": message}
