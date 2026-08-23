@@ -44,8 +44,15 @@ _CONDITIONS = (
     "dataset_version",
     "fixture_version",
     "trend_fixture_version",
+)
+
+# ★ 영역별 선택 조건 — 있으면 비교하고, 없으면 그냥 넘어간다.
+#   _CONDITIONS 에 넣으면 _REQUIRED 로도 들어가 **모든 영역의 필수 헤더**가 된다.
+#   retrieval_mode·rag_enabled 는 R-(거부) 전용이라 B-·C- 결과 파일에는 없다.
+#   전 영역 필수로 만들면 기존 결과 파일이 전부 "필수 헤더 누락" 으로 거부된다.
+_OPTIONAL_CONDITIONS = (
     "retrieval_mode",
-    "rag_enabled"
+    "rag_enabled",
 )
 
 # 이 조건은 단독으로 달라도 비교가 성립한다(§11.2.1)
@@ -161,7 +168,8 @@ def validate_report(report: dict, label: str = "") -> list[str]:
     ):
         problems.append(
             f"{tag}거부 영역인데 judge_tokens={usage['judge_tokens']} "
-            "(rubric 채점은 LLM 0회, D-277)"
+            "(R- 는 rubric 채점 LLM 0회, D-277). "
+            "check_regulation 2단을 켠 실행이면 rag_enabled 필드를 기록하라"
         )
 
     return problems
@@ -240,9 +248,14 @@ def compare_reports(before_path: str, after_path: str) -> dict:
         }
 
     # ── 게이트 2: 조건 변경 — 초안 로직 유지 ────────────────────────────────
-    changed = _collapse_linked(
-        [key for key in _CONDITIONS if before.get(key) != after.get(key)]
-    )
+    changed = [key for key in _CONDITIONS if before.get(key) != after.get(key)]
+    # 선택 조건은 양쪽 파일에 모두 있을 때만 비교한다 — 한쪽에만 있으면
+    # "새 필드가 생겼다" 는 뜻이지 "조건이 달라졌다" 가 아니다.
+    changed += [
+        key for key in _OPTIONAL_CONDITIONS
+        if key in before and key in after and before[key] != after[key]
+    ]
+    changed = _collapse_linked(changed)
 
     # ── 게이트 3: 모수 일치 — 초안 ③ 결함 차단 ─────────────────────────────
     # dataset_version 이 같은데 문항 수가 다르면 한쪽이 측정을 빠뜨린 것이다.
