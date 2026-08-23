@@ -274,13 +274,13 @@ def format_report(s):
     L += [f"    {ok('block_recall')} 차단 정확도   {m['block_recall']:.1%}  (목표 100%)",
           f"    {ok('over_block_rate')} 과잉 차단률   {m['over_block_rate']:.1%}  (목표 10% 이하)",
           f"       Macro-F1      {m['macro_f1']:.3f}   Accuracy {d['per_class']['accuracy']:.3f}",
-          f"       안전 점수      {m['safety_score']:.3f}   "
-          f"(누락 {d['safety_cost']['miss']}×{d['safety_cost']['weights']['miss']}, "
-          f"과잉 {d['safety_cost']['over_block']}×{d['safety_cost']['weights']['over_block']})"]
+          (f"       안전 점수      {m['safety_score']:.3f}   "
+           f"(누락 {d['safety_cost']['miss']}×{d['safety_cost']['weights']['miss']}, "
+           f"과잉 {d['safety_cost']['over_block']}×{d['safety_cost']['weights']['over_block']})")]
     L += ["", f"  [L2] 검색 품질 ({d['retrieval']['measured_items']}문항)",
-          f"       recall {d['retrieval']['context_recall']:.3f}   "
-          f"precision {d['retrieval']['context_precision']:.3f}   "
-          f"faithfulness {d['retrieval']['faithfulness']:.3f}",
+          (f"       recall {d['retrieval']['context_recall']:.3f}   "
+           f"precision {d['retrieval']['context_precision']:.3f}   "
+           f"faithfulness {d['retrieval']['faithfulness']:.3f}"),
           f"    {ok('ragas_score')} RAGAS 종합     {m['ragas_score']:.3f}  (조화평균, 목표 0.80)",
           f"       MRR {m['mrr']:.3f}   Hit@1 {d['retrieval']['hit_at_1']:.3f}   nDCG@3 {m['ndcg_at_3']:.3f}"]
     L += ["", "  [L3] 대안 품질",
@@ -288,13 +288,14 @@ def format_report(s):
           f"    {ok('alternative_validity')} ★대안 유효성  {m['alternative_validity']:.1%}  (대안을 재검사하면 pass 인가)",
           f"       대안 다양성    {d['alternative']['distinct_rate']:.1%}"]
     L += ["", "  [L4] 견고성",
-          f"    {ok('invariance_rate')} 불변성        {m['invariance_rate']:.1%}  "
-          f"({d['invariance']['tested']}건 중 {d['invariance']['flipped']}건 뒤집힘)",
+          (f"    {ok('invariance_rate')} 불변성        {m['invariance_rate']:.1%}  "
+           f"({d['invariance']['tested']}건 중 {d['invariance']['flipped']}건 뒤집힘)"),
           f"       유형별: {d['invariance']['by_perturbation']}"]
     L += ["", "  [L5] 커버리지",
           f"       legal_kb  {d['coverage']['kb_covered']}/{d['coverage']['kb_total']} = {m['kb_coverage_rate']:.1%}",
-          f"       트리거    {d['coverage']['trigger_fired']}/{d['coverage']['trigger_total']} = "
-          f"{d['coverage']['trigger_coverage_rate']:.1%}"]
+          (f"       트리거    {d['coverage']['trigger_fired']}/"
+           f"{d['coverage']['trigger_total']} = "
+           f"{d['coverage']['trigger_coverage_rate']:.1%}")]
     if d["headline"]["missed_ids"]:
         L.append(f"\n  ⚠️ 놓친 차단: {d['headline']['missed_ids']}")
     if d["headline"]["over_blocked_ids"]:
