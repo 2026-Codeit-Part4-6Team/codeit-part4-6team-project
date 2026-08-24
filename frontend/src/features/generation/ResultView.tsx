@@ -17,11 +17,9 @@ export function isSuccessfulGeneration(response: GenerationResponse): boolean {
 }
 
 function nonSuccessMessage(response: GenerationResponse): string {
-  if (
-    response.result?.status === "blocked" &&
-    typeof response.result.message === "string"
-  ) {
-    return response.result.message;
+  const message = response.result?.message;
+  if (typeof message === "string" && message.trim().length > 0) {
+    return message;
   }
   return "생성 결과를 표시할 수 없습니다. 입력 내용을 확인해 주세요.";
 }
