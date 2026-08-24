@@ -316,6 +316,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+          onClarification={(value) => void submitFollowUp(value)}
         />
       )}
       {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void submitFollowUp(value)} />}
