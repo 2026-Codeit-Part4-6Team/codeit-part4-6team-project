@@ -12,8 +12,8 @@ import {
   apiErrorMessage,
   createFollowUpMessage,
   generationPayload,
-  mockFollowUpReply,
   nextGenerationAction,
+  withClarification,
   type GenerationAction,
   type FollowUpMessage,
   type PendingGeneration,
@@ -154,18 +154,21 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function requestEstimate() {
+  async function requestEstimate(
+    extraOverride: GenerateExtra = extra,
+    preserveMessages = false,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
     setPending(null);
     setGeneration(null);
     setPublishedProposalIndex(null);
-    setMessages([]);
+    if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, question, platform, extra);
+      const payload = buildEstimatePayload(chatbotType, question, platform, extraOverride);
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, crypto.randomUUID());
       setPending(action.pending);
@@ -176,6 +179,18 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
       setBusy(false);
     }
     if (immediate !== null) await generate(immediate);
+  }
+
+  async function submitFollowUp(value: string) {
+    const clarification = value.trim();
+    if (!clarification || busy) return;
+    const nextExtra = withClarification(extra, clarification);
+    setMessages((current) => [
+      ...current,
+      createFollowUpMessage("user", clarification, `${Date.now()}-user`),
+    ]);
+    setExtra(nextExtra);
+    await requestEstimate(nextExtra, true);
   }
 
   async function estimate(event: FormEvent) {
@@ -289,7 +304,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
         />
       )}
-      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void submitFollowUp(value)} />}
     </section>
   );
 }
