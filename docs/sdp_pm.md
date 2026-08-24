@@ -796,6 +796,8 @@ sales-booster/
 │       │   ├── strategy.py           # ★ 마케팅 전략 제안 (가장 중요)
 │       │   ├── strategy_check.py     # 전략 품질 검증(근거·실행가능성)
 │       │   ├── link_to_ads.py        # ★ [이 전략으로 광고 만들기] 연계
+│       │   │                         # ※ link_to_ads.py 는 삭제됨 — 광고 연계는
+│       │   │                         #   서비스 계층 책임이다(D-363·D-366)
 │       │   ├── security_output.py    # 보안2 노드 — 전민재 PM의 check_output() 감싸기
 │       │   └── self_check_node.py    # self_check 노드 — 전민재 PM의 self_check() 감싸기
 │       │   # ※ *_for_copy.py 없음 — 카피용 요약은 기본 챗봇 담당 영역

@@ -14,6 +14,8 @@ import logging
 import re
 from functools import lru_cache
 
+import openai
+
 from .. import config as C
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,62 @@ JSON 만 출력한다. 설명·마크다운·코드펜스 금지.
 {"verdict":"pass|warn|block","law":"","reason":"","alternative":"","trigger":""}
 - reason 은 20자 이내 한국어 명사구 (예: "객관적 근거 없는 최상급 표현")
 - trigger 는 문제가 된 원문 속 표현 그대로 (pass 면 "")"""
+
+
+
+class JudgeConfigError(RuntimeError):
+    """모델·파라미터 설정이 잘못됐다 — 재시도해도 안 되는 영구 실패다."""
+
+
+def _call_judge(user_prompt: str) -> str:
+    """팀 공용 call_llm() 으로 2단 판정을 호출한다.
+
+    ★ 자체 OpenAI 클라이언트를 쓰지 않는 이유 (두 문제가 한 번에 풀린다)
+      ① 토큰 집계 — call_llm 은 _total_tokens 에 모델별로 누적한다.
+         직접 호출하면 $30 예산 추적에서 2단 사용량이 통째로 빠진다.
+         실제로 judge 토큰이 계속 0 으로 찍혀 "2단이 안 돌았다" 로 오독됐다.
+      ② 파라미터 세대 차이 — call_llm 은 max_tokens 를 아예 보내지 않는다.
+         gpt-4o 계열이든 gpt-5 계열이든 400 이 나지 않는다.
+         llm_judge 가 max_tokens=... 를 직접 넣은 것이 400 의 원인이었다.
+
+    ★ 덤으로 얻는 것
+      429 백오프·재시도 상한·deadline 처리가 call_llm 에 이미 있다(D-052).
+      여기서 다시 구현할 이유가 없다.
+    """
+    from models.shared.llm import call_llm
+
+    try:
+        text, _tokens = call_llm(
+            SYSTEM_PROMPT,
+            user_prompt,
+            json_mode=True,
+            model=C.JUDGE_MODEL,
+            temperature=C.JUDGE_TEMPERATURE,
+        )
+        return text
+    except openai.BadRequestError as e:
+        message = str(e)
+        if "temperature" in message:
+            # ⚠️ 이 모델은 temperature 고정을 지원하지 않는다 — 재현성이 깨진다(D-275)
+            logger.error(
+                "%s 는 temperature 고정을 지원하지 않는다. 기본값으로 재호출한다 — "
+                "판정이 매번 달라질 수 있으므로 D-298 안정성 기준으로 확인하라.",
+                C.JUDGE_MODEL,
+            )
+            # ⚠️ call_llm 은 temperature 를 생략할 수 없다(None 이면 기본값 0.3).
+            #    이 모델은 1 만 허용하므로 명시적으로 1 을 넘긴다.
+            text, _tokens = call_llm(
+                SYSTEM_PROMPT, user_prompt, json_mode=True,
+                model=C.JUDGE_MODEL, temperature=1.0,
+            )
+            return text
+        raise JudgeConfigError(
+            f"2단 판정 호출이 400 으로 거부됐다 — 설정을 고쳐야 한다.\n"
+            f"  모델   : {C.JUDGE_MODEL}\n"
+            f"  응답   : {message[:300]}\n"
+            f"  → .env 의 VALIDATION_JUDGE_MODEL 을 확인한다"
+            f"(OPENAI_JUDGE_MODEL 과 다른 값이다)."
+        ) from e
 
 
 def _build_user_prompt(copy: str, docs: list[dict], hints: list[str]) -> str:
@@ -98,20 +156,13 @@ def _cached_call(copy: str, doc_key: str, hint_key: str) -> str | None:
     hints = [h for h in hint_key.split("|") if h]
 
     try:
-        from openai import OpenAI
-
-        client = OpenAI(timeout=C.JUDGE_TIMEOUT_SEC)
-        resp = client.chat.completions.create(
-            model=C.JUDGE_MODEL,
-            temperature=C.JUDGE_TEMPERATURE,
-            max_tokens=C.JUDGE_MAX_TOKENS,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(copy, docs, hints)},
-            ],
-        )
-        return resp.choices[0].message.content
+        raw = _call_judge(_build_user_prompt(copy, docs, hints))
+        return raw
+    except JudgeConfigError:
+        # ★ 설정 오류는 degrade 하지 않고 그대로 올린다.
+        #   재시도해도 영원히 안 되는 실패를 "일시 장애" 로 감추면
+        #   2단이 안 도는 상태로 평가가 끝나고 아무도 모른다.
+        raise
     except Exception as e:  # noqa: BLE001
         logger.warning("LLM 판정 실패 → 1단 결과로 degrade: %s", type(e).__name__)
         return None

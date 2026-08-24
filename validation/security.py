@@ -65,23 +65,29 @@ def check_input(text: str) -> dict:
     tight = P.squeeze(stripped)
 
     # ── 1) 프롬프트 인젝션 ───────────────────────────────────────────────────
-    # 구분자를 제거한 사본에서 검사한다 — "이 전 지 시 무 시" 회피 대응.
+    # ★ 원문과 압축본 **양쪽**에서 검사한다.
+    #   tight(squeeze)만 쓰면 "이 전 지 시 무 시" 같은 공백 삽입은 잡지만,
+    #   "<|im_start|>" 처럼 구분자 자체가 패턴인 경우 squeeze 가 | 를 지워 놓쳐버린다.
+    #   반대로 low 만 쓰면 공백 삽입 회피를 놓친다 — 둘 다 봐야 한다.
     for _name, pat in P.INJECTION_PATTERNS:
-        if pat.search(tight):
+        if pat.search(tight) or pat.search(low):
             return _input_result("block", _MSG_INJECTION)
 
     # ── 2) 불법 품목 A: 단독 차단 어휘 ───────────────────────────────────────
+    # 사전 항목이 공백 없는 형태라 압축본에서도 확인한다.
     for kw in P.HARD_ILLEGAL:
-        if kw in low:
+        if kw in low or kw in tight:
             return _input_result("block", _MSG_ILLEGAL)
 
     # ── 3) 불법 품목 B: 품목 + 거래동사 공기 시에만 차단 ────────────────────
     #    "마약 김밥 홍보 문구" 는 통과, "마약 판매 광고" 는 차단.
     #    ★ 과잉 차단 가드(골든 R-011~R-015)가 지켜지는 지점이다.
-    item_hit = next((k for k in P.ILLEGAL_ITEMS if k in low), None)
+    # ★ 사전 항목이 '처방전없이' 처럼 공백 없는 형태라 압축본도 함께 본다.
+    #   "처방전 없이 살 수 있는" 은 normalize 로는 안 걸리고 squeeze 로만 걸린다.
+    item_hit = next((k for k in P.ILLEGAL_ITEMS if k in low or k in tight), None)
     if item_hit:
-        safe = any(s in low for s in P.ITEM_SAFE_CONTEXT)
-        trade = any(v in low for v in P.TRADE_VERBS)
+        safe = any(s in low or s in tight for s in P.ITEM_SAFE_CONTEXT)
+        trade = any(v in low or v in tight for v in P.TRADE_VERBS)
         # '홍보/광고'는 거래동사에 들어있지만, 음식 문맥이면 정상 요청이다.
         if trade and not safe:
             return _input_result("block", _MSG_ILLEGAL)

@@ -9,6 +9,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
 1) 질문을 광고 카피 생성에 바로 쓸 수 있도록 명확하게 재작성한다.
 2) 카피를 만들기에 정보가 충분한지 판단한다.
+3) 검색 트렌드 조회에 쓸 핵심 키워드를 뽑는다.
 
 모든 출력(rewritten_question, message)은 한국어로만 작성한다. 다른 언어 문자를
 섞지 않는다.
@@ -30,8 +31,16 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 - 정형화된 문구를 그대로 쓰지 말고, 사용자의 question에 이미 담긴 단서를 살려서
   구체적으로 되묻는 자연스러운 한 문장으로 작성한다.
 
+keyword는:
+- 질문에서 상품·메뉴·주제를 나타내는 명사구를 1~3단어의 검색어 형태로 뽑는다
+  (문장이 아니라 실제 검색창에 입력할 법한 짧은 검색어처럼 작성한다).
+  예: "여름 신메뉴 홍보 문구 만들어줘" → keyword: "여름 신메뉴"
+  예: "아이스 아메리카노 신메뉴 홍보" → keyword: "아이스 아메리카노"
+- 정보가 부족해도 짐작 가능한 범위에서 keyword는 최대한 채운다. 정말 아무
+  단서도 없으면 빈 문자열로 둔다.
+
 다음 JSON 형식으로만 답한다:
-{"sufficient": true/false, "rewritten_question": "...", "message": "..."}
+{"sufficient": true/false, "rewritten_question": "...", "keyword": "...", "message": "..."}
 """
 
 
@@ -87,4 +96,5 @@ def question_analysis_node(state: BasicState) -> dict:
     return {
         "status": "ok",
         "question": parsed.get("rewritten_question", state["question"]),
+        "keyword": parsed.get("keyword") or parsed.get("rewritten_question", state["question"]),
     }
