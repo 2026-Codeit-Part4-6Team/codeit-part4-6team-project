@@ -720,6 +720,29 @@ select:focus-visible {
   background: rgba(35, 122, 87, 0.12);
   font-weight: 800;
 }
+.waiting-example { margin-top: 24px; padding: 18px; border: 1px solid rgba(61, 52, 165, .12); border-radius: 20px; background: rgba(247, 245, 255, .64); text-align: left; }
+.waiting-example-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--muted); font-size: .78rem; }
+.waiting-example-label { color: var(--primary); font-weight: 850; }
+.waiting-example-card { display: flex; align-items: center; gap: 16px; min-height: 120px; padding: 18px; border-radius: 16px; background: var(--surface); box-shadow: 0 8px 20px rgba(37, 33, 67, .06); animation: waiting-example-in .35s ease both; }
+.waiting-example-card > img { width: 74px; height: 92px; flex: 0 0 auto; object-fit: contain; object-position: bottom; align-self: flex-end; }
+.waiting-example-card > div { display: grid; gap: 6px; }
+.waiting-example-card > div > span { color: var(--primary); font-size: .76rem; font-weight: 850; }
+.waiting-example-card strong { font-size: 1.05rem; letter-spacing: -.02em; }
+.waiting-example-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+.waiting-example-card--strategy { background: linear-gradient(120deg, #f3efff, #fff); }
+.waiting-example-card--instagram { background: linear-gradient(120deg, #fff, #fff4e3); }
+.waiting-example-card--xbanner { min-height: 150px; background: linear-gradient(120deg, #fff4e3, #fff); }
+.waiting-example-card--xbanner > img { height: 118px; }
+.waiting-example-dots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
+.waiting-example-dots span { width: 6px; height: 6px; border-radius: 999px; background: #d7d2e7; transition: width .2s ease, background .2s ease; }
+.waiting-example-dots span.is-active { width: 20px; background: var(--primary); }
+@keyframes waiting-example-in { from { opacity: .25; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 560px) {
+  .waiting-example-card { align-items: flex-start; padding: 14px; }
+  .waiting-example-card > img { width: 58px; height: 76px; }
+  .waiting-example-card strong { font-size: .96rem; }
+  .waiting-example-card p { font-size: .86rem; }
+}
 
 .proposal-published {
   outline: 2px solid var(--success);

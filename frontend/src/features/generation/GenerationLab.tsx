@@ -307,7 +307,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
           onCancel={() => setPending(null)}
         />
       )}
-      {waiting && <WaitingScreen copyText={waitingCopy} />}
+      {waiting && <WaitingScreen copyText={waitingCopy} chatbotType={chatbotType} platform={platform} />}
       {generation && (
         <ResultView
           response={generation}
