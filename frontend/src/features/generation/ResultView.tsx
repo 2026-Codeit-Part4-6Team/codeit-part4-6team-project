@@ -14,7 +14,46 @@ type ResultViewProps = {
   onSuggestedChip?: (chip: string) => void;
   onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
   onReask?: (answer: string) => void;
+  onClarification?: (value: string) => void | Promise<void>;
 };
+
+type PolicyReason = "illegal_or_injection" | "need_clarification" | "insufficient_info" | "prohibited_item" | "regulation_risk" | "sensitive_leak" | "content_policy";
+const clarificationReasons = new Set<PolicyReason>(["illegal_or_injection", "need_clarification", "insufficient_info"]);
+
+function resultValue(response: GenerationResponse, key: string): unknown {
+  return response.result && typeof response.result === "object" ? response.result[key] : undefined;
+}
+
+function resultText(response: GenerationResponse, key: string): string | null {
+  const value = resultValue(response, key);
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function policyReason(response: GenerationResponse): PolicyReason | null {
+  const reason = resultText(response, "reason");
+  return reason && ["illegal_or_injection", "need_clarification", "insufficient_info", "prohibited_item", "regulation_risk", "sensitive_leak", "content_policy"].includes(reason)
+    ? reason as PolicyReason
+    : null;
+}
+
+function policyHeading(reason: PolicyReason | null): string {
+  if (reason === "illegal_or_injection") return "질문을 다시 입력해 주세요";
+  if (reason && clarificationReasons.has(reason)) return "조금만 더 알려주세요";
+  if (reason === "regulation_risk") return "대안 표현을 확인해 주세요";
+  if (reason === "prohibited_item" || reason === "sensitive_leak") return "생성을 중단했어요";
+  return "생성 결과를 확인해 주세요";
+}
+
+function alternativeText(response: GenerationResponse): string | null {
+  const direct = resultText(response, "alternative") ?? resultText(response, "suggested_copy");
+  if (direct) return direct;
+  const alternatives = resultValue(response, "alternatives");
+  if (Array.isArray(alternatives)) {
+    const first = alternatives.find((value): value is string => typeof value === "string" && value.trim().length > 0);
+    return first ?? null;
+  }
+  return null;
+}
 
 export function isSuccessfulGeneration(response: GenerationResponse): boolean {
   return response.status === "done" && response.result?.status === "ok";
@@ -28,6 +67,27 @@ function nonSuccessMessage(response: GenerationResponse): string {
   return "생성 결과를 표시할 수 없습니다. 입력 내용을 확인해 주세요.";
 }
 
+function ClarificationForm({ onSubmit }: { onSubmit: (value: string) => void | Promise<void> }) {
+  const [value, setValue] = useState("");
+  return <form className="blocked-result-form" onSubmit={(event) => { event.preventDefault(); const trimmed = value.trim(); if (!trimmed) return; void onSubmit(trimmed); setValue(""); }}>
+    <label htmlFor="blocked-clarification">추가 답변</label>
+    <textarea id="blocked-clarification" value={value} onChange={(event) => setValue(event.target.value)} placeholder="예: 여름 신메뉴를 20대 고객에게 알리고 싶어요." rows={3} />
+    <button type="submit" className="primary" disabled={!value.trim()}>이 내용으로 이어서 만들기</button>
+  </form>;
+}
+
+function PolicyResult({ response, onRegenerate, onClarification }: { response: GenerationResponse; onRegenerate: () => void; onClarification?: (value: string) => void | Promise<void> }) {
+  const reason = policyReason(response);
+  const showClarification = reason !== null && clarificationReasons.has(reason);
+  const alternative = reason === "regulation_risk" ? alternativeText(response) : null;
+  return <section className={`card blocked-result blocked-result--${reason ?? "unknown"}`} role="alert">
+    <div className="blocked-result-heading"><span className="blocked-result-icon" aria-hidden="true">{showClarification ? "?" : reason === "regulation_risk" ? "✦" : "!"}</span><div><p className="kicker">검증 결과 안내</p><h2>{policyHeading(reason)}</h2><p>{nonSuccessMessage(response)}</p></div></div>
+    {alternative && <p className="blocked-result-alternative"><strong>추천 대안</strong>{alternative}</p>}
+    {showClarification && onClarification && <ClarificationForm onSubmit={onClarification} />}
+    {reason === "regulation_risk" && <button type="button" className="action-button action-button-secondary" onClick={onRegenerate}><span className="action-button-icon" aria-hidden="true">↻</span><span>다시 만들기</span></button>}
+  </section>;
+}
+
 export function ResultView({
   response,
   platform = null,
@@ -38,18 +98,12 @@ export function ResultView({
   onSuggestedChip,
   onStrategyToAd,
   onReask,
+  onClarification,
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
     useState<ProposalIndex | null>(null);
-  const [answer, setAnswer] = useState("");
-
   if (!isSuccessfulGeneration(response)) {
-    return (
-      <section className="reask-card" role="alert">
-        <div className="reask-heading"><span className="reask-icon" aria-hidden="true">?</span><div><p className="kicker">ONE MORE DETAIL</p><h2>광고 방향을 조금만 더 알려주세요</h2><p>{nonSuccessMessage(response)}</p></div></div>
-        {onReask && <form className="reask-form" onSubmit={(event) => { event.preventDefault(); const trimmed = answer.trim(); if (trimmed) onReask(trimmed); }}><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="예: 여름 딸기빙수를 홍보하고 싶어요. 20대 고객이 주말에 방문하도록 만들어주세요." aria-label="추가 답변" rows={3} /><button type="submit" className="primary" disabled={!answer.trim()}>이 내용으로 이어서 만들기</button></form>}
-      </section>
-    );
+    return <PolicyResult response={response} onRegenerate={onRegenerate} onClarification={onClarification ?? onReask} />;
   }
 
   const proposals = Array.isArray(response.result?.proposals)

@@ -25,6 +25,19 @@ const basicResponse: GenerationResponse = {
 };
 
 describe("ResultView", () => {
+  const blockedResponse = (reason: string, message = "검증 결과를 확인해 주세요."): GenerationResponse => ({
+    generation_id: 9,
+    status: "failed",
+    chatbot_type: "basic",
+    result: {
+      status: "blocked",
+      action: reason === "regulation_risk" ? "warn" : reason === "need_clarification" || reason === "insufficient_info" ? "reask" : "block",
+      reason,
+      message,
+    },
+    usage: { plan: "free", credits_used: 0 },
+  });
+
   it("preserves three Basic slots and disables a slot without copy", () => {
     const html = renderToStaticMarkup(
       <ResultView
@@ -152,6 +165,39 @@ describe("ResultView", () => {
     expect(html).toContain("부당광고가 될 수 있어요. 다른 표현을 사용해 주세요.");
     expect(html).not.toContain("생성 결과를 표시할 수 없습니다.");
   });
+
+  it.each([
+    ["illegal_or_injection", "질문을 다시 입력해 주세요", true],
+    ["need_clarification", "조금만 더 알려주세요", true],
+    ["insufficient_info", "조금만 더 알려주세요", true],
+    ["prohibited_item", "생성을 중단했어요", false],
+    ["regulation_risk", "대안 표현을 확인해 주세요", false],
+    ["sensitive_leak", "생성을 중단했어요", false],
+  ] as const)(
+    "renders the §12.3 policy treatment for %s",
+    (reason, heading, hasClarificationForm) => {
+      const html = renderToStaticMarkup(
+        <ResultView
+          response={blockedResponse(reason, `${reason} 안내 메시지`)}
+          onPublish={vi.fn()}
+          onRegenerate={vi.fn()}
+          onClarification={vi.fn()}
+        />,
+      );
+
+      expect(html).toContain(heading);
+      expect(html).toContain(`${reason} 안내 메시지`);
+      if (hasClarificationForm) {
+        expect(html).toContain("추가 답변");
+        expect(html).toContain("이 내용으로 이어서 만들기");
+      } else {
+        expect(html).not.toContain("이 내용으로 이어서 만들기");
+      }
+      if (reason === "regulation_risk") {
+        expect(html).toContain("다시 만들기");
+      }
+    },
+  );
 
   it("keeps a successful content-policy slot selectable", () => {
     const html = renderToStaticMarkup(
