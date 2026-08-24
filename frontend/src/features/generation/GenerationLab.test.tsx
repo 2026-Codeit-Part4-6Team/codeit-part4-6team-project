@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
+import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import { createPendingGeneration } from "../../state";
 import {
   createGenerationRunner,
@@ -9,6 +9,8 @@ import {
   shouldShowFollowUpComposer,
   refreshGenerationEstimate,
   GenerationLab,
+  FollowUpComposer,
+  syncUserAfterGeneration,
 } from "./GenerationLab";
 
 const pending = createPendingGeneration(
@@ -40,6 +42,31 @@ describe("GenerationLab orchestration", () => {
 
     expect(html).toContain('class="generation-page generation-page--wide"');
     expect(html).toContain('class="card generation-card chat-generation-card chat-generation-card--primary"');
+  });
+
+  it("uses the full generation canvas for the follow-up composer", () => {
+    const html = renderToStaticMarkup(
+      <FollowUpComposer messages={[]} onSubmit={vi.fn()} />,
+    );
+
+    expect(html).toContain('class="card follow-up-card follow-up-card--wide"');
+  });
+
+  it("refreshes the authenticated user after generation without masking success", async () => {
+    const user = { id: 1, daily_free_remaining: 9 } as UserResponse;
+    const api = { me: vi.fn().mockResolvedValue(user) } as unknown as ApiClient;
+    const onUserChanged = vi.fn();
+
+    await syncUserAfterGeneration(api, onUserChanged);
+
+    expect(api.me).toHaveBeenCalledTimes(1);
+    expect(onUserChanged).toHaveBeenCalledWith(user);
+  });
+
+  it("ignores a user refresh failure after generation succeeds", async () => {
+    const api = { me: vi.fn().mockRejectedValue(new Error("refresh failed")) } as unknown as ApiClient;
+
+    await expect(syncUserAfterGeneration(api, vi.fn())).resolves.toBeUndefined();
   });
 
   it("deduplicates double confirmation with one Generate promise and key", async () => {

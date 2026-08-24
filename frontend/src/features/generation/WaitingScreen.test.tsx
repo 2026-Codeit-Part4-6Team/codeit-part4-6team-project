@@ -11,6 +11,8 @@ describe("WaitingScreen", () => {
 
     expect(html).toContain("카페에 어울리는 문구를 다듬고 있어요.");
     expect(html).toContain("생성 중");
+    expect(html).toContain('class="waiting-orbit waiting-orbit--spinning"');
+    expect(html).toContain('role="status"');
   });
 
   it("renders a consultant example carousel while waiting", () => {
