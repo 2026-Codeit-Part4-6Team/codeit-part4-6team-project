@@ -41,19 +41,31 @@ JUDGE_SYSTEM_PROMPT = """당신은 소상공인 컨설턴트 챗봇의 추천 �
 {"평가항목": {"score": 1, "reason": "판정 근거 한 문장"}}
 
 ① 관련성 — 추천 질문 3개가 현재 질문·가게·전략과 관련이 있는가
-1점: 질문·가게·전략과 무관한 일반적인 질문뿐임
+1점: 질문·가게·전략과 전혀 무관한 일반적인 질문뿐임
+2점: 업종 정도만 일치할 뿐 질문이나 전략 내용과는 연결되지 않음
+3점: 세 질문 중 일부만 질문·가게·전략과 관련 있고 나머지는 일반적임
+4점: 대부분의 질문이 질문·가게·전략 내용과 연결되나 한 개 정도는 다소 일반적임
 5점: 세 질문 모두 질문·가게·전략 내용과 자연스럽게 이어짐
 
 ② 비중복성 — 세 질문이 서로 같은 의미를 반복하지 않는가
 1점: 세 질문이 사실상 같은 내용을 표현만 바꿔 반복함
+2점: 세 질문 중 두 개가 사실상 같은 주제를 다룸
+3점: 주제는 다르지만 질문의 결이 비슷해 겹치는 인상을 줌
+4점: 세 질문의 주제가 대체로 구분되나 미세하게 겹치는 부분이 있음
 5점: 세 질문이 서로 겹치는 의미 없이 각자 다른 내용을 물음
 
 ③ 다양성 — 전략 실행, 고객 이해, 추가 데이터 확인 등 서로 다른 후속 축을 제공하는가
 1점: 세 질문이 모두 같은 축(예: 전부 메뉴 관련)에 머무름
-5점: 세 질문이 서로 다른 축을 각각 대표함
+2점: 두 축만 오가며 세 번째 질문도 기존 두 축 중 하나를 반복함
+3점: 세 축을 다루지만 그중 한 축은 억지로 끼워 맞춘 느낌임
+4점: 세 질문이 서로 다른 축을 다루나 한 축이 다소 좁게 표현됨
+5점: 세 질문이 서로 다른 축(전략 실행·고객 이해·추가 데이터 확인 등)을 각각 대표함
 
 ④ 자연스러움 — 소상공인이 바로 이어서 물을 수 있는 자연스러운 한국어 문장인가
 1점: 번역투이거나 어색해 실제로 이어 묻기 어려움
+2점: 의미는 통하지만 어색한 표현이나 반복이 자주 나타남
+3점: 전반적으로 이해되지만 일부 문장이 부자연스러움
+4점: 대부분 자연스러우나 한 문장 정도 다소 딱딱함
 5점: 실제 대화에서 바로 이어 물을 수 있는 자연스러운 문장임
 """
 
@@ -190,10 +202,14 @@ def _evaluate_item(item: dict) -> dict:
     }
 
 
-def _axis_avg(results: list[dict], criterion: str) -> float:
-    """채점된 문항 중 해당 축 점수만 모아 평균을 낸다."""
+def _axis_avg(results: list[dict], criterion: str) -> float | None:
+    """채점된 문항 중 해당 축 점수만 모아 평균을 낸다.
+
+    채점된 문항이 하나도 없으면 None을 반환한다 — 점수 범위는 1~5라서
+    0.0은 "가장 낮은 점수"로 읽히지만 실제로는 측정 자체가 안 된 것이다.
+    """
     values = [result["scores"][criterion] for result in results if criterion in result["scores"]]
-    return sum(values) / len(values) if values else 0.0
+    return sum(values) / len(values) if values else None
 
 
 def _source_provenance(report_path: Path, report: dict) -> dict:
@@ -205,11 +221,26 @@ def _source_provenance(report_path: Path, report: dict) -> dict:
     }
 
 
+def _source_dataset_provenance(dataset_path: Path) -> dict:
+    """id 연결에 실제로 쓴 데이터셋 파일을 파일명·SHA-256으로 특정한다.
+
+    데이터셋 파일이 원본 리포트 생성 이후 바뀌었을 수 있다 — 그러면 지금
+    id로 끌어온 question/store가 실제로 chips를 생성할 때 쓰인 입력과
+    달라진다. 어느 데이터셋 파일을 썼는지 남겨야 그 가능성을 나중에
+    추적할 수 있다.
+    """
+    return {
+        "file": dataset_path.name,
+        "sha256": hashlib.sha256(dataset_path.read_bytes()).hexdigest(),
+    }
+
+
 def _build_report(
     results: list[dict],
     *,
     excluded: list[dict],
     source_provenance: dict,
+    source_dataset: dict,
     source_header: dict,
     run_at: datetime,
 ) -> dict:
@@ -224,7 +255,7 @@ def _build_report(
 
     header = build_report_header(
         area=AREA,
-        dataset_version=DATASET_VERSION,
+        dataset_version=source_header.get("dataset_version", DATASET_VERSION),
         fixture_version=source_header.get("fixture_version", "unknown"),
         trend_fixture_version=source_header.get("trend_fixture_version", "unknown"),
         item_count=item_count,
@@ -241,6 +272,7 @@ def _build_report(
     return {
         **header,
         "source_report": source_provenance,
+        "source_dataset": source_dataset,
         "metrics": {
             "contract_compliance": rate(len(judged), item_count),
             "exact_duplicate_rate": rate(
@@ -250,7 +282,7 @@ def _build_report(
             "non_redundancy_avg": _axis_avg(scored, "비중복성"),
             "diversity_avg": _axis_avg(scored, "다양성"),
             "naturalness_avg": _axis_avg(scored, "자연스러움"),
-            "llm_judge_avg": sum(all_scores) / len(all_scores) if all_scores else 0.0,
+            "llm_judge_avg": sum(all_scores) / len(all_scores) if all_scores else None,
             "judge_failure_rate": rate(sum(not result["scores"] for result in judged), len(judged)),
             "excluded_count": len(excluded),
         },
@@ -306,6 +338,7 @@ def evaluate_chips(
         results,
         excluded=excluded,
         source_provenance=_source_provenance(report_path, source_report),
+        source_dataset=_source_dataset_provenance(dataset_path),
         source_header=source_report,
         run_at=run_at,
     )

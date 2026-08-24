@@ -18,6 +18,7 @@ from models.consult.eval.eval_suggested_chips import (
     _load_chips_items,
     _load_dataset_index,
     _parse_args,
+    _source_dataset_provenance,
     _source_provenance,
     evaluate_chips,
 )
@@ -56,11 +57,17 @@ def _report_item(
     return {"id": item_id, "response": response}
 
 
-def _source_report(*, items: list[dict] | None = None, generation_model: str = OPENAI_MODEL) -> dict:
+def _source_report(
+    *,
+    items: list[dict] | None = None,
+    generation_model: str = OPENAI_MODEL,
+    dataset_version: str = "v1.3",
+) -> dict:
     return {
         "run_at": "2026-08-22T15:52:11+09:00",
         "generation_model": generation_model,
         "generation_temperature": 0.3,
+        "dataset_version": dataset_version,
         "fixture_version": "v2-industry-code",
         "trend_fixture_version": "v1-naver-apihub",
         "items": items if items is not None else [_report_item()],
@@ -258,19 +265,25 @@ def test_build_report_computes_metrics_and_preserves_source_generation_model() -
             "scores": {}, "judge_error": None, "judge_skipped_reason": "contract_violation",
         },
     ]
-    source_header = _source_report(generation_model="gpt-4o-mini-2026-01-01")
+    source_header = _source_report(
+        generation_model="gpt-4o-mini-2026-01-01", dataset_version="v1.4"
+    )
     provenance = {"file": "report.json", "run_at": "2026-08-22T00:00:00+09:00", "sha256": "abc"}
+    dataset_provenance = {"file": "golden_dataset.json", "sha256": "def"}
 
     report = _build_report(
         results, excluded=[{"id": "C-999", "reason": "dataset_id_not_found"}],
-        source_provenance=provenance, source_header=source_header,
+        source_provenance=provenance, source_dataset=dataset_provenance,
+        source_header=source_header,
         run_at=datetime(2026, 8, 23, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")),
     )
 
     assert report["area"] == AREA
     assert report["run_at"] == "2026-08-23T10:00:00+09:00"
     assert report["generation_model"] == "gpt-4o-mini-2026-01-01"
+    assert report["dataset_version"] == "v1.4"
     assert report["source_report"] == provenance
+    assert report["source_dataset"] == dataset_provenance
     assert report["metrics"]["contract_compliance"] == pytest.approx(2 / 3)
     assert report["metrics"]["exact_duplicate_rate"] == pytest.approx(1 / 2)
     assert report["metrics"]["relevance_avg"] == pytest.approx(4.0)
@@ -279,6 +292,32 @@ def test_build_report_computes_metrics_and_preserves_source_generation_model() -
     assert report["metrics"]["judge_failure_rate"] == pytest.approx(0.0)
     assert report["metrics"]["excluded_count"] == 1
     assert report["excluded"] == [{"id": "C-999", "reason": "dataset_id_not_found"}]
+
+
+def test_build_report_uses_none_for_axis_averages_when_all_judge_calls_failed() -> None:
+    """채점된 문항이 하나도 없으면 0.0(최저점처럼 보임)이 아니라 None(측정 불가)이어야 한다."""
+    results = [
+        {
+            "id": "C-001", "contract_ok": True, "exact_duplicate": False,
+            "scores": {}, "judge_error": "rate_limit", "judge_skipped_reason": None,
+        },
+    ]
+
+    report = _build_report(
+        results, excluded=[],
+        source_provenance={"file": "r.json", "run_at": None, "sha256": "x"},
+        source_dataset={"file": "d.json", "sha256": "y"},
+        source_header=_source_report(),
+        run_at=datetime(2026, 8, 23, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")),
+    )
+
+    assert report["metrics"]["relevance_avg"] is None
+    assert report["metrics"]["non_redundancy_avg"] is None
+    assert report["metrics"]["diversity_avg"] is None
+    assert report["metrics"]["naturalness_avg"] is None
+    assert report["metrics"]["llm_judge_avg"] is None
+    assert report["metrics"]["judge_failure_rate"] == pytest.approx(1.0)
+    assert report["metrics"]["contract_compliance"] == pytest.approx(1.0)
 
 
 def test_source_provenance_hashes_actual_file_bytes(tmp_path) -> None:
@@ -290,6 +329,16 @@ def test_source_provenance_hashes_actual_file_bytes(tmp_path) -> None:
 
     assert provenance["file"] == "report.json"
     assert provenance["run_at"] == report["run_at"]
+    assert len(provenance["sha256"]) == 64
+
+
+def test_source_dataset_provenance_hashes_actual_file_bytes(tmp_path) -> None:
+    dataset_path = tmp_path / "golden_dataset.json"
+    dataset_path.write_text(json.dumps(_dataset()), encoding="utf-8")
+
+    provenance = _source_dataset_provenance(dataset_path)
+
+    assert provenance["file"] == "golden_dataset.json"
     assert len(provenance["sha256"]) == 64
 
 
