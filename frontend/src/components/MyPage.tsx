@@ -13,6 +13,13 @@ export function generationLabel(item: Pick<GenerationListItem, "chatbot_type">):
   return item.chatbot_type === "basic" ? "Basic 광고" : "Consultant";
 }
 
+export function platformLabel(platform: GenerationListItem["platform"]): string | null {
+  if (platform === "instagram") return "Instagram";
+  if (platform === "xbanner") return "X-배너";
+  if (platform === "banner") return "배너";
+  return null;
+}
+
 export function statusLabel(status: GenerationListItem["status"]): string {
   return { pending: "대기 중", generating: "생성 중", done: "완료", failed: "실패", published: "게시됨" }[status];
 }
@@ -81,7 +88,7 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
       {error !== null && error !== undefined && <ErrorBanner error={error} onBilling={onBilling} />}
       <section className="card history-card">
         <div className="section-heading"><div><p className="kicker">RECENT ACTIVITY</p><h2>최근 생성 기록</h2></div></div>
-      {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => { const expanded = expandedId === item.id; return <div className={`history-item${expanded ? " is-expanded" : ""}`} key={item.id}><button type="button" className="history-row" aria-expanded={expanded} aria-controls={`history-detail-${item.id}`} onClick={() => toggleGeneration(item.id)}><div><strong>{historyTitle(item)}</strong><span>{generationLabel(item)}</span></div><div><span className="status-chip">{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small>{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div></button>{expanded && <div className="history-inline-detail" id={`history-detail-${item.id}`}>{detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}{detail && !detailLoading && detail.id === item.id && <Detail detail={detail} />}</div>}</div>; })}</div>}
+      {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => { const expanded = expandedId === item.id; const platform = platformLabel(item.platform); return <div className={`history-item${expanded ? " is-expanded" : ""}`} key={item.id}><button type="button" className="history-row history-item-card" aria-expanded={expanded} aria-controls={`history-detail-${item.id}`} onClick={() => toggleGeneration(item.id)}><div className="history-row-main"><div className="history-row-badges"><span className="history-type-chip">{generationLabel(item)}</span>{platform && <span className="history-platform-chip">{platform}</span>}</div><strong>{historyTitle(item)}</strong><small className="history-row-date">{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div><div className="history-row-meta"><span className={`status-chip status-chip--${item.status}`}>{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small className="history-expand-hint">{expanded ? "접기 ↑" : "상세 보기 ↓"}</small></div></button>{expanded && <div className="history-inline-detail" id={`history-detail-${item.id}`}>{detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}{detail && !detailLoading && detail.id === item.id && <Detail detail={detail} />}</div>}</div>; })}</div>}
       </section>
       {history.length === 0 && detail && !detailLoading && <Detail detail={detail} />}
     </section>
