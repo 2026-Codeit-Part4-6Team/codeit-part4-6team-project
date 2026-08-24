@@ -11,10 +11,14 @@ SYSTEM_PROMPT = """너는 소상공인 마케팅 컨설턴트 챗봇의 질문 �
 {
   "rewritten_question": "재작성된 질문 문자열",
   "is_sufficient": true 또는 false,
-  "missing_info": ["부족한 정보 항목", ...]
+  "missing_info": ["부족한 정보 항목", ...],
+  "keyword": "트렌드 조회용 검색어 또는 null"
 }
 
-정보가 충분하면 missing_info는 빈 배열로 둔다."""
+정보가 충분하면 missing_info는 빈 배열로 둔다.
+keyword는 질문에 특정 메뉴·상품·이슈가 명시돼 있으면 그 단어 하나만 뽑는다
+(예: "아이스아메리카노 요즘 잘 나갈까요?" → "아이스아메리카노"). 그런 구체적인
+대상이 없으면(예: "우리 가게 마케팅 어떻게 하죠?") null로 둔다."""
 
 
 def build_user_prompt(question: str, store: StoreInfo) -> str:

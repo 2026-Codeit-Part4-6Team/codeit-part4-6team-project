@@ -797,12 +797,15 @@ sales-booster/
 │   │   ├── llm.py                    # OpenAI 호출 래퍼(+429 백오프·데드라인)
 │   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
 |   |   |
+|   |   ├── llm_errors.py             # OpenAI 예외 처리 분류기(ErrorResult)
+│   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
+|   |   |
 |   |   ├── config.py                 # ★ 모델명·온도·재시도·타임아웃 — 두 챗봇 공통 단일 소스
 |   |   |
 │   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
 │   │   │                             #   chatbot_type·user_id·question·store
 │   │   │                             #   context·result·sources·tokens_used
-│   │   │                             #   validation·source_gen_id
+│   │   │                             #   validation·source_context
 │   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
 │   │   │                             #   security_input · regulation · security_output · self_check
 │   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸

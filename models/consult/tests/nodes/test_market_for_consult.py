@@ -51,6 +51,26 @@ def test_returns_none_market_when_get_market_fails(mock_get_market) -> None:
 
 
 @patch("models.consult.nodes.market_for_consult.get_market")
+def test_adds_market_analysis_to_sources_when_successful(mock_get_market) -> None:
+    mock_get_market.return_value = _market_result(same_industry_count=5)
+
+    result = market_for_consult(_state())
+
+    assert result["sources"] == ["상권분석"]
+
+
+@patch("models.consult.nodes.market_for_consult.get_market")
+def test_omits_sources_when_get_market_fails(mock_get_market) -> None:
+    """실패 시 sources 키 자체를 반환하지 않는다 — 쓰이지 않은 데이터를 근거
+    출처로 잘못 표기하면 안 되기 때문이다."""
+    mock_get_market.return_value = None
+
+    result = market_for_consult(_state())
+
+    assert "sources" not in result
+
+
+@patch("models.consult.nodes.market_for_consult.get_market")
 def test_preserves_original_fields_and_adds_density_tier(mock_get_market) -> None:
     mock_get_market.return_value = _market_result(same_industry_count=5)
 

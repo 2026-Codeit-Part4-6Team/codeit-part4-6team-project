@@ -555,6 +555,10 @@ def get_market(lat, lng, radius=500) -> dict:
    → generations.source_gen_id 에 원본 컨설팅 레코드 id 저장
 ```
 
+> ⚠️ 모델에는 `source_gen_id` 가 그대로 가지 않는다. 서비스가 그 id 로 DB 를 조회해
+>   소유권·타입·상태를 검증한 뒤, 전략 원문(`source_context`)으로 바꿔 기본 챗봇에 넘긴다(D-306).
+>   컨설턴트는 **id 를 기록하는 쪽**이고, 원문을 받는 쪽은 기본 챗봇이다.
+
 **변환 예시**
 ```python
 # nodes/link_to_ads.py — 컨설턴트 챗봇 모델 개발 담당자가 구현
@@ -763,12 +767,15 @@ sales-booster/
 │   │   ├── llm.py                    # OpenAI 호출 래퍼(+429 백오프·데드라인)
 │   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
 |   |   |
+|   |   ├── llm_errors.py             # OpenAI 예외 처리 분류기(ErrorResult)
+│   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
+|   |   |
 |   |   ├── config.py                 # ★ 모델명·온도·재시도·타임아웃 — 두 챗봇 공통 단일 소스
 |   |   |
 │   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
 │   │   │                             #   chatbot_type·user_id·question·store
 │   │   │                             #   context·result·sources·tokens_used
-│   │   │                             #   validation·source_gen_id
+│   │   │                             #   validation·source_context
 │   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
 │   │   │                             #   security_input · regulation · security_output · self_check
 │   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸
@@ -997,8 +1004,9 @@ sales-booster/
 6. 불법 키워드 포함 요청 → 보안1에서 차단 (전민재 PM 함수 연동 확인)
 7. [이 전략으로 광고 만들기] 클릭 → 기본 챗봇으로 전달 확인
 8. source_gen_id가 generations에 기록되는지 확인
-9. 기본 챗봇 담당자가 컨설턴트 챗봇 모델 개발 담당자가 구현한 get_market()·get_trend() 함수 정상 사용하는지 확인
-10. 서비스 개발 담당자 구현한 화면에서 위 결과가 그대로 표시되는지 확인
+9. 그 id 로 파생된 광고 요청에서 기본 챗봇 state 에 source_context 가 실리는지 확인
+10. 기본 챗봇 담당자가 컨설턴트 챗봇 모델 개발 담당자가 구현한 get_market()·get_trend() 함수 정상 사용하는지 확인
+11. 서비스 개발 담당자 구현한 화면에서 위 결과가 그대로 표시되는지 확인
 ```
 
 ### 8.4 코드 품질 기준
