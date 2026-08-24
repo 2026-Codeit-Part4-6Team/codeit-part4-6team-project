@@ -69,7 +69,7 @@ def regulation_node(state: BasicState) -> dict:
                 "source": "regulation",
                 "action": worst.get("action", "block"),
                 "reason": worst.get("reason", "regulation_blocked"),
-                "message": worst.get("message", ""),
+                "message": worst.get("message") or "요청을 처리할 수 없습니다.",
             }
         ]
     return updates

@@ -193,3 +193,27 @@ def test_middle_item_blocked_stays_in_original_rank_position(mock_check_regulati
 
     assert [c["copy"] for c in result["ranked_copies"]] == ["A", None, "C"]
     assert result["ranked_copies"][1]["error"]["reason"] == "content_policy"
+
+
+@patch("models.basic.nodes.regulation_node.check_regulation")
+def test_blocked_at_retry_cap_with_empty_message_falls_back_to_default(
+    mock_check_regulation,
+):
+    """check_regulation이 빈 메시지를 주더라도 blocked 응답의 message는
+    빈 문자열이면 안 된다(D-215, BlockedResult.message min_length=1)."""
+    mock_check_regulation.return_value = {
+        "action": "block",
+        "reason": "exaggeration",
+        "message": "",
+    }
+    state = {
+        "ranked_copies": [{"copy": "최고의 카페 코드잇!", "score": 4.5}],
+        "validation": {},
+        "copy_retry_count": 1,
+        "issues": [],
+    }
+
+    result = regulation_node(state)
+
+    assert result["status"] == "blocked"
+    assert result["issues"][0]["message"] == "요청을 처리할 수 없습니다."
