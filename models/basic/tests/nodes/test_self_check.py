@@ -77,7 +77,10 @@ def test_warn_case_logs_but_does_not_block(caplog):
 
 
 def test_reject_increments_retry_without_blocking_below_limit():
-    with patch("models.basic.nodes.self_check_node.self_check") as mock_self_check:
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.nodes.self_check_node.self_check") as mock_self_check,
+    ):
         mock_self_check.return_value = {
             "action": "reject",
             "reasons": ["근거 없음"],

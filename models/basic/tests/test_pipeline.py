@@ -186,9 +186,13 @@ def test_e2e_scenario_e_self_check_reject_retries_then_succeeds():
             {"action": "pass", "reasons": [], "message": ""},
         ]
     )
-    with patch(
-        "models.basic.nodes.self_check_node.self_check",
-        side_effect=lambda *a, **kw: next(outcomes),
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            side_effect=lambda *a, **kw: next(outcomes),
+        ),
     ):
         graph = build_basic_graph()
         final_state = graph.invoke(
@@ -209,9 +213,17 @@ def test_e2e_scenario_e_self_check_reject_retries_then_succeeds():
 
 def test_e2e_scenario_f_self_check_reject_exhausts_retry_and_blocks():
     """self_check이 계속 reject면 SELF_CHECK_MAX_RETRY에서 blocked로 끝난다."""
-    with patch(
-        "models.basic.nodes.self_check_node.self_check",
-        return_value={"action": "reject", "reasons": ["근거 없음"], "message": "부족"},
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            return_value={
+                "action": "reject",
+                "reasons": ["근거 없음"],
+                "message": "부족",
+            },
+        ),
     ):
         graph = build_basic_graph()
         final_state = graph.invoke(
