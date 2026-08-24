@@ -13,6 +13,9 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
 - suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
+- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸 
+전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
+(예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
@@ -29,8 +32,15 @@ _NUM_CANDIDATES = 3
 def copy_gen_node(state: BasicState) -> dict:
     """수집된 컨텍스트(상권/트렌드/벤치마크)와 규제 검수 결과를 바탕으로
     LLM을 호출해 톤이 다른 광고 카피 3안을 생성한다. 파싱에 실패한 후보는
-    개별 에러로 표시하고, 전체 실패 시 재시도 카운트를 올린다."""
+    개별 에러로 표시하고, 전체 실패 시 재시도 카운트를 올린다.
+
+    source_context가 있으면 컨설팅→광고 연계 요청이다 — 컨설턴트가
+    이미 낸 전략(strategy)·근거(reasons)를 프롬프트에 실어 카피에 반영하고,
+    컨설턴트 쪽 근거 출처(sources)도 최종 응답의 sources에 합친다.
+    """
     context_data = state.get("context") or {}
+    source_context = state.get("source_context")
+
     payload = {
         "question": state["question"],
         "platform": state["platform"],
@@ -40,6 +50,9 @@ def copy_gen_node(state: BasicState) -> dict:
         "trend": context_data.get("trend"),
         "benchmark": context_data.get("benchmark"),
     }
+    if source_context:
+        payload["consultant_strategy"] = source_context.get("strategy")
+        payload["consultant_reasons"] = source_context.get("reasons")
 
     regulation_result = (state.get("validation") or {}).get("regulation")
     if regulation_result and regulation_result.get("action") in ("block", "warn"):
@@ -91,6 +104,8 @@ def copy_gen_node(state: BasicState) -> dict:
         "copy_candidates": candidates,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }
+    if source_context and source_context.get("sources"):
+        updates["sources"] = source_context["sources"]
 
     all_failed = all(c["copy"] is None for c in candidates)
     if all_failed:
