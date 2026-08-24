@@ -684,6 +684,13 @@ select:focus-visible {
 .waiting-orbit--spinning {
   animation: waiting-spin 0.9s linear infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  /* 로딩 상태를 전달하는 진행 링은 정지하면 상태 인지가 어려우므로 계속 회전합니다. */
+  .waiting-orbit--spinning {
+    animation-duration: 0.9s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
 
 .publish-success {
   margin: 18px 0;
