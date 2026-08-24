@@ -12,6 +12,7 @@ import {
   generationLabel,
   historyTitle,
   MyPageView,
+  platformLabel,
   statusLabel,
 } from "./MyPage";
 
@@ -91,8 +92,23 @@ describe("MyPage presentation", () => {
   it("uses stable user-facing labels and question fallback", () => {
     expect(generationLabel({ chatbot_type: "basic" })).toBe("Basic 광고");
     expect(generationLabel({ chatbot_type: "consultant" })).toBe("Consultant");
+    expect(platformLabel("instagram")).toBe("Instagram");
+    expect(platformLabel("xbanner")).toBe("X-배너");
     expect(statusLabel("published")).toBe("게시됨");
     expect(historyTitle(history[1])).toBe("광고를 만들어줘");
+  });
+
+  it("renders history entries as distinct cards with platform metadata", () => {
+    const html = renderView({
+      history: [
+        ...history.map((item) => item.id === 1 ? { ...item, platform: "xbanner" as const } : item),
+        { ...history[1], id: 3, platform: "instagram" as const },
+      ],
+    });
+
+    expect(html).toContain("history-item-card");
+    expect(html).toContain("Instagram");
+    expect(html).toContain("X-배너");
   });
 
   it("renders server summary and preserves server history order", () => {
