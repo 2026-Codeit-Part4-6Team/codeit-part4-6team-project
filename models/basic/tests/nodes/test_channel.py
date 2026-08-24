@@ -7,7 +7,7 @@ from models.basic.nodes.channel import channel_node
     ("state", "expected_platform"),
     [
         ({"platform": "instagram"}, "instagram"),
-        ({"platform": "BANNER"}, "banner"),
+        ({"platform": "XBANNER"}, "xbanner"),
         ({"platform": "blog"}, "instagram"),
         ({"platform": ""}, "instagram"),
         ({}, "instagram"),

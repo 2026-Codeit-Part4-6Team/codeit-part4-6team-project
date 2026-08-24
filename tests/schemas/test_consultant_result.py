@@ -49,7 +49,7 @@ def test_consultant_action_type_is_limited():
 
 def test_consultant_result_rejects_basic_payload():
     """Basic 성공 payload 전체를 Consultant 결과로 오인하지 않습니다."""
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc_info:
         ConsultantModelResult.model_validate(
             {
                 "status": "ok",
@@ -64,3 +64,10 @@ def test_consultant_result_rejects_basic_payload():
                 "suggested_chips": [],
             }
         )
+
+    missing = {
+        error["loc"][0]
+        for error in exc_info.value.errors()
+        if error["type"] == "missing"
+    }
+    assert {"strategy", "reasons"} <= missing

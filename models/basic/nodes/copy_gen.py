@@ -15,7 +15,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
-- banner: 한 줄, 눈에 띄는 핵심 메시지만
+- xbanner: 세로형 스탠드 배너 상단에 들어갈 한 줄, 눈에 띄는 핵심 메시지
 
 주어진 정보를 참고해 서로 톤이 다른 광고 카피 3안을 만든다.
 다음 JSON 형식으로만 답한다:
@@ -44,7 +44,10 @@ def copy_gen_node(state: BasicState) -> dict:
 
     try:
         raw, tokens = call_llm(
-            SYSTEM_PROMPT, json.dumps(payload, ensure_ascii=False), json_mode=True
+            SYSTEM_PROMPT,
+            json.dumps(payload, ensure_ascii=False),
+            json_mode=True,
+            deadline=state.get("deadline"),
         )
     # BLE001 억제 사유: call_llm의 모든 실패(429/timeout/기타 API 오류)를 잡아 status=error로 안전하게 전환하기 위해 의도적으로 넓게 잡음
     except Exception as exc:  # noqa: BLE001

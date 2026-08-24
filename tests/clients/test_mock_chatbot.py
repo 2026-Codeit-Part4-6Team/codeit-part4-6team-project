@@ -63,3 +63,17 @@ def test_mock_rejects_wrong_chatbot_type(client, request_type):
     """Mock은 자신과 다른 챗봇 요청을 거부합니다."""
     with pytest.raises(ValueError, match="chatbot_type"):
         asyncio.run(call_client(client, make_request(request_type)))
+
+
+def test_routing_mock_client_supports_both_chatbot_types():
+    from backend.clients.chatbot_client import MockChatbotClient
+
+    client = MockChatbotClient()
+
+    basic = asyncio.run(call_client(client, make_request("basic")))
+    consultant = asyncio.run(call_client(client, make_request("consultant")))
+
+    assert basic.status == "ok"
+    assert len(basic.proposals) == 3
+    assert consultant.status == "ok"
+    assert consultant.strategy.summary

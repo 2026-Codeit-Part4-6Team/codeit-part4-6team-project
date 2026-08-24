@@ -1,43 +1,43 @@
-# 프론트엔드
+# D5 React Frontend
 
-Streamlit 기반 사용자 화면 컨테이너입니다. 입력한 광고 요청을 FastAPI 백엔드로 전달하고 생성 결과를 표시합니다.
+Figma의 로그인 `3:86`, 회원가입 `3:112`, 대시보드·사이드바 `3:179`를 기준으로 구현한 D5 React 화면입니다. 1440×1024 고정 좌표를 복제하지 않고 색상, 카드 계층과 Sidebar:본문 비율을 반응형 CSS로 재현합니다.
 
-현재 화면은 Docker 실행과 프론트엔드·백엔드 통신을 직접 확인하기 위한 임시 테스트 UI입니다. 최종 UI 요구사항이 확정되면 교체하거나 제거합니다.
+## D5 범위
 
-## 컨테이너와 포트
+- 로그인·회원가입과 회원가입 후 자동 로그인
+- Session Cookie 유지와 `/users/me` 인증 복원
+- Backend UserResponse 기반 가게·무료 잔여·Credit Sidebar
+- 컨설턴트·게시물 생성 진입 경로
+- 컨설턴트, 마이페이지, 결제 placeholder
+- 기존 React POC의 `/generate/estimate`, `/generate` 연결을 게시물 생성 화면에 보존
 
-| 항목 | 값 |
-| --- | --- |
-| Compose 서비스 이름 | `frontend` |
-| 컨테이너 내부 포트 | `8501` |
-| 호스트 포트 | 기본 `8501`, GCP 확인 시 `80` |
-| 사용자 접근 주소 | `http://localhost:8501` |
-| 컨테이너 내부 백엔드 주소 | `http://backend:8000` |
+게시물 생성 내부 화면의 Figma 재설계와 실제 컨설턴트 연결은 D5 이후 범위입니다.
 
-브라우저는 호스트 `8501`번으로 접근하고, 프론트엔드 컨테이너는 Compose 내부 네트워크에서 `backend:8000`으로 API를 호출합니다. 호스트의 JupyterHub `8000`번 포트와는 관계가 없습니다.
+## 로컬 Frontend
 
-호스트 포트는 `.env`의 `FRONTEND_PORT`로 변경합니다. 현재 공개 포트는 초기 스켈레톤 확인용입니다.
-
-## 환경변수
-
-| 변수 | 기본값 | 용도 |
-| --- | --- | --- |
-| `BACKEND_URL` | `http://backend:8000` | 백엔드 API 주소 |
-
-## 실행 및 확인
-
-저장소 루트에서 실행합니다.
-
-```bash
-docker compose up --build frontend
+```powershell
+corepack pnpm install --frozen-lockfile
+corepack pnpm test
+corepack pnpm typecheck
+corepack pnpm build
+corepack pnpm dev
 ```
 
-브라우저에서 `http://localhost:8501`로 접속합니다. `frontend`는 백엔드 헬스체크가 통과한 뒤 시작합니다.
+브라우저 요청은 same-origin `/api`를 사용합니다. Vite 개발 서버와 production frontend container가 `BACKEND_URL`로 proxy하므로 Backend CORS 변경은 필요하지 않습니다.
 
-## 현재 구조
+## Docker Compose 시연
 
-```text
-frontend/
-├── app.py          Streamlit 화면 진입점
-└── api_client.py   FastAPI 호출
+기존 POC와 포트가 겹치지 않도록 실행 환경에 맞는 포트를 지정할 수 있습니다. 아래 값은 예시이며 고정된 배포 주소가 아닙니다.
+
+```powershell
+$env:BACKEND_PORT='<backend-port>'
+$env:FRONTEND_PORT='<frontend-port>'
+$env:APP_ENV='demo'
+$env:GEOCODE_FALLBACK_ENABLED='true'
+docker compose -p d5-react-frontend up --build -d
 ```
+
+- Frontend 접속 주소: 실행 환경의 Host와 `FRONTEND_PORT`
+- Backend 연결 주소: Compose 내부 `BACKEND_URL` 또는 배포 환경 설정값
+
+개발자 계정은 앱 시작 때 자동 생성하지 않습니다. 필요하면 별도 `python -m backend.demo_seed` 명령을 명시적으로 실행합니다.

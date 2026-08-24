@@ -363,6 +363,7 @@
 | 8/13 | ERD | source_gen_id "FK 없이 값만 저장" → 실제 self-FK | 구현이 더 안전하므로 문서를 코드에 맞춤 |
 | 8/13 | D-027 | platform 3종(blog 포함) → 2종(instagram·banner) | Contract v0.3·서비스 Literal·모델 코드 모두 2종으로 수렴 |
 | 8/13 | D-019 | 이미지 재생성 1회 원칙을 코드에 반영(MAX_RETRY 공유 해제) | 공유 카운터로 인해 실질 2회 실행되던 것을 정정 |
+| 8/14 | D4 ModelResult 구현 계약 | 최상위 결과 4종의 공통 `InboundModel`·ignored-field 이름 로깅·중첩 strict 테스트를 D4 완료조건에 추가 | PR #88 리뷰 후속 중 #89 명시 분기 이후에도 남은 관측성·테스트 경계를 한 브랜치에서 닫기 위함 |
 | 8/13 | directory_structure.md §7.2 | shared/ 에 config.py 추가, retry.py 삭제, 상태 마커 도입 | §7.3 판정표와 트리 그림의 불일치 해소 |
 
 ## 보류 (Owner·Due 지정)

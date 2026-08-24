@@ -1,79 +1,3 @@
-# from models.basic.graph.build_basic import build_basic_graph
-# from models.basic.main import assemble_response
-
-
-# def test_e2e_scenarios():
-#     graph = build_basic_graph()
-
-#     store = {
-#         "name": "카페 코드잇",
-#         "type": "카페",
-#         "address": "서울 강남구 역삼동",
-#         "lat": 37.5,
-#         "lng": 127.0,
-#     }
-
-#     cases = [
-#         {
-#             "label": "A. banner 채널",
-#             "state": {
-#                 "chatbot_type": "basic",
-#                 "user_id": 1,
-#                 "question": "여름 신메뉴 홍보 문구 만들어줘",
-#                 "store": store,
-#                 "platform": "banner",
-#                 "extra": {},
-#             },
-#         },
-#         {
-#             "label": "B. 정보 부족 질문 (reask로 바로 끝나야 함)",
-#             "state": {
-#                 "chatbot_type": "basic",
-#                 "user_id": 1,
-#                 "question": "광고 만들어줘",
-#                 "store": store,
-#                 "platform": "instagram",
-#                 "extra": {},
-#             },
-#         },
-#         {
-#             "label": "C. 사전 폼 정보 다 채워진 경우",
-#             "state": {
-#                 "chatbot_type": "basic",
-#                 "user_id": 1,
-#                 "question": "홍보 문구 만들어줘",
-#                 "store": store,
-#                 "platform": "instagram",
-#                 "extra": {
-#                     "purpose": "신메뉴 출시",
-#                     "price_range": "5000-8000",
-#                     "target_customer": "20~30대 직장인",
-#                     "selling_point": "당일 로스팅 원두",
-#                 },
-#             },
-#         },
-#         {
-#             "label": "D. 되물음 답변으로 채워진 라운드트립 2차 요청",
-#             "state": {
-#                 "chatbot_type": "basic",
-#                 "user_id": 1,
-#                 "question": "광고 만들어줘",
-#                 "store": store,
-#                 "platform": "instagram",
-#                 "extra": {"clarification": "아이스 아메리카노 신메뉴예요"},
-#             },
-#         },
-#     ]
-
-#     for case in cases:
-#         print(f"\n{'='*50}")
-#         print(case["label"])
-#         print("=" * 50)
-#         final_state = graph.invoke(case["state"])
-#         response = assemble_response(final_state)
-#         print(response)
-
-
 import json
 from unittest.mock import patch
 
@@ -90,8 +14,12 @@ _STORE = {
     "lng": 127.0,
 }
 
+_FAKE_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
-def _fake_call_llm(system: str, user: str, json_mode: bool = False) -> tuple[str, int]:
+
+def _fake_call_llm(
+    system: str, user: str, json_mode: bool = False, deadline: float | None = None
+) -> tuple[str, int]:
     """question_analysis/copy_gen/ranking 세 노드가 공유하는 call_llm을 시스템
     프롬프트 내용으로 구분해 노드별 응답 스키마에 맞는 고정 응답을 돌려준다."""
     payload = json.loads(user)
@@ -120,12 +48,18 @@ def _fake_call_llm(system: str, user: str, json_mode: bool = False) -> tuple[str
                 {
                     "sufficient": False,
                     "rewritten_question": question,
+                    "keyword": "",
                     "message": "무엇을 광고하고 싶으신지 조금 더 알려주세요.",
                 }
             )
         else:
             content = json.dumps(
-                {"sufficient": True, "rewritten_question": question, "message": ""}
+                {
+                    "sufficient": True,
+                    "rewritten_question": question,
+                    "keyword": question,
+                    "message": "",
+                }
             )
         return content, 10
 
@@ -141,15 +75,14 @@ def _fake_get_trend(question, industry=None):
         "keyword": industry or "카페",
         "direction": "상승",
         "related": ["아이스 아메리카노"],
-        "weather": None,
     }
 
 
 @pytest.fixture(autouse=True)
 def _mock_external_calls():
-    """외부 API(OpenAI, 상권/트렌드 API)를 모두 모킹해 e2e 테스트를 CI에서도
-    네트워크/크리덴셜 없이 실행 가능하게 한다. 나머지 의존성(check_input/
-    check_output/self_check/check_regulation/generate_image/search_benchmark)은
+    """외부 API(OpenAI, 상권/트렌드 API, 이미지 생성, CLIP)를 전부 모킹해 e2e
+    테스트를 CI에서도 네트워크/무거운 모델 로드 없이 빠르고 안정적으로 실행되게
+    한다. 나머지 의존성(check_input/check_output/self_check/check_regulation)은
     현재 전부 D1 스텁이라 모킹 없이도 예외 없이 통과한다."""
     with (
         patch(
@@ -164,6 +97,11 @@ def _mock_external_calls():
         patch(
             "models.basic.nodes.trend_for_copy.get_trend", side_effect=_fake_get_trend
         ),
+        patch(
+            "models.basic.nodes.image_gen.generate_image",
+            return_value=_FAKE_IMAGE_B64,
+        ),
+        patch("models.basic.nodes.image_review._clip_score", return_value=0.9),
     ):
         yield
 

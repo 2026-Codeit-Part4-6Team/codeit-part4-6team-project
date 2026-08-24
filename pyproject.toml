@@ -21,6 +21,7 @@ frontend = [
 ]
 dev = [
     "httpx>=0.28.0,<1.0.0",
+    "python-dotenv>=1.2.2",
     "pytest>=8.4.0,<9.0.0",
     "ruff>=0.12.0,<1.0.0",
 ]
@@ -35,14 +36,21 @@ basic = [
     "langgraph>=1.2.10",
     "openai>=2.54.0",
     "pillow>=12.3.0",
-    "python-dotenv>=1.2.2",
     "torch>=2.13.0",
     "transformers>=5.15.0",
 ]
+validation = [
+    "numpy>=1.26.0",
+    "openai>=1.50.0,<3.0.0",
+]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not live'"
 pythonpath = ["."]
 testpaths = ["tests", "models"]
+markers = [
+    "live: 실제 외부 API 자격증명과 네트워크가 필요한 수동 검증",
+]
 
 [tool.ruff]
 line-length = 100
