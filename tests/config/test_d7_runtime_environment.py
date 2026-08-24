@@ -46,6 +46,32 @@ def test_d7_actual_timeout_defaults_to_verified_180_seconds():
     assert "MODEL_REQUEST_TIMEOUT_SECONDS=180" in env_example
 
 
+def test_stale_recovery_timeout_is_independent_and_defaults_to_120_seconds():
+    config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    assert '"STALE_RECOVERY_SECONDS", 120, minimum=1' in config
+    assert "STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-120}" in compose
+    assert "STALE_RECOVERY_SECONDS=120" in env_example
+
+
+def test_actual_runtime_wires_huggingface_cache_and_token_without_committing_secret():
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    deploy = (ROOT / "compose.deploy.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    for document in (compose, deploy):
+        assert "HF_TOKEN: ${HF_TOKEN:-}" in document
+        assert "HF_HOME: ${HF_HOME:-/app/.cache/huggingface}" in document
+        assert "/app/.cache/huggingface" in document
+
+    assert "HF_TOKEN=" in env_example
+    assert "HF_HOME=/app/.cache/huggingface" in env_example
+    assert "HF_HOME_HOST_PATH=/srv/team6/models" in env_example
+    assert "hf_" not in env_example
+
+
 def test_basic_dependency_group_contains_sentence_transformers():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

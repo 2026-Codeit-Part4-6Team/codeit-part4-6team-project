@@ -1,9 +1,14 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from backend.clients.chatbot_client import create_chatbot_client
+from backend.clients.chatbot_client import (
+    create_chatbot_client,
+    preload_actual_model_weights,
+)
 from backend.config import settings
 from backend.routers.auth_router import router as auth_router
 from backend.routers.demo_router import router as demo_router
@@ -15,9 +20,17 @@ from backend.routers.users_router import router as users_router
 from backend.routers.waiting_router import router as waiting_router
 
 
+@asynccontextmanager
+async def lifespan(_application: FastAPI):
+    """실제 모델 모드에서 HF 가중치를 요청 전에 준비합니다."""
+    if settings.chatbot_mode == "actual":
+        preload_actual_model_weights()
+    yield
+
+
 def create_app() -> FastAPI:
     """FastAPI 애플리케이션을 생성합니다."""
-    application = FastAPI(title="Codeit Part 4 Team 6 API")
+    application = FastAPI(title="Codeit Part 4 Team 6 API", lifespan=lifespan)
     application.state.chatbot_client = create_chatbot_client(settings)
     application.add_middleware(
         SessionMiddleware,

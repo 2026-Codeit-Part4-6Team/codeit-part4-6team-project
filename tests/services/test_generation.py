@@ -774,7 +774,7 @@ def test_stale_paid_generation_refunds_once_and_becomes_failed(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         db.refresh(row)
@@ -788,10 +788,44 @@ def test_stale_paid_generation_refunds_once_and_becomes_failed(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=180),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is False
         db.refresh(user)
         assert user.credits == 50
+
+
+def test_stale_recovery_uses_independent_threshold_when_model_timeout_changes(tmp_path):
+    from backend.services.generation_service import recover_stale_generating
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=0, used=10, reset_at=created_at + timedelta(hours=12))
+        row = add_generation(
+            db,
+            user,
+            request=basic_request(max_accepted_credits=50),
+            status="generating",
+            plan="paid",
+            credits_used=50,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        db.commit()
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=119),
+            stale_recovery_seconds=120,
+        ) is False
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=120),
+            stale_recovery_seconds=120,
+        ) is True
 
 
 def test_stale_free_generation_decrements_only_same_usage_period(tmp_path):
@@ -820,7 +854,7 @@ def test_stale_free_generation_decrements_only_same_usage_period(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         assert user.daily_free_used == 0
@@ -852,7 +886,7 @@ def test_stale_free_generation_does_not_touch_new_usage_period(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         assert user.daily_free_used == 3
