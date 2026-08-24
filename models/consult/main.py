@@ -38,6 +38,12 @@ def run(request: dict) -> dict:
     실패하든 서비스에는 항상 계약을 지키는 dict를 돌려준다 — 예외를 그대로
     올리면 서비스가 ModelResult가 아닌 것을 받게 되어 ErrorResult(§6.6)
     계약을 만족할 수 없다.
+
+    요청 구성과 그래프 실행을 별도 try로 나눈다(D-287) — 하나로 묶으면 로그만
+    보고 "요청이 잘못된 건지 모델이 죽은 건지" 구분할 수 없다. 필수 키가 없으면
+    딕셔너리 조회 자체가 KeyError를 던져 그래프(LLM 모델 호출)를 아예 안 타므로,
+    이 분리만으로 "필수 키 누락 시 LLM 모델 호출 0회로 즉시 error" 요구도 함께
+    지켜진다.
     """
     try:
         initial_state = {
@@ -48,6 +54,15 @@ def run(request: dict) -> dict:
             "extra": request.get("extra") or {},
             "tokens_used": 0,
         }
+    except Exception as exc:
+        logger.exception("컨설턴트 요청 구성 실패")
+        return {
+            "status": "error",
+            "reason": classify_llm_error(exc),
+            "message": "요청 형식이 올바르지 않습니다.",
+        }
+
+    try:
         final_state = build_consultant().invoke(initial_state)
         return assemble_response(final_state)
     except Exception as exc:
