@@ -12,8 +12,8 @@ import {
   apiErrorMessage,
   createFollowUpMessage,
   generationPayload,
-  mockFollowUpReply,
   nextGenerationAction,
+  withClarification,
   type GenerationAction,
   type FollowUpMessage,
   type PendingGeneration,
@@ -155,18 +155,28 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function requestEstimate(questionOverride?: string) {
+  async function requestEstimate(
+    extraOverride: GenerateExtra = extra,
+    preserveMessages = false,
+    questionOverride = question,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
     setPending(null);
     setGeneration(null);
     setPublishedProposalIndex(null);
-    setMessages([]);
+    if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, questionOverride ?? question, platform, extra, sourceGenId);
+      const payload = buildEstimatePayload(
+        chatbotType,
+        questionOverride,
+        platform,
+        extraOverride,
+        sourceGenId,
+      );
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, crypto.randomUUID());
       setPending(action.pending);
@@ -177,6 +187,18 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
       setBusy(false);
     }
     if (immediate !== null) await generate(immediate);
+  }
+
+  async function submitFollowUp(value: string) {
+    const clarification = value.trim();
+    if (!clarification || busy) return;
+    const nextExtra = withClarification(extra, clarification);
+    setMessages((current) => [
+      ...current,
+      createFollowUpMessage("user", clarification, `${Date.now()}-user`),
+    ]);
+    setExtra(nextExtra);
+    await requestEstimate(nextExtra, true);
   }
 
   async function estimate(event: FormEvent) {
@@ -208,14 +230,6 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
       setBusy(false);
     }
     if (immediateRetry !== null) await generate(immediateRetry);
-  }
-
-  function reask(answer: string) {
-    const combinedQuestion = `${question}\n\n추가 답변: ${answer}`;
-    setQuestion(combinedQuestion);
-    setGeneration(null);
-    setPending(null);
-    void requestEstimate(combinedQuestion);
   }
 
   async function publish(index: ProposalIndex, imageB64: string | null) {
@@ -302,12 +316,11 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
-          onReask={reask}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
           onStrategyToAd={onStrategyToAd}
         />
       )}
-      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void submitFollowUp(value)} />}
     </section>
   );
 }
