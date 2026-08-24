@@ -62,6 +62,17 @@ export type MyPageViewProps = {
 };
 
 export function MyPageView({ user, summary, history, detail, loading, detailLoading, error, onSelect, onBack, onBilling }: MyPageViewProps) {
+  const [expandedId, setExpandedId] = useState<number | null>(detail?.id ?? null);
+
+  function toggleGeneration(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    onSelect(id);
+  }
+
   return (
     <section className="account-page" aria-labelledby="mypage-title">
       <button type="button" className="back-link" onClick={onBack}>← 대시보드로 돌아가기</button>
@@ -70,10 +81,9 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
       {error !== null && error !== undefined && <ErrorBanner error={error} onBilling={onBilling} />}
       <section className="card history-card">
         <div className="section-heading"><div><p className="kicker">RECENT ACTIVITY</p><h2>최근 생성 기록</h2></div></div>
-        {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => <button type="button" className="history-row" key={item.id} onClick={() => onSelect(item.id)}><div><strong>{historyTitle(item)}</strong><span>{generationLabel(item)}</span></div><div><span className="status-chip">{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small>{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div></button>)}</div>}
+      {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => { const expanded = expandedId === item.id; return <div className={`history-item${expanded ? " is-expanded" : ""}`} key={item.id}><button type="button" className="history-row" aria-expanded={expanded} aria-controls={`history-detail-${item.id}`} onClick={() => toggleGeneration(item.id)}><div><strong>{historyTitle(item)}</strong><span>{generationLabel(item)}</span></div><div><span className="status-chip">{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small>{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div></button>{expanded && <div className="history-inline-detail" id={`history-detail-${item.id}`}>{detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}{detail && !detailLoading && detail.id === item.id && <Detail detail={detail} />}</div>}</div>; })}</div>}
       </section>
-      {detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}
-      {detail && !detailLoading && <Detail detail={detail} />}
+      {history.length === 0 && detail && !detailLoading && <Detail detail={detail} />}
     </section>
   );
 }

@@ -535,6 +535,10 @@ select:focus-visible {
 .section-heading h2 { margin-bottom: 10px; }
 .muted { color: var(--muted); font-size: 0.8rem; }
 .history-list { display: grid; margin-top: 8px; }
+.history-item { border-top: 1px solid #eeeae3; }
+.history-item .history-row { border-top: 0; }
+.history-inline-detail { padding: 0 0 18px; }
+.history-inline-detail .history-detail { margin-top: 0; }
 .history-row, .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 0; border-top: 1px solid #eeeae3; }
 .history-row > div:first-child { display: grid; gap: 5px; }
 .history-row span, .history-row small { color: var(--muted); font-size: 0.8rem; }

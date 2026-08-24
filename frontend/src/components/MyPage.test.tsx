@@ -140,6 +140,7 @@ describe("MyPage presentation", () => {
     expect(html).not.toContain("request_hash");
     expect(html).not.toContain("idempotency_key");
     expect(html).not.toContain("result_json");
+    expect(html).toContain('aria-expanded="true"');
   });
 
   it("renders Consultant strategy, reasons, and sources", () => {
