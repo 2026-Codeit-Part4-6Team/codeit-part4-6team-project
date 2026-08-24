@@ -114,6 +114,8 @@ describe("MyPage presentation", () => {
   it("renders server summary and preserves server history order", () => {
     const html = renderView();
 
+    expect(html).toContain("오늘 무료 생성 잔여");
+    expect(html).not.toContain(">오늘 무료 생성<");
     expect(html).toContain("125");
     expect(html).toContain("8");
     expect(html).toContain("2");

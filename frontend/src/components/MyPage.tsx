@@ -84,7 +84,7 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
     <section className="account-page" aria-labelledby="mypage-title">
       <button type="button" className="back-link" onClick={onBack}>← 대시보드로 돌아가기</button>
       <div className="page-heading"><p className="kicker">MY PAGE</p><h1 id="mypage-title">내 활동을 한눈에 확인하세요.</h1><p>{user.business_name ?? user.username}님의 생성 기록과 사용 현황입니다.</p></div>
-      <div className="summary-grid"><div className="stat-card"><span>현재 Credit</span><strong>{summary?.credits ?? "—"}</strong></div><div className="stat-card"><span>오늘 무료 생성</span><strong>{summary?.daily_free_remaining ?? "—"}</strong></div><div className="stat-card"><span>전체 생성 <small>(실데이터)</small></span><strong>{summary?.total_generations ?? "—"}</strong></div><div className="stat-card"><span>게시 완료 <small>(실데이터)</small></span><strong>{summary?.published_generations ?? "—"}</strong></div></div>
+      <div className="summary-grid"><div className="stat-card"><span>현재 Credit</span><strong>{summary?.credits ?? "—"}</strong></div><div className="stat-card"><span>오늘 무료 생성 잔여</span><strong>{summary?.daily_free_remaining ?? "—"}</strong></div><div className="stat-card"><span>전체 생성 <small>(실데이터)</small></span><strong>{summary?.total_generations ?? "—"}</strong></div><div className="stat-card"><span>게시 완료 <small>(실데이터)</small></span><strong>{summary?.published_generations ?? "—"}</strong></div></div>
       {error !== null && error !== undefined && <ErrorBanner error={error} onBilling={onBilling} />}
       <section className="card history-card">
         <div className="section-heading"><div><p className="kicker">RECENT ACTIVITY</p><h2>최근 생성 기록</h2></div></div>
