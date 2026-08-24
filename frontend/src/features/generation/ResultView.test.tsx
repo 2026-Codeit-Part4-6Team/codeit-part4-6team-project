@@ -130,6 +130,29 @@ describe("ResultView", () => {
     },
   );
 
+  it("passes through a non-blocked failure message", () => {
+    const html = renderToStaticMarkup(
+      <ResultView
+        response={{
+          generation_id: 10,
+          status: "failed",
+          chatbot_type: "basic",
+          result: {
+            status: "error",
+            reason: "content_policy",
+            message: "'최고'는 부당광고가 될 수 있어요. 다른 표현을 사용해 주세요.",
+          },
+          usage: { plan: "free", credits_used: 0 },
+        }}
+        onPublish={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("부당광고가 될 수 있어요. 다른 표현을 사용해 주세요.");
+    expect(html).not.toContain("생성 결과를 표시할 수 없습니다.");
+  });
+
   it("keeps a successful content-policy slot selectable", () => {
     const html = renderToStaticMarkup(
       <ResultView
