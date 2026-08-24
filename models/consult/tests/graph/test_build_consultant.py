@@ -36,7 +36,12 @@ def test_graph_runs_start_to_end_without_error(
     START→END까지 끊김 없이 실행된다. market_for_consult·trend_for_consult는
     "둘 다 실패"를 환경변수 부재에 기대지 않고 명시적으로 mock해 재현한다 —
     실제 MARKET_API_KEY·NAVER_CLIENT_ID가 설정된 환경이나 해당 좌표가 이미
-    캐싱된 환경에서는 조용히 성공해버려 이 테스트의 전제가 깨질 수 있다."""
+    캐싱된 환경에서는 조용히 성공해버려 이 테스트의 전제가 깨질 수 있다.
+
+    suggested_chips·chips_fallback·tokens_used도 확인한다(Codex 리뷰) — 3-way
+    병렬화(v3 섹션F)의 핵심 위험이 이 세 plain 필드(reducer 없음)의 병합이었는데,
+    이전엔 병렬 시작 여부만 확인했지 병합 후 값이 실제로 보존되는지는 아무도
+    검증하지 않았다."""
     mock_get_market.return_value = None
     mock_get_trend.return_value = None
     mock_question_call_llm.return_value = (
@@ -75,6 +80,15 @@ def test_graph_runs_start_to_end_without_error(
     # market_for_consult·trend_for_consult가 둘 다 실패(None)해도 서비스 계약
     # (sources min_length=1)을 지키려면 strategy가 기본 출처로 채워야 한다.
     assert result["sources"] == ["가게정보"]
+    # suggested_chips·chips_fallback은 suggested_chips 노드만 쓰는 필드라 market/trend와
+    # 병렬로 묶여도 덮어써질 수 없다 — 실제로 병합 후에도 남아있는지 확인한다.
+    assert result["suggested_chips"] == ["질문 1", "질문 2", "질문 3"]
+    assert result["chips_fallback"] is False
+    # question_analysis(100) + suggested_chips(50) + strategy(100) = 250.
+    # market_for_consult·trend_for_consult는 LLM을 호출하지 않아 tokens_used를
+    # 건드리지 않으므로, 3-way 병렬 묶음 안에서 tokens_used를 쓰는 노드는
+    # suggested_chips 하나뿐이라 합계가 그대로 보존돼야 한다.
+    assert result["tokens_used"] == 250
 
 
 @patch("models.consult.nodes.strategy.call_llm")

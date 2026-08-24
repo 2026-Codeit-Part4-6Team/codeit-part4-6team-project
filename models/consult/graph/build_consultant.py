@@ -29,6 +29,17 @@ def build_consultant() -> CompiledStateGraph:
     세 노드가 병렬로 묶여도 tokens_used를 쓰는 노드는 suggested_chips 하나뿐이라
     충돌 여지가 없다.
 
+    받아들인 트레이드오프(Codex 리뷰): suggested_chips의 LLM 호출이 인프라 장애로
+    완전 실패(재시도 소진)하면 예외가 그대로 전파되는데(suggested_chips.py 참고 —
+    question_analysis/strategy와 동일 원칙, "인프라 장애는 숨기지 않는다"), 이제는
+    market_for_consult·trend_for_consult가 question_analysis 직후 이미 병렬로
+    시작된 상태라 그 외부 API 호출(공공데이터포털 상권 API·네이버 트렌드 API)이
+    이미 소비된 뒤일 수 있다. v2까지는 suggested_chips가 market/trend보다 앞이라
+    이 경우 두 API를 아예 안 불렀다. 어차피 이 실패는 최종 응답을 error로 만들어
+    사용자 경험은 동일하고, 낭비되는 건 LLM 토큰이 아니라 여유 있는 외부 API
+    호출량뿐이라 허용하기로 했다 — 인프라 장애가 잦아지거나 API 한도가 빠듯해지면
+    재검토한다.
+
     link_to_ads는 기본 경로에 연결하지 않는다. SDP §6.3상 사용자가 [이 전략으로
     광고 만들기] 버튼을 눌렀을 때만 호출돼야 하는데, 기본 경로에 넣으면 모든 상담
     요청마다 자동 호출된다. D8에서 실제 트리거 조건이 정해지면 조건부 엣지 또는
