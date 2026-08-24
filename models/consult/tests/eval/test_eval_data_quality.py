@@ -31,6 +31,16 @@ def test_store_type_falls_back_to_default_store() -> None:
     assert _store_type(_item(store_type=None)) == DEFAULT_STORE["type"]
 
 
+def test_store_type_returns_none_for_explicit_empty_store() -> None:
+    """store 키가 아예 없는 경우(위 테스트)와 달리, store가 명시적으로 {}이면
+    폴백하지 않는다 — f25f59d에서 or 폴백을 dict.get(key, default)로 바꿔
+    고친 부분의 회귀 테스트(Codex 리뷰). 고치기 전에는 이 경우도 DEFAULT_STORE로
+    덮어써 두 케이스가 구분되지 않았다."""
+    item = {"id": "C-001", "area": "consult", "question": "q", "input": {"store": {}}}
+
+    assert _store_type(item) is None
+
+
 def test_collect_store_types_filters_by_area() -> None:
     dataset = [
         _item(item_id="C-001", area="consult", store_type="카페"),
@@ -142,4 +152,10 @@ def test_parse_args_defaults() -> None:
     args = _parse_args([])
 
     assert args.area == "consult"
-    assert args.dataset is not None
+
+
+def test_parse_args_rejects_area_other_than_consult() -> None:
+    """DEFAULT_STORE 폴백과 industry_code_for()가 컨설턴트 전용이라 다른 영역을
+    받으면 엉뚱한 커버리지가 나온다 — CLI 단계에서 막는다(Codex 리뷰)."""
+    with pytest.raises(SystemExit):
+        _parse_args(["--area", "basic"])

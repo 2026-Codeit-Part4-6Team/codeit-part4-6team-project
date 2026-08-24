@@ -134,10 +134,16 @@ def evaluate_data_quality(
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """측정할 데이터셋과 대상 영역을 CLI에서 받는다."""
+    """대상 영역을 CLI에서 받는다.
+
+    --dataset을 임의로 받지 않는다 — golden_dataset.json 자체엔 버전 표시가
+    없어서(순수 리스트), 다른 파일을 넣으면 결과에 찍히는 dataset_version이
+    거짓이 된다(Codex 리뷰). --area도 consult 하나로 고정한다 — DEFAULT_STORE
+    폴백과 industry_code_for()가 전부 컨설턴트 전용이라 다른 영역에 돌리면
+    엉뚱한 커버리지가 나온다(Codex 리뷰).
+    """
     parser = argparse.ArgumentParser(description="컨설턴트 업종 매핑 데이터 정확도 평가")
-    parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET_PATH)
-    parser.add_argument("--area", default="consult")
+    parser.add_argument("--area", default="consult", choices=("consult",))
     return parser.parse_args(argv)
 
 
@@ -145,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI 평가를 실행하고 성공 여부를 종료 코드로 반환한다."""
     args = _parse_args(argv)
     try:
-        report, report_path = evaluate_data_quality(dataset_path=args.dataset, area=args.area)
+        report, report_path = evaluate_data_quality(area=args.area)
     except Exception:
         logger.exception("데이터 정확도 평가 실패")
         return 1
