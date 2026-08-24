@@ -70,9 +70,9 @@ def _fake_get_market(lat, lng, radius=500, industry=None):
     return {"total_count": 43, "same_industry_count": 2, "nearest_distance_m": 80}
 
 
-def _fake_get_trend(question, industry=None):
+def _fake_get_trend(keyword):
     return {
-        "keyword": industry or "카페",
+        "keyword": keyword,
         "direction": "상승",
         "related": ["아이스 아메리카노"],
     }
