@@ -12,6 +12,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 준수 사항:
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
+- suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
@@ -41,8 +42,11 @@ def copy_gen_node(state: BasicState) -> dict:
     }
 
     regulation_result = (state.get("validation") or {}).get("regulation")
-    if regulation_result and regulation_result.get("action") == "block":
+    if regulation_result and regulation_result.get("action") in ("block", "warn"):
         payload["avoid"] = regulation_result.get("message")
+        alternative = regulation_result.get("alternative")
+        if alternative:
+            payload["suggested_alternative"] = alternative
 
     try:
         raw, tokens = call_llm(
@@ -103,6 +107,7 @@ def copy_gen_node(state: BasicState) -> dict:
             ]
 
     return updates
+
 
 def _parse_candidates(raw: str) -> list[str | None]:
     """JSON을 파싱해 카피 후보 3개를 문자열만 남기고 반환한다.
