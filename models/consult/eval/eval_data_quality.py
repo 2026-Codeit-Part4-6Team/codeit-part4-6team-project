@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def _store_type(item: dict, *, default_store: dict = DEFAULT_STORE) -> str | None:
     """ModelRequest 조립 시(_build_model_request)와 동일한 폴백으로 업종 문자열을 뽑는다."""
     raw = item.get("input") or {}
-    store = raw.get("store") or default_store
+    store = raw.get("store", default_store)
     return store.get("type")
 
 
