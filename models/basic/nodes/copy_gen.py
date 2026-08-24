@@ -22,6 +22,8 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 {"candidates": ["카피1", "카피2", "카피3"]}
 """
 
+_NUM_CANDIDATES = 3
+
 
 def copy_gen_node(state: BasicState) -> dict:
     """수집된 컨텍스트(상권/트렌드/벤치마크)와 규제 검수 결과를 바탕으로
@@ -62,13 +64,12 @@ def copy_gen_node(state: BasicState) -> dict:
                 }
             ],
         }
-    parsed = json.loads(raw)
-    raw_candidates = parsed.get("candidates", [])
+    parsed_copies = _parse_candidates(raw)
 
     candidates = []
-    for i in range(3):
-        if i < len(raw_candidates) and raw_candidates[i]:
-            candidates.append({"copy": raw_candidates[i]})
+    for copy_text in parsed_copies:
+        if copy_text is not None:
+            candidates.append({"copy": copy_text})
         else:
             candidates.append(
                 {
@@ -102,3 +103,32 @@ def copy_gen_node(state: BasicState) -> dict:
             ]
 
     return updates
+
+def _parse_candidates(raw: str) -> list[str | None]:
+    """JSON을 파싱해 카피 후보 3개를 문자열만 남기고 반환한다.
+
+    _parse_chips(models/consult/nodes/suggested_chips.py)와 같은 3단계로 검증한다:
+    JSONDecodeError → dict 여부 → 각 항목이 비어있지 않은 str인지.
+    파싱 실패나 타입이 안 맞는 항목은 None으로 표시해 호출부가 개별
+    parse_failed 에러로 처리하게 한다 — 숫자·객체 등이 카피로 새는 걸 막는다.
+    """
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return [None] * _NUM_CANDIDATES
+
+    if not isinstance(parsed, dict):
+        return [None] * _NUM_CANDIDATES
+
+    raw_candidates = parsed.get("candidates")
+    if not isinstance(raw_candidates, list):
+        return [None] * _NUM_CANDIDATES
+
+    result: list[str | None] = []
+    for i in range(_NUM_CANDIDATES):
+        item = raw_candidates[i] if i < len(raw_candidates) else None
+        if isinstance(item, str) and item.strip():
+            result.append(item.strip())
+        else:
+            result.append(None)
+    return result
