@@ -238,22 +238,24 @@ def test_graph_uses_market_result_when_only_trend_fails(
 @patch("models.consult.nodes.question_analysis.call_llm")
 @patch("models.consult.nodes.trend_for_consult.get_trend")
 @patch("models.consult.nodes.market_for_consult.get_market")
-def test_market_and_trend_run_in_parallel_not_sequential(
+def test_suggested_chips_market_trend_run_in_parallel_not_sequential(
     mock_get_market,
     mock_get_trend,
     mock_question_call_llm,
     mock_chips_call_llm,
     mock_strategy_call_llm,
 ) -> None:
-    """market_for_consult·trend_for_consult가 실제로 동시에 실행되는지 확인한다.
-    두 mock이 threading.Barrier(2)에서 서로를 기다리게 한다 — 순차 실행이면 먼저
-    도착한 쪽이 둘째를 영원히 못 만나 타임아웃 예외를 던지고, 병렬 실행이면 둘 다
-    거의 동시에 도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아 느린 CI에서
-    정상적인 병렬 실행까지 실패로 오판하지 않는다(Codex 리뷰 — 기존 sleep+임계값
-    비교는 느린 환경에서 flaky할 수 있다는 지적)."""
+    """suggested_chips·market_for_consult·trend_for_consult 세 노드가 question_analysis
+    직후 동시에 실행되는지 확인한다(v3 섹션F, 3-way 병렬화 — suggested_chips는 market/
+    trend 결과를 쓰지 않아 더 이상 그 앞에서 순차로 기다릴 이유가 없다). 세 mock이
+    threading.Barrier(3)에서 서로를 기다리게 한다 — 셋 중 하나라도 순차 실행이면
+    나머지를 영원히 못 만나 타임아웃 예외를 던지고, 셋 다 병렬이면 거의 동시에
+    도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아 느린 CI에서도 안정적이다
+    (v2 섹션F Codex 리뷰 — 기존 sleep+임계값 비교는 느린 환경에서 flaky할 수 있다는
+    지적과 동일 패턴)."""
     import threading
 
-    barrier = threading.Barrier(2, timeout=2.0)
+    barrier = threading.Barrier(3, timeout=2.0)
 
     def rendezvous_market(*args, **kwargs):
         barrier.wait()
@@ -261,8 +263,13 @@ def test_market_and_trend_run_in_parallel_not_sequential(
     def rendezvous_trend(*args, **kwargs):
         barrier.wait()
 
+    def rendezvous_chips(*args, **kwargs):
+        barrier.wait()
+        return (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+
     mock_get_market.side_effect = rendezvous_market
     mock_get_trend.side_effect = rendezvous_trend
+    mock_chips_call_llm.side_effect = rendezvous_chips
     mock_question_call_llm.return_value = (
         json.dumps(
             {
@@ -274,7 +281,6 @@ def test_market_and_trend_run_in_parallel_not_sequential(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -286,6 +292,7 @@ def test_market_and_trend_run_in_parallel_not_sequential(
 
     mock_get_market.assert_called_once()
     mock_get_trend.assert_called_once()
+    mock_chips_call_llm.assert_called_once()
 
 
 def test_default_path_skips_link_to_ads() -> None:
@@ -300,9 +307,9 @@ def test_default_path_skips_link_to_ads() -> None:
 
 
 def test_default_path_has_expected_topology() -> None:
-    """SDP §6.1 순서대로 연결돼 있어야 한다. market_for_consult·trend_for_consult는
-    서로의 결과를 쓰지 않아(v2 섹션F) suggested_chips에서 갈라졌다가 strategy 앞에서
-    합류하는 병렬 구간이고, 나머지는 순차 연결이다."""
+    """SDP §6.1 순서대로 연결돼 있어야 한다. suggested_chips·market_for_consult·
+    trend_for_consult는 서로의 결과를 쓰지 않아(v3 섹션F) question_analysis 직후
+    셋 다 갈라졌다가 strategy 앞에서 합류하는 병렬 구간이고, 나머지는 순차 연결이다."""
     drawable = build_consultant().get_graph()
 
     assert set(drawable.nodes.keys()) == {
@@ -324,8 +331,9 @@ def test_default_path_has_expected_topology() -> None:
         ("__start__", "security_input"),
         ("security_input", "question_analysis"),
         ("question_analysis", "suggested_chips"),
-        ("suggested_chips", "market_for_consult"),
-        ("suggested_chips", "trend_for_consult"),
+        ("question_analysis", "market_for_consult"),
+        ("question_analysis", "trend_for_consult"),
+        ("suggested_chips", "strategy"),
         ("market_for_consult", "strategy"),
         ("trend_for_consult", "strategy"),
         ("strategy", "strategy_check"),
