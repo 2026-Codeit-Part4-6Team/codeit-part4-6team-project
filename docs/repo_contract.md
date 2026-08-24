@@ -70,7 +70,6 @@ def get_trend(keyword: str) -> dict | None:
 | `keyword` | str | 조회한 검색어 |
 | `direction` | str | `"상승"` / `"하락"` / `"유지"` |
 | `related` | list[str] | 연관 검색어 |
-| `weather` | dict \| None | 날씨 정보(선택). 있으면 `{"temp": float, "sky": str}` 형태 — 이 형식이 최종 계약이며, 외부 API 응답 형식이 다르면 `trend_repo` 내부에서 이 형식으로 변환해 반환한다 |
 
 **예시 응답** (`get_trend("아이스아메리카노")`)
 
@@ -78,12 +77,9 @@ def get_trend(keyword: str) -> dict | None:
 {
   "keyword": "아이스아메리카노",
   "direction": "상승",
-  "related": ["여름음료", "냉커피"],
-  "weather": null
+  "related": ["여름음료", "냉커피"]
 }
 ```
-
-> `weather`는 현재 미구현이다(날씨 API 미연동) — `get_trend()`는 항상 `null`을 반환한다.
 
 - 실패 시 `None`을 반환한다. 좌표 없이 검색어(`keyword`)만으로 캐시 키를 쓰며(공백 제거 정규화), TTL 7일.
 
