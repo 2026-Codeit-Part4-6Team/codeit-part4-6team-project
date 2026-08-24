@@ -37,7 +37,9 @@ describe("SettingsPage", () => {
   });
 
   it("keeps uncontracted model choices disabled", () => {
-    const html = renderToStaticMarkup(<SettingsPage onBack={() => undefined} />);
+    const html = renderToStaticMarkup(
+      <SettingsPage api={new ApiClient()} user={user} onBack={() => undefined} />,
+    );
 
     expect(html).toContain('disabled=""');
     expect(html).toContain("Provider 확정 후 제공 예정");
