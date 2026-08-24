@@ -9,8 +9,28 @@ _VALID_ACTION_TYPES = {"menu", "promotion", "target", "other"}
 _MAX_REASONS_RETRIES = 2  # 근거 부족 재생성 상한(SDP §6.5)
 
 
+def normalize_title(title: object, store_name: str) -> str:
+    """title이 없거나 공백뿐이면 가게 이름 기반 기본 제목으로 폴백한다.
+
+    summary/actions/reasons와 달리 title은 형식 오류로 전체 응답을 실패시키지
+    않는다 — 제목 하나 때문에 좋은 전략을 버리면 안 된다(PM 리뷰, D7 계약
+    정합성). main.py의 assemble_response()도 이 함수를 그대로 써서, 파싱 직후와
+    최종 조립 시점의 검증 수준이 서로 달라지지 않게 한다(Codex 리뷰로 발견 —
+    조립 단계는 원래 truthy 여부만 봐서 공백 문자열("   ")도 통과시켰었다).
+    """
+    if not isinstance(title, str) or not title.strip():
+        return f"{store_name} 마케팅 전략"
+    return title.strip()
+
+
 def strategy(state: ConsultState) -> dict:
-    """질문·가게 정보·(있으면) 상권 데이터로 전략(summary+actions+reasons)을 생성한다.
+    """질문·가게 정보·(있으면) 상권 데이터로 전략(title+summary+actions+reasons)을 생성한다.
+
+    title은 backend/schemas.py의 ConsultantModelResult.title(min_length=1 필수)에
+    대응한다 — 지금까지는 mock_chatbot.py가 대신 채워줘서 통과했지만, 계약상 모델이
+    반환해야 하는 필드다(D7 계약 정합성 점검, PM 리뷰). 다만 summary/actions/reasons와
+    달리 형식 오류로 전체 응답을 실패시키지 않고 가게 이름 기반 기본 제목으로 폴백한다
+    — 제목 하나 때문에 좋은 전략을 버리면 안 되기 때문이다.
 
     상권 데이터(context["market"])·트렌드 데이터(context["trend"])가 없으면(조회 실패,
     keyword 없음, 노드 조기 실행 등) 프롬프트에서 해당 섹션이 통째로 빠지고 나머지
@@ -69,6 +89,8 @@ def strategy(state: ConsultState) -> dict:
             raise ValueError("LLM이 재생성 후에도 근거(reasons)를 반환하지 않았습니다.")
         retry_count += 1
 
+    title = normalize_title(parsed.get("title"), store["name"])
+
     # market_for_consult/trend_for_consult가 둘 다 실패(또는 조기 실행)하면 sources가
     # 비어 있는 채로 넘어온다 — 서비스 계약(ConsultantModelResult.sources, min_length=1)이
     # 깨지므로, 최소한 가게 정보는 항상 근거로 쓰이니 "가게정보"를 기본 출처로 채운다.
@@ -77,7 +99,7 @@ def strategy(state: ConsultState) -> dict:
     sources_update = {} if state.get("sources") else {"sources": ["가게정보"]}
 
     return {
-        "result": {"summary": summary.strip(), "actions": actions, "reasons": reasons},
+        "result": {"title": title, "summary": summary.strip(), "actions": actions, "reasons": reasons},
         "tokens_used": state.get("tokens_used", 0) + total_tokens,
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).

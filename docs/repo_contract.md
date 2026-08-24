@@ -54,15 +54,16 @@ def get_market(
 ## `cache.trend_repo.get_trend` (실제 구현, D5 완료)
 
 ```python
-def get_trend(keyword: str, industry: str | None = None) -> dict | None:
+def get_trend(keyword: str) -> dict | None:
     ...
 ```
 
-> ⚠️ **`industry`는 현재 무시된다.** 시그니처에는 있지만 캐시 키·API 호출 어디에도
-> 반영되지 않는다 — 트렌드 조회에 쓰는 두 API(NAVER API HUB 검색어 트렌드, 검색광고
-> 연관 검색어)가 애초에 업종 개념을 받지 않고, `get_trend()`는 가공까지 끝난 최종
-> 결과를 통째로 캐싱해 같은 검색어를 업종별로 나눠 캐싱할 이유도 없다(D-188). 실제
-> 파라미터 제거는 기본 챗봇 호출부도 함께 고쳐야 해 D8 정리 PR로 별도 진행한다.
+> ⚠️ **`industry` 파라미터는 제거됐다.** 트렌드 조회에 쓰는 두 API(NAVER API HUB
+> 검색어 트렌드, 검색광고 연관 검색어)가 애초에 업종 개념을 받지 않고,
+> `get_trend()`는 가공까지 끝난 최종 결과를 통째로 캐싱해 같은 검색어를
+> 업종별로 나눠 캐싱할 이유도 없었다(D-188). 컨설턴트 쪽 호출부(`trend_for_consult.py`)는
+> 애초에 `industry`를 넘기지 않아 영향이 없다. 기본 챗봇 호출부(`trend_for_copy.py`)는
+> 아직 `industry=` 키워드 인자로 호출 중이라 별도 PR로 정리가 필요하다.
 
 | 필드 | 타입 | 설명 |
 | --- | --- | --- |
@@ -78,9 +79,11 @@ def get_trend(keyword: str, industry: str | None = None) -> dict | None:
   "keyword": "아이스아메리카노",
   "direction": "상승",
   "related": ["여름음료", "냉커피"],
-  "weather": {"temp": 31.0, "sky": "맑음"}
+  "weather": null
 }
 ```
+
+> `weather`는 현재 미구현이다(날씨 API 미연동) — `get_trend()`는 항상 `null`을 반환한다.
 
 - 실패 시 `None`을 반환한다. 좌표 없이 검색어(`keyword`)만으로 캐시 키를 쓰며(공백 제거 정규화), TTL 7일.
 

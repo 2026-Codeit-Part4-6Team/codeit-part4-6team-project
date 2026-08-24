@@ -37,7 +37,7 @@ def test_calls_get_trend_with_keyword_and_store_type(mock_get_trend) -> None:
 
     trend_for_consult(_state(keyword="아이스아메리카노"))
 
-    mock_get_trend.assert_called_once_with("아이스아메리카노", industry="카페")
+    mock_get_trend.assert_called_once_with("아이스아메리카노")
 
 
 @patch("models.consult.nodes.trend_for_consult.get_trend")
