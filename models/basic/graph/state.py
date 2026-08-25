@@ -2,6 +2,11 @@ from typing import NotRequired
 
 from models.shared.state_common import CommonState
 
+PROPOSAL_ERROR_REASONS = frozenset(
+    {"rate_limit", "content_policy", "timeout", "unknown", "parse_failed"}
+)
+REASON_UNKNOWN = "unknown"
+
 
 class BasicState(CommonState):
     """기본 카피/이미지 생성 파이프라인 전용 상태.
