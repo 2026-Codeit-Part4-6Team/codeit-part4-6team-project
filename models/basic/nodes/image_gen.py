@@ -1,11 +1,24 @@
 import base64
 import io
 
+import openai
 from PIL import Image
 
 from ..clients.image_client import generate_image
 from ..graph.state import BasicState
-from ..llm_errors import classify_image_error
+
+
+def _classify_image_error(exc: Exception) -> str:
+    """이미지 생성 예외를 rate_limit/timeout/content_policy/unknown 사유로 분류한다."""
+    if isinstance(exc, openai.RateLimitError):
+        return "rate_limit"
+    if isinstance(exc, openai.APITimeoutError):
+        return "timeout"
+    if isinstance(exc, openai.BadRequestError):
+        return "content_policy"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    return "unknown"
 
 _PLATFORM_IMAGE_SIZE = {
     "instagram": "1024x1024",  # 정사각형
@@ -117,7 +130,7 @@ def image_gen_node(state: BasicState) -> dict:
             prompts.append(prompt_record)
         # BLE001 억제 사유: 항목 하나 실패가 배치 전체를 죽이지 않도록 모든 예외를 잡아 개별 에러로 기록
         except Exception as exc:  # noqa: BLE001
-            reason = classify_image_error(exc)
+            reason = _classify_image_error(exc)
             updated.append(
                 {
                     **c,

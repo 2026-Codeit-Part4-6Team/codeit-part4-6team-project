@@ -25,6 +25,9 @@ def _fake_call_llm(
     payload = json.loads(user)
 
     if "카피라이터" in system:
+        assert (
+            payload.get("benchmark") is not None
+        ), "benchmark 컨텍스트가 copy_gen에 전달되지 않았습니다."
         content = json.dumps(
             {
                 "candidates": [
@@ -102,6 +105,12 @@ def _mock_external_calls():
             return_value=_FAKE_IMAGE_B64,
         ),
         patch("models.basic.nodes.image_review._clip_score", return_value=0.9),
+        patch(
+            "models.basic.nodes.benchmark_node.search_benchmark",
+            return_value=[
+                {"id": "bm_001", "industry": "카페", "copy": "시원한 콜드브루 한 잔"}
+            ],
+        ),
     ):
         yield
 
