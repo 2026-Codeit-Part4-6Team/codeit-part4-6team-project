@@ -82,6 +82,15 @@ class RegisterRequest(StrictModel):
         return value
 
 
+class GeocodePreviewResponse(StrictModel):
+    """회원가입 전에 확인한 주소와 지도 표시용 좌표입니다."""
+
+    query: str
+    road_address: str
+    lat: float
+    lng: float
+
+
 class StoreProfileUpdate(StrictModel):
     """로그인 사용자가 수정할 수 있는 가게 프로필 필드입니다."""
 

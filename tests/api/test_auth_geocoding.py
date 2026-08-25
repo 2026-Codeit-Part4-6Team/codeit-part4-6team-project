@@ -101,6 +101,49 @@ def test_register_saves_geocoded_address_and_next_reset_at(geocoding_context):
         assert user.daily_free_reset_at is not None
 
 
+def test_geocode_preview_returns_address_and_coordinates_without_creating_user(
+    geocoding_context,
+):
+    """회원가입 전 주소 확인은 좌표를 반환하되 사용자나 세션을 만들지 않습니다."""
+    app, testing_session = geocoding_context
+    app.dependency_overrides[get_geocoding_client] = lambda: FakeGeocodingClient(
+        GeocodingResult(
+            road_address="서울특별시 강남구 테헤란로 1",
+            lat=37.4979,
+            lng=127.0276,
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/auth/geocode-preview",
+            params={"address": "서울 강남구 테헤란로 1"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "query": "서울 강남구 테헤란로 1",
+        "road_address": "서울특별시 강남구 테헤란로 1",
+        "lat": 37.4979,
+        "lng": 127.0276,
+    }
+    assert user_count(testing_session) == 0
+
+
+def test_geocode_preview_reuses_address_error_contract(geocoding_context):
+    """미리보기에서도 주소 없음은 가입 API와 같은 사용자 오류 코드로 반환합니다."""
+    app, _testing_session = geocoding_context
+    app.dependency_overrides[get_geocoding_client] = lambda: FakeGeocodingClient(
+        error=GeocodingNotFound("주소 없음")
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/auth/geocode-preview", params={"address": "없는 주소"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "address_not_found"
+
+
 def test_register_returns_422_and_saves_nothing_when_address_is_not_found(
     geocoding_context,
 ):

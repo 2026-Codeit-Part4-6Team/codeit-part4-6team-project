@@ -3,6 +3,31 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiClient, ApiError } from "./api";
 
 describe("ApiClient", () => {
+  it("requests a geocode preview without submitting registration", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          query: "서울 강남구 테헤란로 1",
+          road_address: "서울특별시 강남구 테헤란로 1",
+          lat: 37.4979,
+          lng: 127.0276,
+        }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await expect(api.geocodePreview("서울 강남구 테헤란로 1")).resolves.toMatchObject({
+      road_address: "서울특별시 강남구 테헤란로 1",
+      lat: 37.4979,
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "/api/auth/geocode-preview?address=%EC%84%9C%EC%9A%B8%20%EA%B0%95%EB%82%A8%EA%B5%AC%20%ED%85%8C%ED%97%A4%EB%9E%80%EB%A1%9C%201",
+    );
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
+  });
+
   it("sends registration payload and accepts an empty logout response", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

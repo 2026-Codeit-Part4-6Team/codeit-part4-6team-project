@@ -30,6 +30,13 @@ export type UserResponse = {
   daily_free_remaining: number;
 };
 
+export type GeocodePreviewResponse = {
+  query: string;
+  road_address: string;
+  lat: number;
+  lng: number;
+};
+
 export type DemoTestStateRequest = {
   credits: number;
   daily_free_used: number;
@@ -160,6 +167,12 @@ export class ApiClient {
     return this.request("/auth/register", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  }
+
+  geocodePreview(address: string): Promise<GeocodePreviewResponse> {
+    return this.request(`/auth/geocode-preview?address=${encodeURIComponent(address)}`, {
+      method: "GET",
     });
   }
 

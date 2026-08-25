@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from backend.clients.geocoding_client import (
@@ -12,7 +12,7 @@ from backend.clients.geocoding_client import (
 )
 from backend.config import settings
 from backend.database import get_db
-from backend.schemas import LoginRequest, RegisterRequest, UserResponse
+from backend.schemas import GeocodePreviewResponse, LoginRequest, RegisterRequest, UserResponse
 from backend.services.auth_service import (
     DuplicateEmailError,
     DuplicateUsernameError,
@@ -32,6 +32,35 @@ def get_geocoding_policy() -> GeocodingPolicy:
         fallback_lat=settings.geocode_fallback_lat,
         fallback_lng=settings.geocode_fallback_lng,
     )
+
+
+@router.get("/geocode-preview", response_model=GeocodePreviewResponse)
+async def geocode_preview(
+    address: Annotated[str, Query(min_length=1, max_length=500)],
+    geocoder: Annotated[GeocodingClient, Depends(get_geocoding_client)],
+) -> GeocodePreviewResponse:
+    """회원가입 전에 입력 주소를 지도 미리보기용 좌표로 확인합니다."""
+    try:
+        result = await geocoder.geocode(address.strip())
+        return GeocodePreviewResponse(
+            query=address.strip(),
+            road_address=result.road_address,
+            lat=result.lat,
+            lng=result.lng,
+        )
+    except GeocodingNotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "address_not_found", "message": "주소 검색 결과가 없습니다."},
+        ) from error
+    except GeocodingProviderError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": "geocoding_unavailable",
+                "message": "현재 주소 확인 서비스를 사용할 수 없습니다.",
+            },
+        ) from error
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

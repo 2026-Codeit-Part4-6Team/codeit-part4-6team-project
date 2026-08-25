@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 
-import { type ApiClient, type UserResponse } from "../api";
+import { type ApiClient, type GeocodePreviewResponse, type UserResponse } from "../api";
 import {
   authErrorMessage,
   registerAndLogin,
@@ -33,6 +33,9 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
   const [registration, setRegistration] = useState<RegistrationFields>(emptyRegistration);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mapPreview, setMapPreview] = useState<GeocodePreviewResponse | null>(null);
+  const [mapPreviewError, setMapPreviewError] = useState<string | null>(null);
+  const [mapPreviewBusy, setMapPreviewBusy] = useState(false);
 
   function switchMode(nextMode: "login" | "register") {
     setMode(nextMode);
@@ -41,6 +44,28 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
 
   function updateRegistration(key: keyof RegistrationFields, value: string) {
     setRegistration((current) => ({ ...current, [key]: value }));
+    if (key === "address") {
+      setMapPreview(null);
+      setMapPreviewError(null);
+    }
+  }
+
+  async function previewAddress() {
+    const address = registration.address.trim();
+    if (!address) {
+      setMapPreviewError("주소를 먼저 입력해주세요.");
+      return;
+    }
+    setMapPreviewBusy(true);
+    setMapPreviewError(null);
+    try {
+      setMapPreview(await api.geocodePreview(address));
+    } catch (caught) {
+      setMapPreviewError(authErrorMessage(caught));
+      setMapPreview(null);
+    } finally {
+      setMapPreviewBusy(false);
+    }
   }
 
   async function submitLogin(event: FormEvent) {
@@ -207,14 +232,26 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
               <legend>위치</legend>
               <label>
                 주소
-                <input
-                  name="address"
-                  value={registration.address}
-                  onChange={(event) => updateRegistration("address", event.target.value)}
-                  placeholder="예: 서울 강남구 테헤란로 1"
-                  required
-                />
+                <div className="address-preview-row">
+                  <input
+                    name="address"
+                    value={registration.address}
+                    onChange={(event) => updateRegistration("address", event.target.value)}
+                    placeholder="예: 서울 강남구 테헤란로 1"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="secondary address-preview-button"
+                    onClick={previewAddress}
+                    disabled={mapPreviewBusy}
+                  >
+                    {mapPreviewBusy ? "확인 중…" : "지도 확인"}
+                  </button>
+                </div>
               </label>
+              {mapPreviewError && <p className="map-preview-message map-preview-message--error" role="alert">{mapPreviewError}</p>}
+              {mapPreview && <AddressMapPreview preview={mapPreview} />}
               <label>
                 상세주소 <small>선택</small>
                 <input
@@ -258,5 +295,35 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
         </section>
       )}
     </main>
+  );
+}
+
+function AddressMapPreview({ preview }: { preview: GeocodePreviewResponse }) {
+  const delta = 0.004;
+  const bbox = [
+    preview.lng - delta,
+    preview.lat - delta,
+    preview.lng + delta,
+    preview.lat + delta,
+  ].join(",");
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${preview.lat},${preview.lng}`;
+
+  return (
+    <div className="map-preview" aria-label="주소 지도 미리보기">
+      <div className="map-preview-heading">
+        <div>
+          <strong>이 위치로 가게를 등록할까요?</strong>
+          <span>{preview.road_address}</span>
+        </div>
+        <span className="map-preview-badge">주소 확인됨</span>
+      </div>
+      <iframe
+        title={`${preview.road_address} 지도`}
+        src={mapUrl}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+      <small>가입을 완료하면 이 좌표가 상권 분석 기준점으로 저장됩니다.</small>
+    </div>
   );
 }
