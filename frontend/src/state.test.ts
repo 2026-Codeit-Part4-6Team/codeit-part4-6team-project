@@ -5,8 +5,8 @@ import {
   createFollowUpMessage,
   createPendingGeneration,
   generationPayload,
-  mockFollowUpReply,
   nextGenerationAction,
+  withClarification,
 } from "./state";
 
 describe("generation state", () => {
@@ -67,6 +67,21 @@ describe("generation state", () => {
       role: "user",
       content: "더 캐주얼하게",
     });
-    expect(mockFollowUpReply("20대 대상으로 바꿔줘")).toContain("20대");
+  });
+
+  it("adds clarification to the next generation request without dropping other fields", () => {
+    expect(withClarification({
+      purpose: "신메뉴 홍보",
+      price_range: null,
+      target_age: "20대",
+      strength: null,
+      clarification: null,
+    }, "더 캐주얼하게")).toEqual({
+      purpose: "신메뉴 홍보",
+      price_range: null,
+      target_age: "20대",
+      strength: null,
+      clarification: "더 캐주얼하게",
+    });
   });
 });

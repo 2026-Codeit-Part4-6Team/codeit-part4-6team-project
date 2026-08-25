@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
+import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import {
   buildEstimatePayload,
   type ChatbotType,
@@ -12,8 +12,8 @@ import {
   apiErrorMessage,
   createFollowUpMessage,
   generationPayload,
-  mockFollowUpReply,
   nextGenerationAction,
+  withClarification,
   type GenerationAction,
   type FollowUpMessage,
   type PendingGeneration,
@@ -32,6 +32,18 @@ type GenerationRunner = {
   run: (pending: PendingGeneration) => Promise<GenerationResponse>;
   dispose: () => void;
 };
+
+export async function syncUserAfterGeneration(
+  api: Pick<ApiClient, "me">,
+  onUserChanged?: (user: UserResponse) => void,
+): Promise<void> {
+  if (!onUserChanged) return;
+  try {
+    onUserChanged(await api.me());
+  } catch {
+    // 생성 결과는 성공했으므로 사용자 정보 갱신 실패가 결과를 가리면 안 됩니다.
+  }
+}
 
 export function createGenerationRunner(
   api: Pick<ApiClient, "generate" | "waitingCopy">,
@@ -105,7 +117,7 @@ export function shouldShowFollowUpComposer(
   return response !== null && isSuccessfulGeneration(response);
 }
 
-function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
+export function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
   const [value, setValue] = useState("");
 
   function submit(event: FormEvent) {
@@ -116,7 +128,7 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   }
 
   return (
-    <section className="card follow-up-card">
+    <section className="card follow-up-card follow-up-card--wide">
       <div><p className="kicker">KEEP REFINING</p><h2>원하는 방향을 더 알려주세요</h2><p>결과를 본 뒤에도 대화로 문구와 타깃을 조정할 수 있어요.</p></div>
       {messages.length > 0 && <div className="message-list">{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><span>{message.role === "user" ? "나" : "AI"}</span><p>{message.content}</p></div>)}</div>}
       <form className="follow-up-form" onSubmit={submit}><input value={value} onChange={(event) => setValue(event.target.value)} placeholder="예: 20대 고객에게 더 친근하게 바꿔줘" aria-label="추가 요청" /><button type="submit" className="primary">보내기</button></form>
@@ -124,7 +136,7 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   );
 }
 
-export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; chatbotType?: ChatbotType }) {
+export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { api: ApiClient; chatbotType?: ChatbotType; onUserChanged?: (user: UserResponse) => void }) {
   const mascot = chatbotType === "basic"
     ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
     : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
@@ -154,18 +166,21 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function requestEstimate() {
+  async function requestEstimate(
+    extraOverride: GenerateExtra = extra,
+    preserveMessages = false,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
     setPending(null);
     setGeneration(null);
     setPublishedProposalIndex(null);
-    setMessages([]);
+    if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, question, platform, extra);
+      const payload = buildEstimatePayload(chatbotType, question, platform, extraOverride);
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, crypto.randomUUID());
       setPending(action.pending);
@@ -176,6 +191,18 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
       setBusy(false);
     }
     if (immediate !== null) await generate(immediate);
+  }
+
+  async function submitFollowUp(value: string) {
+    const clarification = value.trim();
+    if (!clarification || busy) return;
+    const nextExtra = withClarification(extra, clarification);
+    setMessages((current) => [
+      ...current,
+      createFollowUpMessage("user", clarification, `${Date.now()}-user`),
+    ]);
+    setExtra(nextExtra);
+    await requestEstimate(nextExtra, true);
   }
 
   async function estimate(event: FormEvent) {
@@ -189,7 +216,9 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     setError(null);
     let immediateRetry: PendingGeneration | null = null;
     try {
-      setGeneration(await runner.run(candidate));
+      const nextGeneration = await runner.run(candidate);
+      setGeneration(nextGeneration);
+      await syncUserAfterGeneration(api, onUserChanged);
     } catch (caught) {
       if (isBillingConfirmationRequired(caught)) {
         try {
@@ -278,7 +307,7 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           onCancel={() => setPending(null)}
         />
       )}
-      {waiting && <WaitingScreen copyText={waitingCopy} />}
+      {waiting && <WaitingScreen copyText={waitingCopy} chatbotType={chatbotType} platform={platform} />}
       {generation && (
         <ResultView
           response={generation}
@@ -287,9 +316,10 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+          onClarification={(value) => void submitFollowUp(value)}
         />
       )}
-      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void submitFollowUp(value)} />}
     </section>
   );
 }
