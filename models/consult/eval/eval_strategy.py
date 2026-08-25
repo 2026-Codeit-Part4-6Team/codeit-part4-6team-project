@@ -47,12 +47,14 @@ JUDGE_SYSTEM_PROMPT = """당신은 소상공인 컨설턴트 챗봇 응답 평�
 반드시 다음 JSON 객체 형식으로만 답하세요.
 {"평가항목": {"score": 1, "reason": "판정 근거 한 문장"}}
 
-① 근거_충실도 — reasons가 주어진 상권 정보를 정확하고 논리적으로 활용했는가
-1점: 주어진 상권 정보를 사용하지 않고 막연하거나 확인할 수 없는 주장만 함
-2점: 상권 정보를 언급하지만 질문이나 제안과 관련이 없거나 의미를 잘못 해석함
+① 근거_충실도 — reasons가 주어진 상권·트렌드 정보와 계절성 참고의 원시 날짜를
+정확하고 논리적으로 활용했는가
+1점: 주어진 정보(상권·트렌드·계절성)를 사용하지 않고 막연하거나 확인할 수 없는
+주장만 함
+2점: 정보를 언급하지만 질문이나 제안과 관련이 없거나 의미를 잘못 해석함
 3점: fixture의 수치를 정확히 인용하지만 단순 나열에 그쳐 전략과의 연결이 부족함
-4점: 질문과 관련된 fixture 수치를 선택해 전략의 근거로 자연스럽게 연결함
-5점: 가장 관련 있는 상권 정보를 정확히 활용하고, 과도한 단정 없이 왜 전략의 근거가
+4점: 질문과 관련된 정보를 선택해 전략의 근거로 자연스럽게 연결함
+5점: 가장 관련 있는 정보를 정확히 활용하고, 과도한 단정 없이 왜 전략의 근거가
 되는지 설득력 있게 설명함
 
 ② 실행_가능성 — actions를 소상공인이 실제 영업 환경에서 실행할 수 있는가
@@ -112,10 +114,19 @@ def _check_contract(response: dict, expected: dict) -> bool:
     return all(source in sources for source in expected.get("must_include_sources", []))
 
 
-def _check_number_rules(response: dict, expected: dict) -> tuple[bool, list[int | float]]:
-    """지정 범위의 숫자가 존재하고 G-08 허용 목록을 정확히 따르는지 확인한다."""
+def _check_number_rules(
+    response: dict, expected: dict, seasonality: dict | None = None
+) -> tuple[bool, list[int | float]]:
+    """지정 범위의 숫자가 존재하고 G-08 허용 목록을 정확히 따르는지 확인한다.
+
+    seasonality가 주어지면 그 안의 reference_date·calendar_period를 문자 그대로
+    인용한 부분만 숫자 검사에서 뺀다(v3 섹션C 프롬프트가 reasons에 이 인용을
+    명시적으로 허용하기 때문). 8·2026·24 같은 낱개 숫자를 전역 허용 목록에 넣지
+    않는 이유는, 그러면 전혀 다른 문맥의 "8%"·"2026원"까지 통과시켜버리기
+    때문이다(Codex 리뷰) — 실제 문자열이 정확히 일치하는 인용만 예외로 둔다.
+    """
     scope = expected.get("number_scope", "reasons")
-    extracted = _extract_numbers(response.get(scope))
+    extracted = _extract_numbers(response.get(scope), seasonality)
     allowed = {
         normalized
         for value in expected.get("allowed_numbers", [])
@@ -133,10 +144,13 @@ def _check_number_rules(response: dict, expected: dict) -> tuple[bool, list[int 
     return has_required_number and strict_ok, unexpected
 
 
-def _extract_numbers(value: Any) -> list[tuple[Decimal, int | float]]:
+def _extract_numbers(
+    value: Any, seasonality: dict | None = None
+) -> list[tuple[Decimal, int | float]]:
     """문자열 또는 문자열 목록에서 비교용 Decimal과 JSON 저장용 숫자를 뽑는다."""
     numbers = []
     for text in _iter_text(value):
+        text = _mask_seasonality_citation(text, seasonality)
         for match in _NUMBER_PATTERN.findall(text):
             normalized = Decimal(match.replace(",", ""))
             original = (
@@ -144,6 +158,21 @@ def _extract_numbers(value: Any) -> list[tuple[Decimal, int | float]]:
             )
             numbers.append((normalized, original))
     return numbers
+
+
+def _mask_seasonality_citation(text: str, seasonality: dict | None) -> str:
+    """계절성 참고에 실제로 주어진 reference_date·calendar_period를 문자 그대로
+    인용한 부분만 지운다 — 그 부분에 들어있는 숫자가 이어지는 숫자 검사에서
+    "낯선 숫자"로 잡히지 않게 하기 위해서다. 정확히 일치하는 문자열만 지우므로,
+    다른 날짜를 인용하거나 같은 숫자가 다른 문맥에 등장하면 그대로 남아 계속
+    검사 대상이 된다."""
+    if not seasonality:
+        return text
+    for key in ("reference_date", "calendar_period"):
+        citation = seasonality.get(key)
+        if isinstance(citation, str) and citation:
+            text = text.replace(citation, "")
+    return text
 
 
 def _iter_text(value: Any):
@@ -247,6 +276,10 @@ def _judge_response(
         "rubric": rubric,
         "market_fixture": _judge_market_fixture(context_snapshot.get("market")),
         "trend_fixture": context_snapshot.get("trend"),
+        # 생성 모델이 실제로 본 필드만 넘긴다는 원칙(_judge_market_fixture와 동일) —
+        # 계절성도 프롬프트에 실제로 주입되는 데이터라 빠지면 Judge가 정상적으로
+        # 날짜를 인용한 응답을 검증할 근거 없이 낮게 채점할 수 있다(Codex 리뷰).
+        "seasonality": context_snapshot.get("seasonality"),
         "response": response,
     }
     raw, _ = shared_llm.call_llm(
@@ -342,7 +375,9 @@ def _evaluate_item(item: dict) -> dict:
 
     expected = item.get("expected") or {}
     contract_ok = _check_contract(response, expected)
-    number_ok, unexpected_numbers = _check_number_rules(response, expected)
+    number_ok, unexpected_numbers = _check_number_rules(
+        response, expected, context_snapshot.get("seasonality")
+    )
     try:
         scores = _judge_response(item, response, context_snapshot)
         judge_error = None

@@ -11,6 +11,7 @@ import pytest
 from models.consult.eval.eval_strategy import (
     DEFAULT_DATASET_PATH,
     DEFAULT_STORE,
+    JUDGE_SYSTEM_PROMPT,
     _build_model_request,
     _build_report,
     _check_contract,
@@ -200,6 +201,78 @@ def test_check_number_rules_rejects_missing_required_number() -> None:
     assert unexpected == []
 
 
+def test_check_number_rules_excludes_exact_seasonality_citation() -> None:
+    """프롬프트가 reasons에 계절성 참고의 원시 날짜(요청 기준일) 인용을 명시적으로
+    허용하는데, strict 검사가 그 날짜를 쪼갠 숫자(2026·8·24)까지 환각으로 잡으면
+    정상 응답이 실패 처리된다 — 실제로 (False, [8, 2026, 24])로 재현됨(Codex 리뷰)."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [177],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름 말기",
+    }
+    response = {
+        "reasons": [
+            "반경 내 동일 업종이 177곳입니다.",
+            "8월 하순(요청 기준일 2026-08-24) 기준 여름 성수기입니다.",
+        ]
+    }
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is True
+    assert unexpected == []
+
+
+def test_check_number_rules_still_flags_a_different_date_than_the_given_one() -> None:
+    """실제로 주어진 기준일과 다른 날짜를 인용하면(진짜 환각) 계절성 예외가
+    적용되지 않고 그대로 잡혀야 한다 — 정확히 일치하는 인용만 예외 대상이다."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름 말기",
+    }
+    response = {"reasons": ["2026-09-01 기준으로 보면 성수기입니다."]}
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is False
+    assert set(unexpected) == {2026, 9, 1}
+
+
+def test_check_number_rules_still_flags_unrelated_numbers_matching_seasonality_digits() -> None:
+    """계절성 예외는 정확한 문자열 인용에만 적용된다 — 같은 숫자(8·2026)가 전혀
+    다른 문맥(할인율·가격)에 등장하면 전역 허용 목록처럼 동작해서는 안 된다."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름 말기",
+    }
+    response = {"reasons": ["8% 할인과 2026원 적립 혜택을 제공합니다."]}
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is False
+    assert set(unexpected) == {8, 2026}
+
+
 def test_check_number_rules_does_not_treat_bool_as_allowed_number() -> None:
     expected = {
         "number_scope": "reasons",
@@ -353,6 +426,12 @@ def test_judge_market_fixture_strips_industry_breakdown_but_keeps_density_tier()
     assert filtered["total_count"] == 6691
 
 
+def test_judge_system_prompt_rubric_covers_seasonality() -> None:
+    """근거_충실도 축이 "상권 정보"만 언급하면, 계절성 원시 날짜를 정상 인용한
+    reasons를 Judge가 검증할 기준 자체가 없다(Codex 리뷰)."""
+    assert "계절성" in JUDGE_SYSTEM_PROMPT
+
+
 def test_judge_market_fixture_passes_through_none_and_empty() -> None:
     assert _judge_market_fixture(None) is None
     assert _judge_market_fixture({}) == {}
@@ -388,6 +467,11 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
             "direction": "상승",
             "related": ["구슬아이스크림"],
         },
+        "seasonality": {
+            "reference_date": "2026-08-24",
+            "calendar_period": "8월 하순",
+            "season_hint": "여름 말기",
+        },
     }
 
     scores = _judge_response(item, _OK_RESPONSE, context_snapshot)
@@ -406,6 +490,13 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
+    }
+    # 생성 모델이 실제로 본 계절성 데이터를 Judge도 똑같이 봐야, 날짜를 정상
+    # 인용한 응답을 근거 없이 낮게 채점하지 않는다(Codex 리뷰).
+    assert judge_input["seasonality"] == {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름 말기",
     }
     assert mock_call_llm.call_args.kwargs == {
         "json_mode": True,
