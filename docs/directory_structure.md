@@ -37,274 +37,280 @@
 (예시)
 sales-booster/
 │
-├── validation/                       # ★★ 전민재 PM 관리 — 두 챗봇 담당자는 import만
-│   ├── keywords.py                   # banned_keywords 로딩·대조 (공통 유틸)
-│   ├── patterns.py                   # 인젝션 대표 패턴 · RISKY_HINTS(1단 필터)
-│   ├── security.py                   # check_input(보안1) + check_output(보안2)
-│   │                                 #   ※ 둘 다 순수 보안이라 한 파일로 관리
-│   │                                 #   ★ D1에 두 함수 모두 pass 스텁으로 먼저 커밋
-│   │                                 #     check_input  → D2에 내용 채움
-│   │                                 #     check_output → D5에 내용 채움
-│   ├── regulation.py                 # ★ check_regulation — 1단 키워드 + 2단 RAG
-│   │                                 #   ★ D1 스텁 → D4 구현
-│   ├── self_check.py                 # self_check (품질 검사 — 보안 아님)
-│   │                                 #   ★ D1 스텁 → D5 구현
-│   ├── legal_retriever.py            # legal_kb FAISS 검색 래퍼
+├── validation/                        # ★★ 전민재 PM 관리 — 두 챗봇 담당자는 import만
+│   ├── keywords.py                    # banned_keywords 로딩·대조 (공통 유틸)
+│   ├── patterns.py                    # 인젝션 대표 패턴 · RISKY_HINTS(1단 필터)
+│   ├── security.py                    # check_input(보안1) + check_output(보안2)
+│   │                                  #   ※ 둘 다 순수 보안이라 한 파일로 관리
+│   │                                  #   ★ D1에 두 함수 모두 pass 스텁으로 먼저 커밋
+│   │                                  #     check_input  → D2에 내용 채움
+│   │                                  #     check_output → D5에 내용 채움
+│   ├── regulation.py                  # ★ check_regulation — 1단 키워드 + 2단 RAG
+│   │                                  #   ★ D1 스텁 → D4 구현
+│   ├── self_check.py                  # self_check (품질 검사 — 보안 아님)
+│   │                                  #   ★ D1 스텁 → D5 구현
+│   ├── legal_retriever.py             # legal_kb FAISS 검색 래퍼
 │   └── data/
-│       └── banned_keywords.csv       # 규제 키워드 사전 (전민재 PM 작성)
+│       └── banned_keywords.csv        # 규제 키워드 사전 (전민재 PM 작성)
 │
-├── cache/                            # ★★ 컨설턴트 챗봇 담당 관리 (1·2층) — 두 챗봇 공용
-│   ├── models.py                     # MarketCache·TrendCache·ReviewCache ORM
-│   │                                 #   ※ 테이블 DDL은 서비스 개발 담당자가 생성
-│   ├── market_repo.py                # ★ Cache-Aside · TTL 7일 · get_market()   [MUST]
-│   │                                 #   market_cache 적재 + get_market() 조회
-│   ├── trend_repo.py                 # ★ Cache-Aside · TTL 7일 · get_trend()    [SHOULD]
-│   │                                 #   트렌드 API 호출 + get_trend() 조회
-│   ├── review_repo.py                # 사전 배치 전용 · TTL 30일 · get_review()  [COULD]
-│   │                                 #   review_cache 적재 + 조회
-│   │                                 #   ※ 기본 챗봇 담당자는 미사용
-│   └── ttl.py                        # TTL 만료 판정 공통 유틸
-│                                     #   ★ D1에 mock 반환 스텁으로 먼저 커밋
+├── cache/                             # ★★ 컨설턴트 챗봇 담당 관리 (1·2층) — 두 챗봇 공용
+│   ├── models.py                      # MarketCache·TrendCache·ReviewCache ORM
+│   │                                  #   ※ 테이블 DDL은 서비스 개발 담당자가 생성
+│   ├── market_repo.py                 # ★ Cache-Aside · TTL 7일 · get_market()   [MUST]
+│   │                                  #   market_cache 적재 + get_market() 조회
+│   ├── trend_repo.py                  # ★ Cache-Aside · TTL 7일 · get_trend()    [SHOULD]
+│   │                                  #   트렌드 API 호출 + get_trend() 조회
+│   ├── review_repo.py                 # 사전 배치 전용 · TTL 30일 · get_review()  [COULD]
+│   │                                  #   review_cache 적재 + 조회
+│   │                                  #   ※ 기본 챗봇 담당자는 미사용
+│   └── ttl.py                         # TTL 만료 판정 공통 유틸
+│                                      #   ★ D1에 mock 반환 스텁으로 먼저 커밋
 │
-├── shared_data/                      # ★ 전민재 PM/컨설턴트 담당자가 채우는 데이터 자산
-│   │                                 #   기본 챗봇 담당자는 읽기만
-│   ├── legal_kb.md                   # ★ 규제 RAG 원본
-│   │                                 #   (전민재 PM 작성·1차 검토, 2차 검토 - 다른 담당자)
-│   ├── legal_kb.json                 # 스크립트가 생성 (gitignore 가능)
-│   ├── legal_index/                  # FAISS 인덱스 파일
-│   ├── golden_dataset.json           # 골든 데이터셋 55문항
-│   │                                 #   (기준=전민재 PM, 문항=팀 분담)
-│   │                                 #   ※ 컨설팅 문항은 컨설턴트 챗봇 담당자가 작성
-│   └── benchmark_kb.json             # 업종 벤치마크 KB 데이터
-│                                     #   (전민재 PM 또는 컨설턴트 챗봇 담당자가 작성)
+├── shared_data/                       # ★ 전민재 PM/컨설턴트 담당자가 채우는 데이터 자산
+│   │                                  #   기본 챗봇 담당자는 읽기만
+│   ├── legal_kb.md                    # ★ 규제 RAG 원본
+│   │                                  #   (전민재 PM 작성·1차 검토, 2차 검토 - 다른 담당자)
+│   ├── legal_kb.json                  # 스크립트가 생성 (gitignore 가능)
+│   ├── legal_index/                   # FAISS 인덱스 파일
+│   ├── golden_dataset.json            # 골든 데이터셋 55문항
+│   │                                  #   (기준=전민재 PM, 문항=팀 분담)
+│   │                                  #   ※ 컨설팅 문항은 컨설턴트 챗봇 담당자가 작성
+│   └── benchmark_kb.json              # 업종 벤치마크 KB 데이터
+│                                      #   (전민재 PM 또는 컨설턴트 챗봇 담당자가 작성)
 │
-├── backend/                          # ★★ 서비스 개발 담당 관리
-│   ├── main.py                       # FastAPI 앱 조립 · 라우터 등록 · CORS
-│   ├── config.py                     # .env 로딩(설정값·상수)
-│   ├── database.py                   # SQLAlchemy engine/session, get_db()
-│   ├── models.py                     # ORM 모델 4개 (users/payments/generations/waiting_copies)
-│   │                                 #   ※ 최상위 models/ 디렉토리와 다름 — 서비스 ORM 전용
-│   ├── schemas.py                    # Pydantic 요청·응답 스키마
-│   ├── auth.py                       # 비밀번호 해시·세션 검증
-│   ├── init_db.py                    # 테이블 생성 + 시드 데이터
+├── backend/                           # ★★ 서비스 개발 담당 관리
+│   ├── main.py                        # FastAPI 앱 조립 · 라우터 등록 · CORS
+│   ├── config.py                      # .env 로딩(설정값·상수)
+│   ├── database.py                    # SQLAlchemy engine/session, get_db()
+│   ├── models.py                      # ORM 모델 4개 (users/payments/generations/waiting_copies)
+│   │                                  #   ※ 최상위 models/ 디렉토리와 다름 — 서비스 ORM 전용
+│   ├── schemas.py                     # Pydantic 요청·응답 스키마
+│   ├── auth.py                        # 비밀번호 해시·세션 검증
+│   ├── init_db.py                     # 테이블 생성 + 시드 데이터
 │   │
-│   ├── routers/                      # ★ API 라우터 (서비스 개발 담당)
-│   │   ├── auth_router.py            # 회원가입·로그인·로그아웃
-│   │   ├── users_router.py           # 내 정보 조회/수정
-│   │   ├── generate_router.py        # 생성 요청·예상 차감 조회
-│   │   ├── generations_router.py     # 이력 목록·상세·삭제
-│   │   ├── payments_router.py        # 크레딧 충전
-│   │   └── waiting_router.py         # 대기 문구 제공
+│   ├── routers/                       # ★ API 라우터 (서비스 개발 담당)
+│   │   ├── auth_router.py             # 회원가입·로그인·로그아웃
+│   │   ├── users_router.py            # 내 정보 조회/수정
+│   │   ├── generate_router.py         # 생성 요청·예상 차감 조회
+│   │   ├── generations_router.py      # 이력 목록·상세·삭제
+│   │   ├── payments_router.py         # 크레딧 충전
+│   │   └── waiting_router.py          # 대기 문구 제공
 │   │
-│   ├── services/                     # ★ 비즈니스 로직 (가장 중요)
-│   │   ├── usage_service.py          # 일일 무료 확인·자정 리셋
-│   │   ├── credit_service.py         # 크레딧 차감·롤백·잔액 조회
-│   │   └── generation_service.py     # 생성 오케스트레이션·상태 전이
+│   ├── services/                      # ★ 비즈니스 로직 (가장 중요)
+│   │   ├── usage_service.py           # 일일 무료 확인·자정 리셋
+│   │   ├── credit_service.py          # 크레딧 차감·롤백·잔액 조회
+│   │   └── generation_service.py      # 생성 오케스트레이션·상태 전이
 │   │
-│   ├── clients/                      # ★ 모델 담당 연동부 (계약 경계)
-│   │   ├── chatbot_client.py         # 실제 챗봇 호출 (D7에 연결)
-│   │   │                             #   → models.basic.main / models.consult.main 을 호출
-│   │   └── mock_chatbot.py           # Mock 응답 (D1~D6 개발용)
+│   ├── clients/                       # ★ 모델 담당 연동부 (계약 경계)
+│   │   ├── chatbot_client.py          # 실제 챗봇 호출 (D7에 연결)
+│   │   │                              #   → models.basic.main / models.consult.main 을 호출
+│   │   └── mock_chatbot.py            # Mock 응답 (D1~D6 개발용)
 │   │
 │   ├── requirements.txt / pyproject.toml (uv)
 │   ├── Dockerfile / .dockerignore
-│   └── app.db                        # SQLite 파일 (gitignore)
+│   └── app.db                         # SQLite 파일 (gitignore)
 │
-├── frontend/                         # ★★ 서비스 개발 담당 관리
-│   ├── streamlit_app.py              # 진입점 · 로그인 상태 라우팅
-│   ├── api_client.py                 # 백엔드 호출 래퍼 (requests)
+├── frontend/                          # ★★ 서비스 개발 담당 관리
+│   ├── streamlit_app.py               # 진입점 · 로그인 상태 라우팅
+│   ├── api_client.py                  # 백엔드 호출 래퍼 (requests)
 │   │
-│   ├── pages/                        # ★ 화면 8종
-│   │   ├── login.py                  # 로그인/회원가입
-│   │   ├── dashboard.py              # 메인 대시보드(기능 카드 2종)
-│   │   ├── basic_chatbot.py          # 기본 챗봇(게시물 생성)
-│   │   ├── consultant_chatbot.py     # 컨설턴트 챗봇
-│   │   ├── mypage.py                 # 마이페이지(통계·이력)
-│   │   └── billing.py                # 크레딧 충전
+│   ├── pages/                         # ★ 화면 8종
+│   │   ├── login.py                   # 로그인/회원가입
+│   │   ├── dashboard.py               # 메인 대시보드(기능 카드 2종)
+│   │   ├── basic_chatbot.py           # 기본 챗봇(게시물 생성)
+│   │   ├── consultant_chatbot.py      # 컨설턴트 챗봇
+│   │   ├── mypage.py                  # 마이페이지(통계·이력)
+│   │   └── billing.py                 # 크레딧 충전
 │   │
-│   ├── components/                   # ★ 공통 컴포넌트
-│   │   ├── sidebar.py                # 내 가게·무료사용량·크레딧·메뉴4종
-│   │   ├── credit_dialog.py          # 크레딧 동의창(예상차감·잔액)
-│   │   ├── waiting_screen.py         # 대기 화면(문구 5초 랜덤)
-│   │   ├── result_view.py            # 결과·승인(제안 3안)
-│   │   └── error_banner.py           # 에러 배너 3종(402/429/5xx)
+│   ├── components/                    # ★ 공통 컴포넌트
+│   │   ├── sidebar.py                 # 내 가게·무료사용량·크레딧·메뉴4종
+│   │   ├── credit_dialog.py           # 크레딧 동의창(예상차감·잔액)
+│   │   ├── waiting_screen.py          # 대기 화면(문구 5초 랜덤)
+│   │   ├── result_view.py             # 결과·승인(제안 3안)
+│   │   └── error_banner.py            # 에러 배너 3종(402/429/5xx)
 │   │
 │   ├── requirements.txt
 │   └── Dockerfile
 │
-├── models/                           # ★★★ 모델 코드 묶음 — backend/ 의 형제 (하위 아님)
-│   │                                 #   ※ backend/ 하위에 두지 않는 이유:
-│   │                                 #     ① 배포 단위 분리(모델 수정이 backend 재빌드 유발 안 함)
-│   │                                 #     ② Mock 우선 전략 유지(D1~D6 backend 독립 개발)
-│   │                                 #     ③ 관리자 경계 유지 ④ 추후 GPU 서버 분리 대비
+├── models/                            # ★★★ 모델 코드 묶음 — backend/ 의 형제 (하위 아님)
+│   │                                  #   ※ backend/ 하위에 두지 않는 이유:
+│   │                                  #     ① 배포 단위 분리(모델 수정이 backend 재빌드 유발 안 함)
+│   │                                  #     ② Mock 우선 전략 유지(D1~D6 backend 독립 개발)
+│   │                                  #     ③ 관리자 경계 유지 ④ 추후 GPU 서버 분리 대비
 │   │
-│   ├── shared/                       # ★ 전민재 PM 관리 — 두 챗봇 담당자는 import만
-│   │   │                             #   ※ 완전히 동일한 코드만 여기로 올린다
-│   │   ├── llm.py                    # OpenAI 호출 래퍼(+429 백오프·데드라인)
-│   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
+│   ├── shared/                        # ★ 전민재 PM 관리 — 두 챗봇 담당자는 import만
+│   │   │                              #   ※ 완전히 동일한 코드만 여기로 올린다
+│   │   ├── llm.py                     # OpenAI 호출 래퍼(+429 백오프·데드라인)
+│   │   │                              #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
 |   |   |
-|   |   ├── llm_errors.py             # OpenAI 예외 처리 분류기(ErrorResult)
-│   │   │                             #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
+|   |   ├── llm_errors.py              # OpenAI 예외 처리 분류기(ErrorResult)
+│   │   │                              #   ★ 두 챗봇이 100% 동일 → 통합 (중복 제거)
 |   |   |
-|   |   ├── config.py                 # ★ 모델명·온도·재시도·타임아웃 — 두 챗봇 공통 단일 소스
+|   |   ├── config.py                  # ★ 모델명·온도·재시도·타임아웃 — 두 챗봇 공통 단일 소스
 |   |   |
-│   │   ├── state_common.py           # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
-│   │   │                             #   chatbot_type·user_id·question·store
-│   │   │                             #   context·result·sources·tokens_used
-│   │   │                             #   validation·source_context
-│   │   ├── base_nodes.py             # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
-│   │   │                             #   security_input · regulation · security_output · self_check
-│   │   └── retry.py                  # 429 백오프·재시도 상한 공통 유틸
+│   │   ├── state_common.py            # ★ CommonState — 두 챗봇 공통 GraphState (D-002)
+│   │   │                              #   chatbot_type·user_id·question·store
+│   │   │                              #   context·result·sources·tokens_used
+│   │   │                              #   validation·source_context
+│   │   ├── base_nodes.py              # ★ 전민재 PM 검증 함수를 감싸는 노드 4종 공통 래퍼
+│   │   │                              #   security_input · regulation · security_output · self_check
+│   │   └── retry.py                   # 429 백오프·재시도 상한 공통 유틸
 |   |   #   ※ retry.py 는 llm.py 에 흡수 — 별도 파일로 만들지 않는다
 │   │
-│   ├── basic/                        # ★★ 기본 챗봇(게시물 생성) 담당 작업 영역
-│   │   ├── main.py                   # 챗봇 진입점 (서비스 개발 담당자가 호출)
-│   │   ├── config.py                 # 채널 규칙·재생성 상한 등 기본 챗봇 전용 상수
-│   │   │                             #   ※ 모델명·온도 등 공통값은 models/shared/ 참조
+│   ├── basic/                         # ★★ 기본 챗봇(게시물 생성) 담당 작업 영역
+│   │   ├── main.py                    # 챗봇 진입점 (서비스 개발 담당자가 호출)
+│   │   ├── config.py                  # 채널 규칙·재생성 상한 등 기본 챗봇 전용 상수
+│   │   │                              #   ※ 모델명·온도 등 공통값은 models/shared/ 참조
 │   │   │
-│   │   ├── graph/                    # ★ LangGraph 골격 (기본 챗봇 담당자가 관리)
-│   │   │   ├── state.py              # BasicState — CommonState 상속 + 전용 필드
-│   │   │   │                         #   platform·extra·proposals·retry_count
-│   │   │   └── build_basic.py        # 노드 조립 + 조건부 엣지(재생성 루프)
+│   │   ├── graph/                     # ★ LangGraph 골격 (기본 챗봇 담당자가 관리)
+│   │   │   ├── state.py               # BasicState — CommonState 상속 + 전용 필드
+│   │   │   │                          #   platform·extra·proposals·retry_count
+│   │   │   └── build_basic.py         # 노드 조립 + 조건부 엣지(재생성 루프)
 │   │   │
-│   │   ├── nodes/                    # ★ 기본 챗봇 담당자가 개발하는 노드들
-│   │   │   ├── security_input.py     # 보안1 노드 — 전민재 PM의 check_input() 감싸기
-│   │   │   ├── question_analysis.py  # 질문 분석·정보충분성
-│   │   │   ├── extra_form.py         # 보조정보 폼 처리(선택사항)
-│   │   │   ├── channel.py            # 채널(플랫폼) 확정
-│   │   │   ├── market_for_copy.py    # 상권 카피용 요약(3층) — cache.get_market() 호출
-│   │   │   ├── trend_for_copy.py     # 시즌·이슈 카피용 요약(3층) — cache.get_trend() 호출
-│   │   │   ├── benchmark_node.py     # 업종 벤치마크 RAG 검색·요약(3층)
-│   │   │   ├── copy_gen.py           # ★ 광고 카피 생성 (가장 중요)
-│   │   │   ├── ranking.py            # 배리언트 랭킹(LLM Judge)
-│   │   │   ├── regulation_node.py    # 규제검증 노드 — 전민재 PM의 check_regulation() 감싸기
-│   │   │   ├── image_gen.py          # 광고 이미지 생성 노드
-│   │   │   ├── image_review.py       # 이미지 자동 검수
-│   │   │   ├── channel_format.py     # 채널별 리포맷
-│   │   │   ├── security_output.py    # 보안2 노드 — 전민재 PM의 check_output() 감싸기
-│   │   │   └── self_check_node.py    # self_check 노드 — 전민재 PM의 self_check() 감싸기
+│   │   ├── nodes/                     # ★ 기본 챗봇 담당자가 개발하는 노드들
+│   │   │   ├── security_input.py      # 보안1 노드 — 전민재 PM의 check_input() 감싸기
+│   │   │   ├── question_analysis.py   # 질문 분석·정보충분성
+│   │   │   ├── extra_form.py          # 보조정보 폼 처리(선택사항)
+│   │   │   ├── channel.py             # 채널(플랫폼) 확정
+│   │   │   ├── market_for_copy.py     # 상권 카피용 요약(3층) — cache.get_market() 호출
+│   │   │   ├── trend_for_copy.py      # 시즌·이슈 카피용 요약(3층) — cache.get_trend() 호출
+│   │   │   ├── benchmark_node.py      # 업종 벤치마크 RAG 검색·요약(3층)
+│   │   │   ├── copy_gen.py            # ★ 광고 카피 생성 (가장 중요)
+│   │   │   ├── ranking.py             # 배리언트 랭킹(LLM Judge)
+│   │   │   ├── regulation_node.py     # 규제검증 노드 — 전민재 PM의 check_regulation() 감싸기
+│   │   │   ├── image_gen.py           # 광고 이미지 생성 노드
+│   │   │   ├── image_review.py        # 이미지 자동 검수
+│   │   │   ├── channel_format.py      # 채널별 리포맷
+│   │   │   ├── security_output.py     # 보안2 노드 — 전민재 PM의 check_output() 감싸기
+│   │   │   └── self_check_node.py     # self_check 노드 — 전민재 PM의 self_check() 감싸기
 │   │   │   # ※ context_review.py 없음 — 경쟁사 리뷰는 컨설턴트 전담
 │   │   │   # ※ context_trend.py 없음 — 트렌드 API 호출은 컨설턴트 전담
 │   │   │   # ★ 검증 노드 4개는 D2에 모두 연결 완료
 │   │   │   #   → 전민재 PM이 스텁 내용만 채우면 자동 반영
 │   │   │
-│   │   ├── clients/                  # ★ 외부 연동부 (교체 가능하게 분리)
-│   │   │   └── image_client.py       # 1차 API → 2차 SDXL 교체 지점
+│   │   ├── clients/                   # ★ 외부 연동부 (교체 가능하게 분리)
+│   │   │   └── image_client.py        # 1차 API → 2차 SDXL 교체 지점
 │   │   │   # ※ trend_api.py 없음 — cache/trend_repo.py(컨설턴트)로 이관
 │   │   │
-│   │   ├── retrieval/                # 벤치마크 RAG (인덱싱·검색 = 기본 챗봇 담당 영역)
-│   │   │   ├── vectorstore.py        # FAISS 인덱스 로드·검색
-│   │   │   └── embedder.py           # text-embedding-3-small
+│   │   ├── retrieval/                 # 벤치마크 RAG (인덱싱·검색 = 기본 챗봇 담당 영역)
+│   │   │   ├── vectorstore.py         # FAISS 인덱스 로드·검색
+│   │   │   └── embedder.py            # text-embedding-3-small
 │   │   │
-│   │   ├── scripts/                  # ★ 기본 챗봇 담당 배치 (별도 트랙)
+│   │   ├── scripts/                   # ★ 기본 챗봇 담당 배치 (별도 트랙)
 │   │   │   └── build_benchmark_index.py  # KB 데이터(전민재 PM 제공) → FAISS 인덱싱
 │   │   │   # ※ 데이터 작성 자체는 전민재 PM/컨설턴트 영역
 │   │   │
-│   │   ├── eval/                     # ★ 평가 — 코드는 기본 챗봇 담당, 데이터는 전민재 PM
-│   │   │   ├── eval_retrieval.py     # HitRate@5 · MRR
-│   │   │   ├── eval_generation.py    # LLM Judge · Faithfulness
-│   │   │   ├── eval_image.py         # CLIP Score
-│   │   │   └── reports/              # 평가 결과 리포트 · 튜닝 전후 비교표
+│   │   ├── eval/                      # ★ 평가 — 코드는 기본 챗봇 담당, 데이터는 전민재 PM
+│   │   │   ├── eval_retrieval.py      # HitRate@5 · MRR
+│   │   │   ├── eval_generation.py     # LLM Judge · Faithfulness
+│   │   │   ├── eval_image.py          # CLIP Score
+│   │   │   └── reports/               # 평가 결과 리포트 · 튜닝 전후 비교표
 │   │   │   # ※ golden_dataset.json 은 shared_data/ 에 위치(전민재 PM 작성)
 │   │   │
 │   │   ├── tests/
-│   │   │   └── test_pipeline.py      # 그래프 E2E 테스트
+│   │   │   └── test_pipeline.py       # 그래프 E2E 테스트
 │   │   │   # ※ test_regulation.py(검증 함수 단위 테스트)는 전민재 PM 영역
 │   │   │
 │   │   ├── requirements.txt / pyproject.toml (uv)
 │   │   └── README.md
 │   │
-│   └── consult/                      # ★★ 컨설턴트 챗봇 담당 작업 영역
-│       ├── main.py                   # 챗봇 진입점 (서비스 개발 담당자가 호출)
-│       ├── config.py                 # TTL 상수 등 컨설턴트 전용 상수
-│       │                             #   ※ 모델명·온도 등 공통값은 models/shared/ 참조
+│   └── consult/                       # ★★ 컨설턴트 챗봇 담당 작업 영역
+│       ├── main.py                    # 챗봇 진입점 (서비스 개발 담당자가 호출)
+│       ├── config.py                  # TTL 상수 등 컨설턴트 전용 상수
+│       │                              #   ※ 모델명·온도 등 공통값은 models/shared/ 참조
 │       │
-│       ├── graph/                    # ★ LangGraph 골격 (컨설턴트 챗봇 담당자가 관리)
-│       │   ├── state.py              # ConsultState — CommonState 상속 + 전용 필드
-│       │   │                         #   strategy·reasons·suggested_chips
-│       │   └── build_consultant.py   # 노드 조립 + 조건부 엣지(재생성 루프)
+│       ├── graph/                     # ★ LangGraph 골격 (컨설턴트 챗봇 담당자가 관리)
+│       │   ├── state.py               # ConsultState — CommonState 상속 + 전용 필드
+│       │   │                          #   strategy·reasons·suggested_chips
+│       │   └── build_consultant.py    # 노드 조립 + 조건부 엣지(재생성 루프)
 │       │
-│       ├── nodes/                    # ★ 컨설턴트 챗봇 담당자가 개발하는 노드들
-│       │   ├── security_input.py     # 보안1 노드 — 전민재 PM의 check_input() 감싸기
-│       │   ├── question_analysis.py  # 질문 분석·정보충분성
-│       │   ├── suggested_chips.py    # 추천 질문 칩 3종 처리
-│       │   ├── market_for_consult.py # 상권·경쟁 밀도 분석 (3층, 컨설팅용)
-│       │   ├── review_for_consult.py # 경쟁사 리뷰 차별점 (3층)        [COULD]
-│       │   ├── trend_for_consult.py  # 시즌·수요 타이밍 (3층)
-│       │   ├── strategy.py           # ★ 마케팅 전략 제안 (가장 중요)
-│       │   ├── strategy_check.py     # 전략 품질 검증(근거·실행가능성)
-│       │   ├── link_to_ads.py        # ★ [이 전략으로 광고 만들기] 연계
-│       │   ├── security_output.py    # 보안2 노드 — 전민재 PM의 check_output() 감싸기
-│       │   └── self_check_node.py    # self_check 노드 — 전민재 PM의 self_check() 감싸기
+│       ├── nodes/                     # ★ 컨설턴트 챗봇 담당자가 개발하는 노드들
+│       │   ├── security_input.py      # 보안1 노드 — 전민재 PM의 check_input() 감싸기
+│       │   ├── question_analysis.py   # 질문 분석·정보충분성
+│       │   ├── suggested_chips.py     # 추천 질문 칩 3종 처리
+│       │   ├── market_for_consult.py  # 상권·경쟁 밀도 분석 (3층, 컨설팅용)
+│       │   ├── review_for_consult.py  # 경쟁사 리뷰 차별점 (3층)        [COULD]
+│       │   ├── trend_for_consult.py   # 시즌·수요 타이밍 (3층)
+│       │   ├── strategy.py            # ★ 마케팅 전략 제안 (가장 중요)
+│       │   ├── strategy_check.py      # 전략 품질 검증(근거·실행가능성)
+│       │   ├── link_to_ads.py         # ★ [이 전략으로 광고 만들기] 연계
+│       │   │                          # ※ link_to_ads.py 는 삭제됨 — 광고 연계는
+│       │   │                          #   서비스 계층 책임이다(D-363·D-366)
+│       │   ├── security_output.py     # 보안2 노드 — 전민재 PM의 check_output() 감싸기
+│       │   └── self_check_node.py     # self_check 노드 — 전민재 PM의 self_check() 감싸기
 │       │   # ※ *_for_copy.py 없음 — 카피용 요약은 기본 챗봇 담당 영역
 │       │
-│       ├── clients/                  # ★ 외부 API 호출부 (Cache-Aside의 '미스' 경로)
-│       │   ├── market_api.py         # 상권정보 OpenAPI 호출
-│       │   ├── trend_api.py          # NAVER 검색어 트렌드 호출
-│       │   └── review_crawler.py     # 네이버 플레이스 배치 크롤러   [COULD]
+│       ├── clients/                   # ★ 외부 API 호출부 (Cache-Aside의 '미스' 경로)
+│       │   ├── market_api.py          # 상권정보 OpenAPI 호출
+│       │   ├── trend_api.py           # NAVER 검색어 트렌드 호출
+│       │   └── review_crawler.py      # 네이버 플레이스 배치 크롤러   [COULD]
 │       │   # ※ geocode_api.py 없음 — 지오코딩은 서비스 개발 담당 영역
 │       │
-│       ├── analysis/                 # 컨설팅 분석 유틸
-│       │   ├── density.py            # 경쟁 밀도·최근접 거리 계산
-│       │   └── sentiment.py          # KcELECTRA 감성분석(CPU)       [COULD]
+│       ├── analysis/                  # 컨설팅 분석 유틸
+│       │   ├── density.py             # 경쟁 밀도·최근접 거리 계산
+│       │   └── sentiment.py           # KcELECTRA 감성분석(CPU)       [COULD]
 │       │
-│       ├── scripts/                  # ★ 배치 적재 (파이프라인과 분리)
-│       │   ├── preload_demo_cache.py # ★ 시연용 캐시 사전 적재(강남역 등) — D9
-│       │   └── load_review_cache.py  # 리뷰 사전 수집 배치          [COULD]
+│       ├── scripts/                   # ★ 배치 적재 (파이프라인과 분리)
+│       │   ├── preload_demo_cache.py  # ★ 시연용 캐시 사전 적재(강남역 등) — D9
+│       │   └── load_review_cache.py   # 리뷰 사전 수집 배치          [COULD]
 │       │   # ※ 상권·트렌드는 Cache-Aside라 별도 적재 배치 불필요
 │       │
-│       ├── eval/                     # ★ 평가
-│       │   ├── eval_strategy.py      # 전략 품질 LLM Judge
-│       │   ├── eval_retrieval.py     # 데이터 조회 정확도·캐시 히트율
-│       │   └── reports/              # 평가 결과 · 튜닝 전후 비교표
+│       ├── eval/                      # ★ 평가
+│       │   ├── eval_strategy.py       # 전략 품질 LLM Judge
+│       │   ├── eval_retrieval.py      # 데이터 조회 정확도·캐시 히트율
+│       │   └── reports/               # 평가 결과 · 튜닝 전후 비교표
 │       │
 │       ├── tests/
-│       │   ├── test_market_repo.py   # Cache-Aside 동작 테스트(히트/미스)
-│       │   └── test_pipeline.py      # 그래프 E2E 테스트
+│       │   ├── test_market_repo.py    # Cache-Aside 동작 테스트(히트/미스)
+│       │   └── test_pipeline.py       # 그래프 E2E 테스트
 │       │
 │       ├── requirements.txt / pyproject.toml (uv)
 │       └── README.md
 │
-├── scripts/                          # ★ 전민재 PM 배치 스크립트 (루트)
-│   ├── load_banned_keywords.py       # CSV → DB 적재
-│   └── build_legal_kb.py             # ★ md → JSON → 임베딩 → FAISS 인덱싱
+├── scripts/                           # ★ 전민재 PM 배치 스크립트 (루트)
+│   ├── load_banned_keywords.py        # CSV → DB 적재
+│   └── build_legal_kb.py              # ★ md → JSON → 임베딩 → FAISS 인덱싱
 │
-├── tests/                            # ★ 루트 테스트 — 서비스 개발 담당 + 전민재 PM
-│   │                                 #   ※ 모델 테스트는 각 models/*/tests/ 에 위치
-│   ├── test_auth.py                  # [서비스] 회원가입·로그인
-│   ├── test_credit.py                # [서비스] ★ 과금 로직(가장 중요한 테스트)
-│   ├── test_e2e.py                   # [서비스] 전체 시나리오
-│   ├── test_security.py              # [PM] 보안1·2 차단 테스트
-│   ├── test_regulation.py            # [PM] 규제 검증 (과잉 차단·누락 케이스)
-│   └── test_self_check.py            # [PM] 답변 검증 규칙 테스트
+├── tests/                             # ★ 루트 테스트 — 서비스 개발 담당 + 전민재 PM
+│   │                                  #   ※ 모델 테스트는 각 models/*/tests/ 에 위치
+│   ├── test_auth.py                   # [서비스] 회원가입·로그인
+│   ├── test_credit.py                 # [서비스] ★ 과금 로직(가장 중요한 테스트)
+│   ├── test_e2e.py                    # [서비스] 전체 시나리오
+│   ├── test_security.py               # [PM] 보안1·2 차단 테스트
+│   ├── test_regulation.py             # [PM] 규제 검증 (과잉 차단·누락 케이스)
+│   └── test_self_check.py             # [PM] 답변 검증 규칙 테스트
 │
-├── docs/                             # ★ 팀 공용 문서 — 한 곳에 모음
-│   │                                 #   ※ 흩어져 있으면 못 찾으므로 루트로 통합
+├── docs/                              # ★ 팀 공용 문서 — 한 곳에 모음
+│   │                                  #   ※ 흩어져 있으면 못 찾으므로 루트로 통합
+|   ├── templates/
+|   |   ├── demo_scenario.template.md  # [PM] 프로젝트 최종 발표 라이브 시연 시나리오 템플릿
+|   |   ├── test-results.template.md   # E2E 테스트 결과서 템플릿
+|   |   └── test-scenarios.template.md # E2E 테스트 시나리오 템플릿
 │   │
-│   ├── sdp_pm.md                     # [PM] 전민재 PM SDP
-│   ├── sdp_service.md                # [서비스] 서비스 개발 담당 SDP
-│   ├── sdp_basic.md                  # [기본] 기본 챗봇 담당 SDP
-│   ├── sdp_consult.md                # [컨설턴트] 컨설턴트 챗봇 담당 SDP
+│   ├── sdp_pm.md                      # [PM] 전민재 PM SDP
+│   ├── sdp_service.md                 # [서비스] 서비스 개발 담당 SDP
+│   ├── sdp_basic.md                   # [기본] 기본 챗봇 담당 SDP
+│   ├── sdp_consult.md                 # [컨설턴트] 컨설턴트 챗봇 담당 SDP
 │   │
-│   ├── pipeline_sdp_pm.png           # [PM] 파이프라인 다이어그램
-│   ├── pipeline_sdp_service.png      # [서비스] 파이프라인 다이어그램
-│   ├── pipeline_sdp_basic.png        # [기본] 파이프라인 다이어그램
-│   ├── pipeline_sdp_consult.png      # [컨설턴트] 파이프라인 다이어그램
-│   ├── erd_sdp_service.png           # [서비스] ERD 다이어그램
+│   ├── pipeline_sdp_pm.png            # [PM] 파이프라인 다이어그램
+│   ├── pipeline_sdp_service.png       # [서비스] 파이프라인 다이어그램
+│   ├── pipeline_sdp_basic.png         # [기본] 파이프라인 다이어그램
+│   ├── pipeline_sdp_consult.png       # [컨설턴트] 파이프라인 다이어그램
+│   ├── erd_sdp_service.png            # [서비스] ERD 다이어그램
 │   │
-│   ├── directory_structure.md        # ★ 본 통합 디렉토리 구조 (단일 소스)
-│   ├── api_contract.md               # ★ 서비스 ↔ 모델 API 계약서
-│   ├── validation_contract.md        # ★ [PM] 검증 함수 4종 계약서(두 담당자용)
-│   ├── repo_contract.md              # ★ [컨설턴트] 조회 함수 시그니처(기본 챗봇 담당자용)
-│   ├── graphstate_spec.md            # ★ [PM] GraphState 공통 규격(D1 확정)
-│   ├── decisions.md                  # ★ [PM] 의사결정 로그(수치 3건 등)
-│   ├── demo_scenario.md              # [PM] 발표 시연 시나리오
-│   └── prompt_tuning_log.md          # ★ 프롬프트 튜닝 실험 기록(D10)
+│   ├── directory_structure.md         # ★ 본 통합 디렉토리 구조 (단일 소스)
+│   ├── api_contract.md                # ★ 서비스 ↔ 모델 API 계약서
+│   ├── validation_contract.md         # ★ [PM] 검증 함수 4종 계약서(두 담당자용)
+│   ├── repo_contract.md               # ★ [컨설턴트] 조회 함수 시그니처(기본 챗봇 담당자용)
+│   ├── graphstate_spec.md             # ★ [PM] GraphState 공통 규격(D1 확정)
+│   ├── decisions.md                   # ★ [PM] 의사결정 로그(수치 3건 등)
+│   ├── demo_scenario.md               # [PM] 발표 시연 시나리오
+│   └── prompt_tuning_log.md           # ★ 프롬프트 튜닝 실험 기록(D10)
 │
-├── docker-compose.yml                # [서비스] 로컬 통합 실행
-├── .env.example                      # [서비스] 환경변수 템플릿
+├── docker-compose.yml                 # [서비스] 로컬 통합 실행
+├── .env.example                       # [서비스] 환경변수 템플릿
 ├── requirements.txt / pyproject.toml (uv)   # 루트 공통 의존성
-└── README.md                         # 프로젝트 최상위 안내
+└── README.md                          # 프로젝트 최상위 안내
 ```
 
 ---
