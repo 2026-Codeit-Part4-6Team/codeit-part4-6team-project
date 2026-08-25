@@ -31,6 +31,7 @@ class BasicState(CommonState):
 
     copy_retry_count: NotRequired[int]  # 카피 생성 / 규제 재시도 루프 카운터
     image_retry_count: NotRequired[int]  # 이미지 재생성 루프 카운터
+    self_check_retry_count: NotRequired[int]  # 자가점검 반려 재시도 카운터
     status: NotRequired[str]  # ok, blocked, error
     issues: NotRequired[
         list[dict]

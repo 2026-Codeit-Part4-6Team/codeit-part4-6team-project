@@ -12,6 +12,10 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 준수 사항:
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
+- suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
+- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸 
+전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
+(예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
@@ -22,12 +26,21 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 {"candidates": ["카피1", "카피2", "카피3"]}
 """
 
+_NUM_CANDIDATES = 3
+
 
 def copy_gen_node(state: BasicState) -> dict:
     """수집된 컨텍스트(상권/트렌드/벤치마크)와 규제 검수 결과를 바탕으로
     LLM을 호출해 톤이 다른 광고 카피 3안을 생성한다. 파싱에 실패한 후보는
-    개별 에러로 표시하고, 전체 실패 시 재시도 카운트를 올린다."""
+    개별 에러로 표시하고, 전체 실패 시 재시도 카운트를 올린다.
+
+    source_context가 있으면 컨설팅→광고 연계 요청이다 — 컨설턴트가
+    이미 낸 전략(strategy)·근거(reasons)를 프롬프트에 실어 카피에 반영하고,
+    컨설턴트 쪽 근거 출처(sources)도 최종 응답의 sources에 합친다.
+    """
     context_data = state.get("context") or {}
+    source_context = state.get("source_context")
+
     payload = {
         "question": state["question"],
         "platform": state["platform"],
@@ -37,10 +50,16 @@ def copy_gen_node(state: BasicState) -> dict:
         "trend": context_data.get("trend"),
         "benchmark": context_data.get("benchmark"),
     }
+    if source_context:
+        payload["consultant_strategy"] = source_context.get("strategy")
+        payload["consultant_reasons"] = source_context.get("reasons")
 
     regulation_result = (state.get("validation") or {}).get("regulation")
-    if regulation_result and regulation_result.get("action") == "block":
+    if regulation_result and regulation_result.get("action") in ("block", "warn"):
         payload["avoid"] = regulation_result.get("message")
+        alternative = regulation_result.get("alternative")
+        if alternative:
+            payload["suggested_alternative"] = alternative
 
     try:
         raw, tokens = call_llm(
@@ -62,13 +81,12 @@ def copy_gen_node(state: BasicState) -> dict:
                 }
             ],
         }
-    parsed = json.loads(raw)
-    raw_candidates = parsed.get("candidates", [])
+    parsed_copies = _parse_candidates(raw)
 
     candidates = []
-    for i in range(3):
-        if i < len(raw_candidates) and raw_candidates[i]:
-            candidates.append({"copy": raw_candidates[i]})
+    for copy_text in parsed_copies:
+        if copy_text is not None:
+            candidates.append({"copy": copy_text})
         else:
             candidates.append(
                 {
@@ -86,6 +104,8 @@ def copy_gen_node(state: BasicState) -> dict:
         "copy_candidates": candidates,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }
+    if source_context and source_context.get("sources"):
+        updates["sources"] = source_context["sources"]
 
     all_failed = all(c["copy"] is None for c in candidates)
     if all_failed:
@@ -102,3 +122,33 @@ def copy_gen_node(state: BasicState) -> dict:
             ]
 
     return updates
+
+
+def _parse_candidates(raw: str) -> list[str | None]:
+    """JSON을 파싱해 카피 후보 3개를 문자열만 남기고 반환한다.
+
+    _parse_chips(models/consult/nodes/suggested_chips.py)와 같은 3단계로 검증한다:
+    JSONDecodeError → dict 여부 → 각 항목이 비어있지 않은 str인지.
+    파싱 실패나 타입이 안 맞는 항목은 None으로 표시해 호출부가 개별
+    parse_failed 에러로 처리하게 한다 — 숫자·객체 등이 카피로 새는 걸 막는다.
+    """
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return [None] * _NUM_CANDIDATES
+
+    if not isinstance(parsed, dict):
+        return [None] * _NUM_CANDIDATES
+
+    raw_candidates = parsed.get("candidates")
+    if not isinstance(raw_candidates, list):
+        return [None] * _NUM_CANDIDATES
+
+    result: list[str | None] = []
+    for i in range(_NUM_CANDIDATES):
+        item = raw_candidates[i] if i < len(raw_candidates) else None
+        if isinstance(item, str) and item.strip():
+            result.append(item.strip())
+        else:
+            result.append(None)
+    return result

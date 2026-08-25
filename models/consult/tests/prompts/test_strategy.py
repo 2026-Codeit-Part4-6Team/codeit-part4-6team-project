@@ -3,7 +3,7 @@
 # 프롬프트 내부 힌트로만 사용).
 import re
 
-from models.consult.prompts.strategy import SYSTEM_PROMPT, build_user_prompt
+from models.consult.prompts.strategy import RETRY_REASONS_HINT, SYSTEM_PROMPT, build_user_prompt
 
 _TIER_LABELS = ("높음", "보통", "낮음", "경쟁 없음", "판단 불가")
 
@@ -50,3 +50,32 @@ def test_user_prompt_omits_industry_breakdown() -> None:
     assert "한식" not in prompt
     # same_industry_count 등 나머지 상권 수치는 그대로 남아 있어야 한다.
     assert "177곳" in prompt
+
+
+def test_system_prompt_reasons_instruction_allows_trend_as_source() -> None:
+    """reasons 허용 근거를 설명하는 문장(트렌드 전용 문단이 아니라 이 문장 자체)이
+    "상권 데이터"만 언급하면, 트렌드만 있고 상권은 없는 요청에서 트렌드 근거를
+    지어낸 것처럼 오인해 거부할 위험이 있다."""
+    reasons_instruction = SYSTEM_PROMPT.split("예시:")[0].split("트렌드 데이터가 주어지면")[0]
+
+    assert "트렌드" in reasons_instruction
+
+
+def test_retry_hint_lists_trend_as_allowed_reasons_source() -> None:
+    """재시도 힌트도 "상권 데이터"만 언급하면, 재생성 시 이미 프롬프트에 반영된 트렌드
+    근거를 쓰지 말라는 상충 지시가 된다."""
+    assert "트렌드" in RETRY_REASONS_HINT
+
+
+def test_system_prompt_requests_title() -> None:
+    """title은 backend/schemas.py의 ConsultantModelResult.title(min_length=1 필수)에
+    대응한다 — 서비스가 Mock으로 대신 채워주고 있었을 뿐, 계약상 모델이 반환해야 한다
+    (D7 계약 정합성 점검, PM 리뷰)."""
+    assert '"title"' in SYSTEM_PROMPT
+
+
+def test_system_prompt_examples_include_title() -> None:
+    """few-shot 예시에도 title이 있어야 LLM이 실제로 그 위치·형식을 학습한다."""
+    example_section = SYSTEM_PROMPT.split("예시:")[1]
+
+    assert example_section.count('"title"') == 3
