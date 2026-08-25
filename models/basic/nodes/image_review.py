@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
 
-from ..graph.state import BasicState
+from ..graph.state import REASON_UNKNOWN, BasicState
 
 MIN_CLIP_SCORE = 0.25  # 참고용 임계값 — MVP에서는 미적용
 
@@ -88,7 +88,7 @@ def image_review_node(state: BasicState) -> dict:
                     "image_b64": None,
                     "error": {
                         "field": "image",
-                        "reason": "decode_failed",
+                        "reason": REASON_UNKNOWN,
                         "message": "이미지 디코딩에 실패했습니다.",
                     },
                 }

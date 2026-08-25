@@ -64,7 +64,7 @@ def _build_initial_state(request: dict) -> dict:
         "store": request["store"],
         "extra": request.get("extra") or {},
         # 컨설팅→광고 파생 추적(v10). 넘기지 않으면 연계 경로가 끊긴다.
-        "source_gen_id": request.get("source_gen_id"),
+        "source_context": request.get("source_context"),
         "deadline": time.monotonic() + LLM_DEADLINE_SECONDS,
         "tokens_used": 0,
     }

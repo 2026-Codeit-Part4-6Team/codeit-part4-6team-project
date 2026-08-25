@@ -38,9 +38,87 @@ def test_reject_case_sets_blocked_status_and_issue(mock_self_check):
         "context": {},
         "validation": {},
         "issues": [],
+        "self_check_retry_count": 1,
     }
 
     result = self_check_node(state)
 
     assert result["status"] == "blocked"
+    assert result["issues"][0]["message"] == "생성 근거가 부족합니다."
+
+
+def test_warn_case_logs_but_does_not_block(caplog):
+    with patch("models.basic.nodes.self_check_node.self_check") as mock_self_check:
+        mock_self_check.return_value = {
+            "action": "warn",
+            "reasons": ["제안 개수 부족(2/3)"],
+            "message": "생성 결과에 제안 개수 부족(2/3) 문제가 있습니다.",
+        }
+        state = {
+            "result": {
+                "title": "여름 신메뉴 홍보",
+                "proposals": [
+                    {"copy": "카피1"},
+                    {"copy": "카피2"},
+                ],
+            },
+            "context": {},
+            "validation": {},
+            "issues": [],
+        }
+
+        with caplog.at_level("WARNING"):
+            result = self_check_node(state)
+
+    assert result["validation"]["self_check"]["action"] == "warn"
+    assert "status" not in result
+    assert "issues" not in result
+    assert any("self_check warn" in record.message for record in caplog.records)
+
+
+def test_reject_increments_retry_without_blocking_below_limit():
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.nodes.self_check_node.self_check") as mock_self_check,
+    ):
+        mock_self_check.return_value = {
+            "action": "reject",
+            "reasons": ["근거 없음"],
+            "message": "생성 근거가 부족합니다.",
+        }
+        state = {
+            "result": {"title": "제목", "proposals": [{"copy": "카피"}]},
+            "context": {},
+            "validation": {},
+            "issues": [],
+            "self_check_retry_count": 0,
+        }
+
+        result = self_check_node(state)
+
+    assert result["self_check_retry_count"] == 1
+    assert "status" not in result
+    assert "issues" not in result
+
+
+def test_reject_at_max_retry_blocks_with_unknown_reason():
+    with patch("models.basic.nodes.self_check_node.self_check") as mock_self_check:
+        mock_self_check.return_value = {
+            "action": "reject",
+            "reasons": ["근거 없음"],
+            "message": "생성 근거가 부족합니다.",
+        }
+        state = {
+            "result": {"title": "제목", "proposals": [{"copy": "카피"}]},
+            "context": {},
+            "validation": {},
+            "issues": [],
+            "self_check_retry_count": 1,
+        }
+
+        result = self_check_node(state)
+
+    assert result["self_check_retry_count"] == 2
+    assert result["status"] == "blocked"
+    assert result["issues"][0]["reason"] == "unknown"
     assert result["issues"][0]["message"] == "생성 근거가 부족합니다."

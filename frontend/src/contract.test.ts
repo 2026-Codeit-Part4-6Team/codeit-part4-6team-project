@@ -20,7 +20,7 @@ describe("generation contract", () => {
         clarification: null,
       },
     });
-    expect(buildEstimatePayload("consultant", "상권 전략", "banner")).toEqual({
+    expect(buildEstimatePayload("consultant", "상권 전략", "xbanner")).toEqual({
       chatbot_type: "consultant",
       question: "상권 전략",
       platform: null,
@@ -42,7 +42,7 @@ describe("generation contract", () => {
     const estimatePayload = {
       chatbot_type: "basic" as const,
       question: "신메뉴 광고",
-      platform: "banner" as const,
+      platform: "xbanner" as const,
     };
     expect(buildGeneratePayload(estimatePayload, 50)).toEqual({
       ...estimatePayload,

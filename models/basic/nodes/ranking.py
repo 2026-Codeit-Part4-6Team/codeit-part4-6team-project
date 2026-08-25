@@ -1,9 +1,9 @@
 import json
 
 from models.shared.llm import call_llm
+from models.shared.llm_errors import classify_llm_error
 
 from ..graph.state import BasicState
-from ..llm_errors import classify_llm_error
 
 SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 아래 후보 카피들을 요청 반영도·구체성·규제 안전성 기준으로 1~5점씩 평가하고,

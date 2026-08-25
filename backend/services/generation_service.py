@@ -323,6 +323,7 @@ def _handle_failed_result(
         raise _internal_error("generation_failure_persistence_failed") from error
 
     finalize_generation_usage_rollback(reservation)
+    db.refresh(user)
     if isinstance(result, ErrorResult):
         raise ModelExecutionError(reason=result.reason, message=result.message)
 
@@ -463,14 +464,6 @@ async def generate(
     model_request = build_model_request(db, user, request)
 
     try:
-        reservation = reserve_generation_usage(
-            db,
-            user.id,
-            request.chatbot_type,
-            now,
-            free_limit,
-            request.max_accepted_credits,
-        )
         generation = Generation(
             user_id=user.id,
             source_gen_id=request.source_gen_id,
@@ -479,12 +472,22 @@ async def generate(
             request_hash=request_hash,
             question=request.question,
             platform=request.platform,
-            plan=reservation.plan,
-            credits_used=reservation.credits_used,
+            plan="free",
+            credits_used=0,
             status="pending",
         )
         db.add(generation)
         db.flush()
+        reservation = reserve_generation_usage(
+            db,
+            user.id,
+            request.chatbot_type,
+            now,
+            free_limit,
+            request.max_accepted_credits,
+        )
+        generation.plan = reservation.plan
+        generation.credits_used = reservation.credits_used
         generation_id = generation.id
         generation.status = "generating"
         db.commit()
@@ -559,6 +562,7 @@ async def generate(
         raise _internal_error("generation_success_persistence_failed") from error
 
     settle_generation_usage(reservation)
+    db.refresh(user)
     return GenerationResponse(
         generation_id=generation_id,
         status="done",

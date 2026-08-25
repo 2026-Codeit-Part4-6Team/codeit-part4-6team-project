@@ -8,9 +8,12 @@ from pydantic import (
     EmailStr,
     Field,
     SecretStr,
+    ValidationError,
     field_validator,
     model_validator,
 )
+
+from backend.logging_utils import payload_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -297,8 +300,6 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
-
-
 class ConsultantSourceContext(StrictModel):
     """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
 
@@ -327,26 +328,8 @@ class BlockedResult(InboundModel):
 
     status: Literal["blocked"]
     action: Literal["block", "reask", "warn"]
-    reason: Literal[
-        "illegal_or_injection",
-        "need_clarification",
-        "insufficient_info",
-        "prohibited_item",
-        "regulation_risk",
-        "sensitive_leak",
-    ]
+    reason: str = Field(min_length=1)
     message: str = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_action_reason_pair(self) -> "BlockedResult":
-        allowed_reasons = {
-            "block": {"illegal_or_injection", "prohibited_item", "sensitive_leak"},
-            "reask": {"need_clarification", "insufficient_info"},
-            "warn": {"regulation_risk"},
-        }
-        if self.reason not in allowed_reasons[self.action]:
-            raise ValueError("blocked action과 reason 조합이 계약과 일치하지 않습니다.")
-        return self
 
 
 class ErrorResult(InboundModel):
@@ -384,15 +367,25 @@ class ModelResultAdapter:
             if isinstance(value, BaseModel)
             else value
         )
-        status = _ModelResultEnvelope.model_validate(payload).status
-
-        if status == "blocked":
-            return BlockedResult.model_validate(payload)
-        if status == "error":
-            return ErrorResult.model_validate(payload)
-        if chatbot_type == "basic":
-            return BasicModelResult.model_validate(payload)
-        return ConsultantModelResult.model_validate(payload)
+        status = None
+        try:
+            status = _ModelResultEnvelope.model_validate(payload).status
+            if status == "blocked":
+                return BlockedResult.model_validate(payload)
+            if status == "error":
+                return ErrorResult.model_validate(payload)
+            if chatbot_type == "basic":
+                return BasicModelResult.model_validate(payload)
+            return ConsultantModelResult.model_validate(payload)
+        except ValidationError as error:
+            logger.warning(
+                "모델 응답 검증 실패 — chatbot_type=%s status=%s errors=%s payload=%s",
+                chatbot_type,
+                status,
+                [(item["loc"], item["type"]) for item in error.errors()],
+                payload_for_log(payload),
+            )
+            raise
 
 
 MODEL_RESULT_ADAPTER = ModelResultAdapter()

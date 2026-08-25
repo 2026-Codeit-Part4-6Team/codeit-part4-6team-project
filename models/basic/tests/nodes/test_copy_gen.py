@@ -113,3 +113,59 @@ def test_call_llm_exception_sets_error_status_with_classified_reason(mock_call_l
     assert result["status"] == "error"
     assert result["issues"][0]["source"] == "copy_gen"
     assert result["issues"][0]["reason"] == "rate_limit"
+
+
+@patch("models.basic.nodes.copy_gen.call_llm")
+def test_source_context_strategy_and_reasons_are_passed_to_prompt(mock_call_llm):
+    mock_call_llm.return_value = (
+        json.dumps({"candidates": ["카피1", "카피2", "카피3"]}),
+        10,
+    )
+    source_context = {
+        "generation_id": 7,
+        "strategy": {
+            "summary": "점심 직장인 타깃",
+            "actions": [{"type": "menu", "content": "런치 세트 2종 출시"}],
+        },
+        "reasons": ["동일 상권 객단가 평균 대비 12% 낮음"],
+        "sources": ["상권분석"],
+    }
+
+    copy_gen_node(_state(source_context=source_context))
+
+    sent_payload = json.loads(mock_call_llm.call_args.args[1])
+    assert sent_payload["consultant_strategy"] == source_context["strategy"]
+    assert sent_payload["consultant_reasons"] == source_context["reasons"]
+
+
+@patch("models.basic.nodes.copy_gen.call_llm")
+def test_source_context_sources_are_merged_into_updates(mock_call_llm):
+    mock_call_llm.return_value = (
+        json.dumps({"candidates": ["카피1", "카피2", "카피3"]}),
+        10,
+    )
+    source_context = {
+        "generation_id": 7,
+        "strategy": {"summary": "요약", "actions": []},
+        "reasons": ["근거"],
+        "sources": ["상권분석", "트렌드"],
+    }
+
+    result = copy_gen_node(_state(source_context=source_context))
+
+    assert result["sources"] == ["상권분석", "트렌드"]
+
+
+@patch("models.basic.nodes.copy_gen.call_llm")
+def test_no_source_context_omits_consultant_fields_and_sources(mock_call_llm):
+    mock_call_llm.return_value = (
+        json.dumps({"candidates": ["카피1", "카피2", "카피3"]}),
+        10,
+    )
+
+    result = copy_gen_node(_state())
+
+    sent_payload = json.loads(mock_call_llm.call_args.args[1])
+    assert "consultant_strategy" not in sent_payload
+    assert "consultant_reasons" not in sent_payload
+    assert "sources" not in result
