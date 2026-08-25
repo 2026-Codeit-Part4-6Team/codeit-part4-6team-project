@@ -39,6 +39,15 @@ def session_factory(monkeypatch):
     return factory
 
 
+@pytest.fixture(autouse=True)
+def _default_fetch_by_code_fails(monkeypatch):
+    """명시적으로 다르게 mock하지 않는 한, 업종코드 필터 호출(D-041/D-042)은
+    실패(None)로 취급해 이 파일의 기존 텍스트 매칭 기반 테스트들이 그 경로를
+    그대로 검증하게 한다. 업종코드 필터 경로 자체를 검증하는 테스트는 개별적으로
+    다시 patch한다."""
+    monkeypatch.setattr("cache.market_repo.fetch_by_code", lambda *args, **kwargs: None)
+
+
 @patch("cache.market_repo.fetch_raw")
 def test_cache_miss_fetches_and_stores(mock_fetch_raw, session_factory) -> None:
     mock_fetch_raw.return_value = (_STORES, 2)
@@ -133,6 +142,157 @@ def test_nearby_coordinates_share_cache_via_rounding(mock_fetch_raw, session_fac
     get_market(37.49802, 127.02763)
 
     mock_fetch_raw.assert_called_once()
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_picks_latest_row_when_created_at_ties(mock_fetch_raw, session_factory) -> None:
+    """SQLite CURRENT_TIMESTAMP는 초 단위라 짧은 시간에 여러 번 적재되면 created_at이
+    같을 수 있다 — 이때도 id 기준으로 가장 최신(나중에 적재된) 행을 골라야 한다."""
+    same_time = datetime.now(UTC).replace(tzinfo=None)
+    older_payload = {"stores": [], "total_count": 1}
+    newer_payload = {"stores": _STORES, "total_count": 2}
+    with session_factory() as session:
+        session.add(
+            MarketCache(
+                lat=37.498, lng=127.028, radius=500,
+                result_json=json.dumps(older_payload), created_at=same_time,
+            )
+        )
+        session.add(
+            MarketCache(
+                lat=37.498, lng=127.028, radius=500,
+                result_json=json.dumps(newer_payload), created_at=same_time,
+            )
+        )
+        session.commit()
+
+    result = get_market(37.4980, 127.0276, industry="카페")
+
+    mock_fetch_raw.assert_not_called()
+    assert result["total_count"] == 2
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_repeated_cache_miss_upserts_instead_of_inserting_new_row(
+    mock_fetch_raw, session_factory
+) -> None:
+    """같은 (lat,lng,radius)로 반복 적재되면 새 행을 계속 추가하는 대신 기존 행을
+    갱신한다(D-053) — UNIQUE 인덱스는 아직 없어(D7에 서비스 담당이 추가 예정) DB가
+    직접 중복을 막아주지 않으므로, upsert로 미리 방어한다."""
+    mock_fetch_raw.return_value = (_STORES, 2)
+    get_market(37.4980, 127.0276, industry="카페")
+    with session_factory() as session:
+        assert session.query(MarketCache).count() == 1
+
+    with session_factory() as session:
+        row = session.query(MarketCache).one()
+        row.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=8)
+        session.commit()
+
+    mock_fetch_raw.return_value = ([], 0)
+    get_market(37.4980, 127.0276, industry="카페")
+
+    with session_factory() as session:
+        assert session.query(MarketCache).count() == 1
+        row = session.query(MarketCache).one()
+        assert json.loads(row.result_json)["total_count"] == 0
+
+
+@patch("cache.market_repo.fetch_by_code")
+@patch("cache.market_repo.fetch_raw")
+def test_uses_industry_code_filter_when_mapping_exists(
+    mock_fetch_raw, mock_fetch_by_code, session_factory
+) -> None:
+    """"카페"는 industry_code_for()로 코드(I21201)를 찾을 수 있으므로, fetch_by_code()로
+    필터링된 결과의 totalCount를 same_industry_count로 쓴다(텍스트 매칭 결과인 1이 아님)."""
+    mock_fetch_raw.return_value = (_STORES, 2)
+    mock_fetch_by_code.return_value = ([_STORES[0]], 177)
+
+    result = get_market(37.4980, 127.0276, industry="카페")
+
+    mock_fetch_by_code.assert_called_once_with(37.4980, 127.0276, 500, "I21201")
+    assert result["same_industry_count"] == 177
+
+
+@patch("cache.market_repo.fetch_by_code")
+@patch("cache.market_repo.fetch_raw")
+def test_industry_code_cache_hit_does_not_call_fetch_by_code_again(
+    mock_fetch_raw, mock_fetch_by_code, session_factory
+) -> None:
+    mock_fetch_raw.return_value = (_STORES, 2)
+    with session_factory() as session:
+        session.add(
+            MarketCache(
+                lat=37.498,
+                lng=127.028,
+                radius=500,
+                industry_code="I21201",
+                result_json=json.dumps({"stores": [_STORES[0]], "total_count": 177}),
+            )
+        )
+        session.commit()
+
+    result = get_market(37.4980, 127.0276, industry="카페")
+
+    mock_fetch_by_code.assert_not_called()
+    assert result["same_industry_count"] == 177
+
+
+@patch("cache.market_repo.fetch_by_code")
+@patch("cache.market_repo.fetch_raw")
+def test_industry_code_cache_is_independent_from_raw_cache(
+    mock_fetch_raw, mock_fetch_by_code, session_factory
+) -> None:
+    """원본(업종 무관) 캐시와 업종코드 필터 캐시는 별도 행으로 저장된다."""
+    mock_fetch_raw.return_value = (_STORES, 2)
+    mock_fetch_by_code.return_value = ([_STORES[0]], 177)
+
+    get_market(37.4980, 127.0276, industry="카페")
+
+    with session_factory() as session:
+        rows = session.query(MarketCache).all()
+        assert len(rows) == 2
+        assert {row.industry_code for row in rows} == {None, "I21201"}
+
+
+@patch("cache.market_repo.fetch_raw")
+def test_upsert_refreshes_ttl_even_when_payload_is_identical(mock_fetch_raw, session_factory) -> None:
+    """만료된 캐시를 재적재할 때 새로 받아온 값이 기존 값과 동일해도 created_at이
+    갱신돼야 한다 — SQLAlchemy는 값이 바뀌지 않은 컬럼은 UPDATE 대상으로 보지
+    않아 onupdate=func.now()가 발동하지 않는다. 갱신이 안 되면 다음 조회도
+    여전히 만료로 판정돼 매번 실시간 API를 다시 호출하게 된다."""
+    old_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=8)
+    with session_factory() as session:
+        session.add(
+            MarketCache(
+                lat=37.498,
+                lng=127.028,
+                radius=500,
+                result_json=json.dumps({"stores": _STORES, "total_count": 2}),
+                created_at=old_time,
+            )
+        )
+        session.commit()
+    mock_fetch_raw.return_value = (_STORES, 2)  # 기존 캐시와 동일한 payload
+
+    get_market(37.4980, 127.0276)
+
+    with session_factory() as session:
+        row = session.query(MarketCache).one()
+        assert row.created_at > old_time + timedelta(days=7)
+
+
+@patch("cache.market_repo.fetch_by_code")
+@patch("cache.market_repo.fetch_raw")
+def test_falls_back_to_text_matching_when_fetch_by_code_fails(
+    mock_fetch_raw, mock_fetch_by_code, session_factory
+) -> None:
+    mock_fetch_raw.return_value = (_STORES, 2)
+    mock_fetch_by_code.return_value = None
+
+    result = get_market(37.4980, 127.0276, industry="카페")
+
+    assert result["same_industry_count"] == 1
 
 
 @patch("cache.market_repo.fetch_raw")

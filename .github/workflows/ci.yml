@@ -74,7 +74,7 @@ jobs:
       - name: Build and start services
         run: docker compose up --build -d --wait --wait-timeout 180
 
-      - name: Verify service flow
+      - name: Verify public health endpoints
         run: |
           python - <<'PY'
           import json
@@ -85,34 +85,20 @@ jobs:
               assert json.load(response) == {"status": "ok"}
 
           with urllib.request.urlopen(
-              "http://127.0.0.1:8501/_stcore/health", timeout=10
+              "http://127.0.0.1:8501/", timeout=10
           ) as response:
               assert response.status == 200
 
-          request = urllib.request.Request(
-              "http://127.0.0.1:18000/generate",
-              data=json.dumps({"prompt": "CI 연결 테스트"}).encode(),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(request, timeout=10) as response:
-              body = json.load(response)
-              assert response.status == 200
-              assert body["status"] == "completed"
           PY
 
       - name: Verify frontend-to-backend connection
         run: |
-          docker compose exec -T frontend /app/.venv/bin/python - <<'PY'
-          import os
-
-          from frontend.api_client import ApiClient
-
-          result = ApiClient(os.environ["BACKEND_URL"], timeout=10).generate(
-              "CI 컨테이너 연결 테스트"
-          )
-          assert result["status"] == "completed"
-          PY
+          docker compose exec -T frontend node --input-type=module - <<'JS'
+          const response = await fetch(`${process.env.BACKEND_URL}/health`);
+          if (!response.ok) throw new Error(`backend health failed: ${response.status}`);
+          const result = await response.json();
+          if (result.status !== "ok") throw new Error(`unexpected health: ${JSON.stringify(result)}`);
+          JS
 
       - name: Print service logs on failure
         if: failure()

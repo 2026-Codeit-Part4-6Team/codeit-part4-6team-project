@@ -8,8 +8,9 @@ from models.shared.llm import call_llm
 
 def _fallback_analysis() -> dict:
     """폴백 시 매번 새 dict/list를 만든다 — 공유 객체를 반환하면 호출자가 리스트를
-    수정했을 때 이후 요청의 폴백에도 그 값이 남는다."""
-    return {"is_sufficient": True, "missing_info": []}
+    수정했을 때 이후 요청의 폴백에도 그 값이 남는다. keyword는 특정 대상을 알 수
+    없으니 None(트렌드 조회 생략)으로 안전하게 둔다."""
+    return {"is_sufficient": True, "missing_info": [], "keyword": None}
 
 
 def question_analysis(state: ConsultState) -> dict:
@@ -23,6 +24,11 @@ def question_analysis(state: ConsultState) -> dict:
     응답 자체를 원천 차단하면 그 폴백 경로가 실전에서 거의 실행되지 않게 되어
     폴백 테스트들이 지키는 시나리오가 유명무실해진다(PM 리뷰, PR #93).
     이번 호출의 토큰 사용량은 state["tokens_used"]에 누적한다.
+
+    keyword(트렌드 조회용 검색어)도 함께 추출한다 — PM 결정(D-079)에 따라 트렌드
+    조회는 질문 원문이 아니라 이 keyword를 써야 한다. 질문 원문은 매번 달라 캐시
+    적중률이 0이 되어 네이버 트렌드 API 월 5만 건 한도를 그대로 소모하기 때문이다.
+    D6의 trend_for_consult 노드가 이 keyword로 get_trend()를 호출해 소비한다.
     """
     question = state["question"]
     store = state["store"]
@@ -51,6 +57,7 @@ def _parse_response(raw: str, original_question: str) -> tuple[str, dict]:
     rewritten = parsed.get("rewritten_question")
     is_sufficient = parsed.get("is_sufficient")
     missing_info = parsed.get("missing_info")
+    keyword = parsed.get("keyword")
 
     valid = (
         isinstance(rewritten, str)
@@ -59,8 +66,14 @@ def _parse_response(raw: str, original_question: str) -> tuple[str, dict]:
         and isinstance(missing_info, list)
         and all(isinstance(item, str) for item in missing_info)
         and is_sufficient == (len(missing_info) == 0)
+        and (keyword is None or (isinstance(keyword, str) and bool(keyword.strip())))
     )
     if not valid:
         return original_question, _fallback_analysis()
 
-    return rewritten, {"is_sufficient": is_sufficient, "missing_info": missing_info}
+    normalized_keyword = keyword.strip() if isinstance(keyword, str) else None
+    return rewritten, {
+        "is_sufficient": is_sufficient,
+        "missing_info": missing_info,
+        "keyword": normalized_keyword,
+    }
