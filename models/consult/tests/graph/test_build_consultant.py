@@ -56,7 +56,7 @@ def test_graph_runs_start_to_end_without_error(
         100,
     )
     mock_chips_call_llm.return_value = (
-        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}),
         50,
     )
     mock_strategy_call_llm.return_value = (
@@ -82,7 +82,7 @@ def test_graph_runs_start_to_end_without_error(
     assert result["sources"] == ["가게정보"]
     # suggested_chips·chips_fallback은 suggested_chips 노드만 쓰는 필드라 market/trend와
     # 병렬로 묶여도 덮어써질 수 없다 — 실제로 병합 후에도 남아있는지 확인한다.
-    assert result["suggested_chips"] == ["질문 1", "질문 2", "질문 3"]
+    assert result["suggested_chips"] == ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]
     assert result["chips_fallback"] is False
     # question_analysis(100) + suggested_chips(50) + strategy(100) = 250.
     # market_for_consult·trend_for_consult는 LLM을 호출하지 않아 tokens_used를
@@ -132,7 +132,7 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
         100,
     )
     mock_chips_call_llm.return_value = (
-        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}),
         50,
     )
     mock_strategy_call_llm.return_value = (
@@ -188,7 +188,7 @@ def test_graph_uses_trend_result_when_only_market_fails(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -233,7 +233,7 @@ def test_graph_uses_market_result_when_only_trend_fails(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -279,7 +279,7 @@ def test_suggested_chips_market_trend_run_in_parallel_not_sequential(
 
     def rendezvous_chips(*args, **kwargs):
         barrier.wait()
-        return (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+        return (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
 
     mock_get_market.side_effect = rendezvous_market
     mock_get_trend.side_effect = rendezvous_trend

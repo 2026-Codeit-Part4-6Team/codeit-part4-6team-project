@@ -22,6 +22,13 @@ def suggested_chips(state: ConsultState) -> dict:
     question_analysis와 동일한 원칙으로, 칩 생성 하나가 형식을 어겼다고
     전체 상담이 멈추면 안 되기 때문이다.
 
+    화자 방향(사용자→챗봇)은 여기서 규칙 기반으로 걸러내지 않는다 — 어미
+    패턴("-까요?"만 허용 등)으로 근사했더니 "마케팅 채널은 무엇인가요?"처럼
+    정상 방향인 질문까지 오탐해 정상 칩 전체를 폐기하는 부작용이 실측
+    파일럿(2026-08-24)에서 더 크게 나타났다. 방향은 프롬프트(D 방향 지시·
+    금지/허용 예시)로 유도하고, `eval_suggested_chips.py`의 화자방향 축으로
+    오프라인 품질을 측정하는 쪽으로 방어선을 옮겼다.
+
     이 노드는 question_analysis 직후(상권·트렌드 조회 이전)에 실행되므로
     context["market"]/context["trend"]는 아직 없다 — question_analysis가 남긴
     missing_info만 참고해, 부족한 정보를 채우는 칩을 하나 포함하도록 유도한다.
