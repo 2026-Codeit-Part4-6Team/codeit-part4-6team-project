@@ -13,6 +13,7 @@ from backend.services.history_service import (
     GenerationHistoryNotFound,
     get_generation_detail,
     list_generations,
+    list_generations_page,
 )
 
 
@@ -146,6 +147,60 @@ def test_list_history_returns_empty_list(tmp_path):
     with Session(engine) as db:
         owner = add_user(db)
         assert list_generations(db, owner) == []
+
+
+def test_search_history_filters_title_and_question_and_returns_page_metadata(tmp_path):
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        owner = add_user(db)
+        matching_title = add_generation(db, owner, 30)
+        matching_title.title = "여름 신메뉴 캠페인"
+        matching_question = add_generation(db, owner, 31)
+        matching_question.question = "직장인 점심 광고를 만들어줘"
+        add_generation(db, owner, 32)
+        db.commit()
+
+        page = list_generations_page(db, owner, query="여름", page=1, page_size=10)
+
+        assert [item.id for item in page.items] == [matching_title.id]
+        assert page.total == 1
+        assert page.page == 1
+        assert page.page_size == 10
+        assert page.total_pages == 1
+
+        question_page = list_generations_page(
+            db, owner, query="점심", page=1, page_size=10
+        )
+        assert [item.id for item in question_page.items] == [matching_question.id]
+
+
+def test_search_history_is_owner_scoped_and_paginates_deterministically(tmp_path):
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        owner = add_user(db)
+        other = add_user(db, "history-page-other")
+        for suffix in range(40, 44):
+            add_generation(db, owner, suffix)
+        add_generation(db, other, 44)
+
+        page = list_generations_page(db, owner, page=2, page_size=2)
+
+        assert [item.id for item in page.items] == [owner.id + 1, owner.id]
+        assert page.total == 4
+        assert page.total_pages == 2
+
+
+def test_search_history_returns_empty_page_when_page_is_after_last(tmp_path):
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        owner = add_user(db)
+        add_generation(db, owner, 50)
+
+        page = list_generations_page(db, owner, page=2, page_size=10)
+
+        assert page.items == []
+        assert page.total == 1
+        assert page.total_pages == 1
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.auth import get_current_user
@@ -10,6 +10,7 @@ from backend.database import get_db
 from backend.models import User
 from backend.schemas import (
     GenerationDetailResponse,
+    GenerationHistoryResponse,
     GenerationListItem,
     PublishRequest,
     PublishResponse,
@@ -30,6 +31,7 @@ from backend.services.history_service import (
     GenerationHistoryNotFound,
     get_generation_detail,
     list_generations,
+    list_generations_page,
 )
 
 router = APIRouter(tags=["generations"])
@@ -42,6 +44,24 @@ def list_history(
 ) -> list[GenerationListItem]:
     """현재 사용자의 생성 이력을 최신순으로 반환합니다."""
     return list_generations(db, user)
+
+
+@router.get("/generations/history", response_model=GenerationHistoryResponse)
+def list_history_page(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    query: Annotated[str, Query(alias="q", max_length=200)] = "",
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> GenerationHistoryResponse:
+    """현재 사용자의 생성 이력을 검색·페이지 단위로 반환합니다."""
+    return list_generations_page(
+        db,
+        user,
+        query=query,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/generations/{generation_id}", response_model=GenerationDetailResponse)

@@ -227,6 +227,23 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls.every((call) => call[1]?.method === "GET")).toBe(true);
   });
 
+  it("requests searchable history pages with server-side pagination", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [], page: 2, page_size: 5, total: 0, total_pages: 0 }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.generationHistoryPage({ query: "여름 메뉴", page: 2, pageSize: 5 });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "/api/generations/history?q=%EC%97%AC%EB%A6%84+%EB%A9%94%EB%89%B4&page=2&page_size=5",
+    );
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
+  });
+
   it("sends a fresh idempotency key with a demo package purchase", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
