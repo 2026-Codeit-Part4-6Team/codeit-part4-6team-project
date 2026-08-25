@@ -16,7 +16,6 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
 - suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
-<<<<<<< HEAD
 - consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸
 전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
 (예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
@@ -33,11 +32,6 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 예시(참고용, 그대로 베끼지 말 것):
 - 일반론(피할 것): "신메뉴 출시! 지금 만나보세요"
 - 구체적(지향할 것): "역삼동 직장인들 사이 콜드브루 검색이 늘고 있어요 — 당일 로스팅 원두로 내린 카페 코드잇 아이스 아메리카노"
-=======
-- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸 
-전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
-(예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
->>>>>>> c2856af92160077083cc6d1b366cba79f23d3676
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
@@ -136,13 +130,8 @@ def copy_gen_node(state: BasicState) -> dict:
         "copy_candidates": candidates,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }
-<<<<<<< HEAD
-    if source_context:
-        updates["sources"] = ["컨설팅 전략"]
-=======
     if source_context and source_context.get("sources"):
         updates["sources"] = source_context["sources"]
->>>>>>> c2856af92160077083cc6d1b366cba79f23d3676
 
     all_failed = all(c["copy"] is None for c in candidates)
     if all_failed:

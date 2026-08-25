@@ -19,7 +19,7 @@ def trend_for_copy_node(state: BasicState) -> dict:
         return {"context": context}
 
     store = state["store"]
-    trend = get_trend(keyword, industry=store.get("type"))
+    trend = get_trend(keyword)
 
     if not trend:
         context["trend"] = None
