@@ -21,9 +21,13 @@ class BasicState(CommonState):
         list
     ]  # LLM judge 랭킹 결과, [{"copy": "...", "score": 4.3, "image_b64": "...", "image_prompt": "..."}]
     image_results: NotRequired[list]  # base64 이미지만 모은 리스트
+    image_prompts: NotRequired[
+        list
+    ]  # 이미지 생성 프롬프트, ranked_copies와 같은 인덱스로 정렬됨
     image_review_result: NotRequired[
         dict
     ]  # CLIP Score, 금지요소 검수 결과 (validation과 별도)
+    image_captions_en: NotRequired[list]  # CLIP 채점용 영문 캡션
 
     copy_retry_count: NotRequired[int]  # 카피 생성 / 규제 재시도 루프 카운터
     image_retry_count: NotRequired[int]  # 이미지 재생성 루프 카운터
