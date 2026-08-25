@@ -33,6 +33,14 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 - 일반론(피할 것): "신메뉴 출시! 지금 만나보세요"
 - 구체적(지향할 것): "역삼동 직장인들 사이 콜드브루 검색이 늘고 있어요 — 당일 로스팅 원두로 내린 카페 코드잇 아이스 아메리카노"
 
+계절성 원칙:
+- seasonality(reference_date·calendar_period·season_hint)가 주어지면, 카피의 분위기나
+  소재를 잡는 참고용 힌트로만 쓴다.
+- "지금 이 계절이라 잘 팔린다/수요가 늘었다"처럼 실제 판매량·수요를 단정하는 문구로 쓰지
+  않는다 — season_hint는 날짜로 계산한 내부 힌트일 뿐 실측 데이터가 아니다.
+- calendar_period(예: "8월 하순")는 시의성 있는 표현에 참고할 수 있지만, 통계처럼
+  단정적으로 인용하지 않는다.
+
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
 - xbanner: 세로형 스탠드 배너 상단에 들어갈 한 줄, 눈에 띄는 핵심 메시지
@@ -65,6 +73,7 @@ def copy_gen_node(state: BasicState) -> dict:
         "market": context_data.get("market"),
         "trend": context_data.get("trend"),
         "benchmark": context_data.get("benchmark"),
+        "seasonality": context_data.get("seasonality"),
     }
     if source_context:
         payload["consultant_strategy"] = source_context.get("strategy")

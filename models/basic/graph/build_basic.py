@@ -19,6 +19,7 @@ from ..nodes.market_for_copy import market_for_copy_node
 from ..nodes.question_analysis import question_analysis_node
 from ..nodes.ranking import ranking_node
 from ..nodes.regulation_node import regulation_node
+from ..nodes.seasonality_for_copy import seasonality_for_copy_node
 from ..nodes.security_input import security_input_node
 from ..nodes.security_output import security_output_node
 from ..nodes.self_check_node import self_check_node
@@ -106,6 +107,7 @@ def build_basic_graph():
     graph.add_node("question_analysis", question_analysis_node)
     graph.add_node("ranking", ranking_node)
     graph.add_node("regulation", regulation_node)
+    graph.add_node("seasonality_for_copy", seasonality_for_copy_node)
     graph.add_node("security_input", security_input_node)
     graph.add_node("security_output", security_output_node)
     graph.add_node("self_check", self_check_node)
@@ -131,7 +133,8 @@ def build_basic_graph():
     graph.add_edge("channel", "market_for_copy")
     graph.add_edge("market_for_copy", "trend_for_copy")
     graph.add_edge("trend_for_copy", "benchmark")
-    graph.add_edge("benchmark", "copy_gen")
+    graph.add_edge("benchmark", "seasonality_for_copy")
+    graph.add_edge("seasonality_for_copy", "copy_gen")
 
     # 카피 생성, 랭킹 및 규제 검수
     graph.add_conditional_edges(
