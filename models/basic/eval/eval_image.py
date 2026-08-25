@@ -373,15 +373,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--banner-limit", type=int, default=None, help="banner 문항 수")
-    parser.add_argument(
-        "--instagram-limit", type=int, default=None, help="instagram 문항 수"
-    )
-    parser.add_argument(
-        "--exclude",
-        type=str,
-        default="",
-        help="제외할 문항 ID, 콤마로 구분 (예: B-012)",
-    )
+    parser.add_argument("--instagram-limit", type=int, default=None, help="instagram 문항 수")
+    parser.add_argument("--exclude", type=str, default="", help="제외할 문항 ID, 콤마로 구분 (예: B-012)")
     args = parser.parse_args()
     exclude = [x.strip() for x in args.exclude.split(",") if x.strip()]
     run(args.dataset, args.limit, args.banner_limit, args.instagram_limit, exclude)

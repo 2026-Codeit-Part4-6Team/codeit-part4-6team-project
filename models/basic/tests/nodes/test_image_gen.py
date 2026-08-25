@@ -152,7 +152,7 @@ def test_instagram_platform_uses_square_size_and_style(mock_generate_image):
 
     prompt = mock_generate_image.call_args.args[0]
     assert mock_generate_image.call_args.kwargs["size"] == "1024x1024"
-    assert "라이프스타일" in prompt
+    assert "제품/메뉴 1개를 화면 중앙" in prompt
 
 
 @patch("models.basic.nodes.image_gen.generate_image")

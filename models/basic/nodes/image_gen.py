@@ -29,13 +29,42 @@ _PLATFORM_IMAGE_SIZE = {
 }
 
 _PLATFORM_IMAGE_PROMPT = {
-    "instagram": (
-        "{store_type} 광고 이미지. 소재: {copy}. "
-        "따뜻하고 감성적인 라이프스타일 사진 스타일, 얕은 심도로 "
-        "제품이나 인물을 가까이서 담은 구도. 인스타그램 피드에서 시선을 끄는 톤."
+    "instagram_hero_product": (
+        "{store_type} 광고 이미지. 제품/메뉴 1개를 화면 중앙 또는 풀스크린에 "
+        "크고 선명하게 배치한다. 이미지 상단에는 다음 문구 중 가장 핵심적인 "
+        "한 줄만 크고 임팩트 있는 타이포그래피로 얹는다: \"{copy}\" "
+        "할인·가격·혜택 정보가 문구에 있으면 우측 하단이나 코너에 작은 "
+        "배너/스티커 형태로 별도 배치한다. 배경은 단순하게 정리해 제품에 "
+        "시선이 집중되게 한다. 인스타그램 피드에서 시선을 끄는 선명한 톤."
+        "이미지에는 해시태그를 포함시키지 않는다."
+    ),
+    "instagram_character": (
+        "{store_type} 광고 이미지. 귀엽고 개성 있는 AI 캐릭터(인스타툰 스타일) "
+        "1명이 등장해 제품을 자연스럽게 들고 있거나 소개하는 장면. "
+        "캐릭터의 대사나 표정으로 다음 문구의 분위기를 전달한다: \"{copy}\" "
+        "실제 사진이 아닌 귀여운 일러스트/웹툰 캐릭터 스타일. "
+        "브랜드 컬러를 캐릭터 의상이나 소품에 살짝 반영한다."
+        "이미지에는 해시태그를 포함시키지 않는다."
+    ),
+    "instagram_meme": (
+        "{store_type} 광고 이미지. 밈(meme) 스타일 — MZ세대 타겟. "
+        "고객이 겪을 법한 불편한 상황을 과장된 표정의 캐릭터/짤 형태로 표현하고, "
+        "그 위에 말풍선 또는 자막 텍스트로 고객의 속마음을 짧고 재치있게 적는다: "
+        "\"{copy}\"를 참고해 소재를 잡되 그대로 옮기지 말고 상황극으로 재구성한다. "
+        "실제 인터넷 밈 캡처가 아니라 AI가 새로 그린 일러스트/캐릭터 스타일로 만든다. "
+        "정색체가 아닌 유머러스하고 과장된 톤."
+        "이미지에는 해시태그를 포함시키지 않는다."
+    ),
+    "instagram_chat_mockup": (
+        "{store_type} 광고 이미지. 스마트폰 메신저 대화창을 캡처한 것처럼 "
+        "디자인한다. 위쪽 말풍선엔 고객이 겪을 법한 질문/고민을 짧게 적고, "
+        "아래쪽 답변 말풍선엔 이모티콘과 함께 제품 이미지를 작게 배치해 "
+        "답변처럼 보이게 한다. 다음 문구의 핵심을 답변 톤에 반영한다: \"{copy}\" "
+        "실제 메신저 앱 UI(말풍선·시간 표시·프로필 아이콘)를 참고한 목업 스타일."
+        "이미지에는 해시태그를 포함시키지 않는다."
     ),
     "xbanner_top": (
-        "세로형 스탠드 배너(X배너)의 상단부 디자인. 강렬한 그라데이션 배경"
+        "세로형 스탠드 배너(X배너)의 상단부 디자인. 업종에 어울리는 색상 배경"
         "(업종에 어울리는 색상 — {store_type} 분위기에 맞게). "
         "화면 상단에 다음 한국어 문구를 크고 임팩트 있는 컬러 타이포그래피로 "
         '정확한 철자로 표시한다: "{copy}" '
@@ -45,7 +74,7 @@ _PLATFORM_IMAGE_PROMPT = {
     ),
     "xbanner_bottom": (
         "세로형 스탠드 배너(X배너)의 하단부 디자인. 밝고 단순한 배경"
-        "(흰색 또는 아주 옅은 색). "
+        "(상단부와 비슷한 계열의 색상). "
         '이 디자인은 반드시 "{store_name}"이라는 이 가게 하나만을 위한 것이다. '
         "다른 브랜드명, 로고, 회사명, 업종(예: 병원·상담센터·기타 서비스업)을 "
         "절대 등장시키지 않는다. "
@@ -53,6 +82,11 @@ _PLATFORM_IMAGE_PROMPT = {
         "위에 나열되지 않은 정보(영업시간, 전화번호, 행사 일정 등)는 "
         "절대로 임의로 지어내서 표시하지 않는다 — 주어지지 않은 항목은 "
         "화면에 아예 넣지 않는다. "
+        "다음 문구에 할인·이벤트·프로모션 등 구체적인 혜택 내용이 있다면, "
+        "그 내용만 작은 배너나 스티커 형태로 하단부에 강조해서 표시한다: "
+        '"{copy}" (혜택 내용이 없으면 이 부분은 생략한다). '
+        "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
+        "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
         "전체적으로는 정보 전달 위주의 차분한 레이아웃. "
         "사진이 아닌 플랫 그래픽 포스터 디자인 스타일. "
@@ -61,9 +95,28 @@ _PLATFORM_IMAGE_PROMPT = {
 }
 _DEFAULT_PLATFORM = "instagram"
 
+# 트렌드에 민감한 라이프스타일/뷰티 업종은 밈이, 그 외 생활 밀착형 업종은
+# 메신저 목업(바로 궁금한 걸 답해주는 형태)이 더 적합하다고 보고 나눈다.
+_MEME_SUITABLE_TYPES = {"카페", "네일샵", "헤어샵", "펫살롱", "디저트", "베이커리"}
+
+
+def _pick_instagram_template(store: dict, index: int) -> str:
+    """카피 3개 중 1번은 hero_product, 2번은 character로 고정하고,
+    3번은 업종에 맞춰 meme/chat_mockup 중 더 적합한 쪽을 고른다."""
+    if index == 0:
+        return _PLATFORM_IMAGE_PROMPT["instagram_hero_product"]
+    if index == 1:
+        return _PLATFORM_IMAGE_PROMPT["instagram_character"]
+    key = (
+        "instagram_meme"
+        if store.get("type", "") in _MEME_SUITABLE_TYPES
+        else "instagram_chat_mockup"
+    )
+    return _PLATFORM_IMAGE_PROMPT[key]
+
 
 def _generate_xbanner(store: dict, copy: str) -> str:
-    """X배너를 상단(카피+비주얼)/하단(가게 정보) 두 장으로 나눠 생성한 뒤
+    """X배너를 상단(카피+비주얼)/하단(가게 정보+혜택 강조) 두 장으로 나눠 생성한 뒤
     세로로 이어붙여 base64 PNG 하나로 반환한다."""
     size = _PLATFORM_IMAGE_SIZE["xbanner"]
 
@@ -75,7 +128,7 @@ def _generate_xbanner(store: dict, copy: str) -> str:
 
     provided_info = f'상호 "{store.get("name")}", 주소 "{store.get("address")}"'
     bottom_prompt = _PLATFORM_IMAGE_PROMPT["xbanner_bottom"].format(
-        store_name=store.get("name"), provided_info=provided_info
+        store_name=store.get("name"), provided_info=provided_info, copy=copy
     )
     bottom_b64 = generate_image(bottom_prompt, size=size)
     bottom_img = Image.open(io.BytesIO(base64.b64decode(bottom_b64)))
@@ -118,7 +171,7 @@ def image_gen_node(state: BasicState) -> dict:
     prompts = []
     captions_en = []
 
-    for c in state["ranked_copies"]:
+    for i, c in enumerate(state["ranked_copies"]):
         if not c.get("copy"):
             updated.append(c)
             prompts.append(None)
@@ -135,9 +188,7 @@ def image_gen_node(state: BasicState) -> dict:
                 size = _PLATFORM_IMAGE_SIZE.get(
                     platform, _PLATFORM_IMAGE_SIZE[_DEFAULT_PLATFORM]
                 )
-                template = _PLATFORM_IMAGE_PROMPT.get(
-                    platform, _PLATFORM_IMAGE_PROMPT[_DEFAULT_PLATFORM]
-                )
+                template = _pick_instagram_template(store, i)
                 prompt_record = template.format(
                     store_type=store.get("type", "가게"), copy=c["copy"]
                 )
@@ -162,7 +213,6 @@ def image_gen_node(state: BasicState) -> dict:
             )
             prompts.append(None)
             captions_en.append(None)
-
     return {
         "ranked_copies": updated,
         "image_results": images,
