@@ -84,6 +84,26 @@ def test_judge_system_prompt_includes_speaker_direction_axis() -> None:
     assert "화자방향" in _RUBRIC_CRITERIA
 
 
+def test_judge_system_prompt_states_five_rubric_items() -> None:
+    """rubric이 5개인데 안내 문구가 "4개"로 남아있으면 Judge가 4개만 채점하고
+    화자방향을 누락시켜 invalid_response로 이어질 수 있다(Codex 리뷰)."""
+    assert "rubric 5개 항목" in JUDGE_SYSTEM_PROMPT
+    assert "rubric 4개 항목" not in JUDGE_SYSTEM_PROMPT
+
+
+def test_judge_system_prompt_speaker_direction_axis_judges_meaning_not_ending() -> None:
+    """방금 제거한 어미 기반 노드 필터와 같은 함정이 Judge rubric 예시에도 있었다 —
+    "타겟 고객층은 누구인가요?"(역방향)만 예시로 두면 Judge가 "-인가요?" 어미
+    자체를 역방향 신호로 오학습해 "이 업종에 적합한 고객층은 누구인가요?"처럼
+    같은 어미의 정상 질문까지 낮게 채점할 위험이 있다(Codex 리뷰). 같은 어미의
+    정방향 예시를 나란히 제시해 어미가 아니라 의미로 판단하게 한다."""
+    speaker_direction_section = JUDGE_SYSTEM_PROMPT.split("⑤ 화자방향")[1]
+
+    assert "타겟 고객층은 누구인가요?" in speaker_direction_section
+    assert "고객층은 누구인가요?" in speaker_direction_section.split("타겟 고객층은 누구인가요?")[1]
+    assert "어미" in speaker_direction_section
+
+
 def test_load_dataset_index_filters_area_and_uses_default_store() -> None:
     dataset = _dataset() + [
         {"id": "B-001", "area": "basic", "question": "무시할 질문", "input": {}}
@@ -301,7 +321,10 @@ def test_build_report_computes_metrics_and_preserves_source_generation_model() -
     assert report["metrics"]["relevance_avg"] == pytest.approx(4.0)
     assert report["metrics"]["non_redundancy_avg"] == pytest.approx(4.0)
     assert report["metrics"]["speaker_direction_avg"] == pytest.approx(3.0)
-    assert report["metrics"]["llm_judge_avg"] == pytest.approx(3.8)
+    # llm_judge_avg는 화자방향 추가 전 4축(관련성·비중복성·다양성·자연스러움) 평균을
+    # 그대로 유지해야 한다 — C-002의 화자방향(1)까지 합산하면 3.8이 되어, 예전
+    # 리포트(4축 평균)와 측정 조건이 달라져 전후 비교가 왜곡된다(Codex 리뷰).
+    assert report["metrics"]["llm_judge_avg"] == pytest.approx(4.0)
     assert report["metrics"]["judge_failure_rate"] == pytest.approx(0.0)
     assert report["metrics"]["excluded_count"] == 1
     assert report["excluded"] == [{"id": "C-999", "reason": "dataset_id_not_found"}]
