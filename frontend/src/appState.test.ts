@@ -35,7 +35,7 @@ describe("D5 application view state", () => {
   });
 
   it("opens Basic with the server-owned consultant generation reference", () => {
-    expect(startBasicFromStrategy(authenticatedState(user), 42)).toEqual({
+    expect(startBasicFromStrategy(authenticatedState(user), 42, "동네 고객 중심 홍보")).toEqual({
       user,
       route: "basic_chatbot",
       generationPrefill: {
