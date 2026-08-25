@@ -31,7 +31,7 @@ def self_check_node(state: BasicState) -> dict:
             outcome.get("reasons"),
             outcome.get("message"),
         )
-        
+
     if outcome.get("action") == "reject":
         retry_count = state.get("self_check_retry_count", 0) + 1
         updates["self_check_retry_count"] = retry_count

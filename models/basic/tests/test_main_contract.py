@@ -88,11 +88,14 @@ _SCENARIOS = {
 
 SOURCE_CONTEXT = {
     "generation_id": 7,
-    "strategy": {"summary": "점심 직장인 타깃",
-                 "actions": [{"type": "menu", "content": "런치 세트 2종 출시"}]},
+    "strategy": {
+        "summary": "점심 직장인 타깃",
+        "actions": [{"type": "menu", "content": "런치 세트 2종 출시"}],
+    },
     "reasons": ["동일 상권 객단가 평균 대비 12% 낮음"],
     "sources": ["상권분석"],
 }
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # A. assemble_response() — 그래프 의존성 0
