@@ -15,6 +15,23 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 준수 사항:
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
+- suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
+- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸
+전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
+(예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
+
+구체성 원칙 (중요):
+- "맛있어요", "지금 만나보세요"처럼 어느 가게에나 붙여도 말이 되는 일반론은 쓰지 않는다.
+- trend(검색 트렌드)·extra(강점·가격대·타겟 등) 중 값이 채워진 항목이 있으면,
+  최소 1가지 이상을 카피 문장 안에 구체적으로 녹여 쓴다. 값이 없는 항목은 언급하지 않는다.
+- 제공된 정보에 없는 사실(가격, 원산지, 수상 이력 등)은 절대 지어내지 않는다 — 구체성은
+  "있는 정보를 구체적으로" 쓰는 것이지 "없는 정보를 만들어내는" 것이 아니다.
+- market(상권 정보)은 구체성 확보 목적으로 쓰지 않는다. 매장 수·거리 등 market에서 나온
+  수치나 "경쟁 매장보다/와는 다른" 같은 비교 표현은 카피에 절대 언급하지 않는다.
+
+예시(참고용, 그대로 베끼지 말 것):
+- 일반론(피할 것): "신메뉴 출시! 지금 만나보세요"
+- 구체적(지향할 것): "역삼동 직장인들 사이 콜드브루 검색이 늘고 있어요 — 당일 로스팅 원두로 내린 카페 코드잇 아이스 아메리카노"
 
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
@@ -44,6 +61,16 @@ def copy_gen_node(state: BasicState) -> dict:
     regulation_result = (state.get("validation") or {}).get("regulation")
     if regulation_result and regulation_result.get("action") == "block":
         payload["avoid"] = regulation_result.get("message")
+
+    source_context = state.get("source_context")
+    if source_context:
+        strategy = source_context["strategy"]
+        actions = " / ".join(a["content"] for a in strategy["actions"])
+        payload["consulting_strategy"] = {
+            "summary": strategy["summary"],
+            "actions": actions,
+            "reasons": " · ".join(source_context["reasons"]),
+        }
 
     try:
         raw, tokens = call_llm(
@@ -89,6 +116,8 @@ def copy_gen_node(state: BasicState) -> dict:
         "copy_candidates": candidates,
         "tokens_used": state.get("tokens_used", 0) + tokens,
     }
+    if source_context:
+        updates["sources"] = ["컨설팅 전략"]
 
     all_failed = all(c["copy"] is None for c in candidates)
     if all_failed:
