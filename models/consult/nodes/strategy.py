@@ -86,7 +86,8 @@ def strategy(state: ConsultState) -> dict:
     context = state.get("context", {})
     market = context.get("market")
     trend = context.get("trend")
-    base_user_prompt = build_user_prompt(question, store, market, trend)
+    seasonality = context.get("seasonality")
+    base_user_prompt = build_user_prompt(question, store, market, trend, seasonality)
     deadline = state.get("deadline")
 
     total_tokens = 0

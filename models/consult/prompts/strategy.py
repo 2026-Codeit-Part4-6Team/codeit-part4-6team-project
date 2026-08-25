@@ -26,10 +26,18 @@ reasons는 1개 이상 포함하며, 각 항목은 반드시 아래에 주어진
 없다"·"동일 업종이 없다"처럼 숫자 없이 쓰지 말고, reasons에도 반드시 "0곳"이라고
 숫자로 명시한다.
 
-트렌드 데이터가 주어지면 최근 검색 추이(상승/하락/유지)로 시의성을 반영한다 — 다만
-실제 날짜·계절 정보는 주어지지 않으므로 "몇 월이라 좋다"처럼 구체적인 시기를 지어내지
-말고, 추이 자체(예: 검색량이 늘고 있다)만 근거로 쓴다. 연관 검색어가 있다면 actions에
-그 키워드를 활용한 구체적인 아이디어(메뉴명·프로모션 문구 등)로 반영한다.
+트렌드 데이터가 주어지면 최근 검색 추이(상승/하락/유지)로 시의성을 반영한다. 날짜·
+계절 정보는 아래 계절성 참고에 별도로 주어지므로, 트렌드 데이터만으로 "몇 월이라
+좋다"처럼 구체적인 시기를 지어내지 말고 추이 자체(예: 검색량이 늘고 있다)만 근거로
+쓴다. 연관 검색어가 있다면 actions에 그 키워드를 활용한 구체적인 아이디어(메뉴명·
+프로모션 문구 등)로 반영한다.
+
+계절성 참고가 주어지면 전략 힌트(예: "여름 말기")를 summary·actions에서 방향을 잡는
+데 활용할 수 있다. 다만 reasons에는 이 판단 라벨을 그대로 근거로 쓰지 않는다 — 날짜를
+근거로 써야 한다면 계절성 참고에 주어진 "달력 시점(요청 기준일)"만 그대로 인용해
+원시 날짜 정보만 사용한다. "여름 말기이므로 수요가 늘어난다"처럼 날짜만으로 실제
+수요·검색량 증감을 단정하지 않는다 — 검색 수요 증감은 트렌드 데이터가 실제로
+주어졌을 때만 주장한다.
 
 예시:
 - 나쁜 답변: {"title": "마케팅 전략", "summary": "SNS 마케팅을 강화하세요.", "actions": [{"type": "other", "content": "SNS를 하세요"}],
@@ -56,11 +64,18 @@ RETRY_ACTIONS_HINT = (
 )
 
 
-def build_user_prompt(question: str, store: StoreInfo, market: dict | None, trend: dict | None = None) -> str:
-    """가게 정보·상권 데이터·트렌드 데이터·질문을 조립해 사용자 프롬프트를 구성한다.
+def build_user_prompt(
+    question: str,
+    store: StoreInfo,
+    market: dict | None,
+    trend: dict | None = None,
+    seasonality: dict | None = None,
+) -> str:
+    """가게 정보·상권 데이터·트렌드 데이터·계절성 데이터·질문을 조립해 사용자
+    프롬프트를 구성한다.
 
-    데이터 섹션(상권·트렌드)을 리스트로 조립하는 구조라, 나중에 데이터가 더 늘어나면
-    _market_section()과 같은 헬퍼 하나만 더 추가하면 된다.
+    데이터 섹션(상권·트렌드·계절성)을 리스트로 조립하는 구조라, 나중에 데이터가 더
+    늘어나면 _market_section()과 같은 헬퍼 하나만 더 추가하면 된다.
     """
     sections = [_store_section(store)]
 
@@ -71,6 +86,10 @@ def build_user_prompt(question: str, store: StoreInfo, market: dict | None, tren
     trend_section = _trend_section(trend)
     if trend_section:
         sections.append(trend_section)
+
+    seasonality_section = _seasonality_section(seasonality)
+    if seasonality_section:
+        sections.append(seasonality_section)
 
     sections.append(f'질문: "{question}"')
     return "\n\n".join(sections)
@@ -133,4 +152,22 @@ def _trend_section(trend: dict | None) -> str:
         f"- 조회 검색어: {keyword_text}\n"
         f"- 최근 검색 추이: {direction}\n"
         f"- 연관 검색어: {related_text}"
+    )
+
+
+def _seasonality_section(seasonality: dict | None) -> str:
+    """계절성 데이터가 없으면(노드 조기 실행 등) 빈 문자열을 반환해 프롬프트에서
+    통째로 빠지게 한다(상권·트렌드와 동일 원칙)."""
+    if seasonality is None:
+        return ""
+
+    reference_date = seasonality.get("reference_date")
+    calendar_period = seasonality.get("calendar_period")
+    season_hint = seasonality.get("season_hint")
+
+    return (
+        "계절성 참고:\n"
+        f"- 요청 기준일: {reference_date}\n"
+        f"- 달력 시점: {calendar_period}\n"
+        f"- 전략 힌트: {season_hint}"
     )

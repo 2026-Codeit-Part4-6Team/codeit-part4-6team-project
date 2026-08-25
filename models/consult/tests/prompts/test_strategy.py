@@ -101,6 +101,55 @@ def test_fewshot_constants_match_actual_example_content() -> None:
         assert term in example_section
 
 
+def test_build_user_prompt_includes_seasonality_section_when_given() -> None:
+    store = {"name": "카페 코드잇", "type": "카페", "address": "서울 강남구 역삼동",
+             "lat": 37.5, "lng": 127.0}
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름 말기",
+    }
+
+    prompt = build_user_prompt("질문", store, None, None, seasonality)
+
+    assert "2026-08-24" in prompt
+    assert "8월 하순" in prompt
+    assert "여름 말기" in prompt
+
+
+def test_build_user_prompt_omits_seasonality_section_when_none() -> None:
+    """seasonality_for_consult 노드가 어떤 이유로든 아직 안 돈 상태(그래프 조기
+    실행 등)에서도 상권·트렌드와 동일한 원칙으로 섹션 자체가 통째로 빠진다."""
+    store = {"name": "카페 코드잇", "type": "카페", "address": "서울 강남구 역삼동",
+             "lat": 37.5, "lng": 127.0}
+
+    prompt = build_user_prompt("질문", store, None, None, None)
+
+    assert "계절성" not in prompt
+
+
+def test_system_prompt_allows_season_hint_in_summary_actions_not_reasons() -> None:
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert "summary·actions에서" in normalized
+    assert "reasons에는 이 판단 라벨을 그대로 근거로 쓰지 않는다" in normalized
+
+
+def test_system_prompt_forbids_demand_claims_from_season_alone() -> None:
+    """"여름 말기이므로 수요가 늘어난다"처럼 날짜만으로 실제 수요·검색량 증감을
+    단정하면 안 되고, 검색 수요 증감은 트렌드 데이터가 실제로 주어졌을 때만
+    주장해야 한다(PM 설계)."""
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert "여름 말기이므로 수요가 늘어난다" in normalized
+    assert "트렌드 데이터가 실제로 주어졌을 때만 주장한다" in normalized
+
+
+def test_system_prompt_no_longer_claims_date_information_is_never_given() -> None:
+    """계절성 참고가 실제로 날짜 정보를 주는 이상, "실제 날짜·계절 정보는 주어지지
+    않으므로"라는 예전 문구가 남아있으면 자기모순이 된다(계절성 도입 전 트렌드
+    규칙 — G-3의 "무료 증정 금지 직후 웰컴 선물" 자기모순과 같은 유형)."""
+    assert "실제 날짜·계절 정보는 주어지지 않으므로" not in SYSTEM_PROMPT
+
+
 def test_system_prompt_requires_explicit_zero_for_no_competitors() -> None:
     """동일 업종 매장 수가 0곳이면 reasons에도 "없다"가 아니라 반드시 "0곳"이라고
     숫자로 쓰라는 지시가 있어야 한다 — D8 60문항 실측에서 F1(경쟁 없음) fixture

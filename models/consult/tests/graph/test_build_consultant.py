@@ -85,10 +85,13 @@ def test_graph_runs_start_to_end_without_error(
     assert result["suggested_chips"] == ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]
     assert result["chips_fallback"] is False
     # question_analysis(100) + suggested_chips(50) + strategy(100) = 250.
-    # market_for_consult·trend_for_consult는 LLM을 호출하지 않아 tokens_used를
-    # 건드리지 않으므로, 3-way 병렬 묶음 안에서 tokens_used를 쓰는 노드는
-    # suggested_chips 하나뿐이라 합계가 그대로 보존돼야 한다.
+    # market_for_consult·trend_for_consult·seasonality_for_consult는 LLM을 호출하지
+    # 않아 tokens_used를 건드리지 않으므로, 4-way 병렬 묶음 안에서 tokens_used를
+    # 쓰는 노드는 suggested_chips 하나뿐이라 합계가 그대로 보존돼야 한다.
     assert result["tokens_used"] == 250
+    # seasonality_for_consult는 외부 I/O 없이 항상 성공하므로 매 실행마다 context에
+    # 남아있어야 한다 — 정확한 값(날짜 의존)은 여기서 검사하지 않고 구조만 확인한다.
+    assert set(result["context"]["seasonality"]) == {"reference_date", "calendar_period", "season_hint"}
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -245,29 +248,30 @@ def test_graph_uses_market_result_when_only_trend_fails(
     assert result["context"]["trend"] is None
 
 
+@patch("models.consult.nodes.seasonality_for_consult.compute_seasonality")
 @patch("models.consult.nodes.strategy.call_llm")
 @patch("models.consult.nodes.suggested_chips.call_llm")
 @patch("models.consult.nodes.question_analysis.call_llm")
 @patch("models.consult.nodes.trend_for_consult.get_trend")
 @patch("models.consult.nodes.market_for_consult.get_market")
-def test_suggested_chips_market_trend_run_in_parallel_not_sequential(
+def test_suggested_chips_market_trend_seasonality_run_in_parallel_not_sequential(
     mock_get_market,
     mock_get_trend,
     mock_question_call_llm,
     mock_chips_call_llm,
     mock_strategy_call_llm,
+    mock_compute_seasonality,
 ) -> None:
-    """suggested_chips·market_for_consult·trend_for_consult 세 노드가 question_analysis
-    직후 동시에 실행되는지 확인한다(v3 섹션F, 3-way 병렬화 — suggested_chips는 market/
-    trend 결과를 쓰지 않아 더 이상 그 앞에서 순차로 기다릴 이유가 없다). 세 mock이
-    threading.Barrier(3)에서 서로를 기다리게 한다 — 셋 중 하나라도 순차 실행이면
-    나머지를 영원히 못 만나 타임아웃 예외를 던지고, 셋 다 병렬이면 거의 동시에
-    도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아 느린 CI에서도 안정적이다
-    (v2 섹션F Codex 리뷰 — 기존 sleep+임계값 비교는 느린 환경에서 flaky할 수 있다는
-    지적과 동일 패턴)."""
+    """suggested_chips·market_for_consult·trend_for_consult·seasonality_for_consult
+    네 노드가 question_analysis 직후 동시에 실행되는지 확인한다(v3 섹션F·C, 4-way
+    병렬화). 네 mock이 threading.Barrier(4)에서 서로를 기다리게 한다 — 넷 중
+    하나라도 순차 실행이면 나머지를 영원히 못 만나 타임아웃 예외를 던지고, 넷 다
+    병렬이면 거의 동시에 도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아
+    느린 CI에서도 안정적이다(v2 섹션F Codex 리뷰 — 기존 sleep+임계값 비교는 느린
+    환경에서 flaky할 수 있다는 지적과 동일 패턴)."""
     import threading
 
-    barrier = threading.Barrier(3, timeout=2.0)
+    barrier = threading.Barrier(4, timeout=2.0)
 
     def rendezvous_market(*args, **kwargs):
         barrier.wait()
@@ -279,9 +283,14 @@ def test_suggested_chips_market_trend_run_in_parallel_not_sequential(
         barrier.wait()
         return (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
 
+    def rendezvous_seasonality(*args, **kwargs):
+        barrier.wait()
+        return {"reference_date": "2026-08-24", "calendar_period": "8월 하순", "season_hint": "여름 말기"}
+
     mock_get_market.side_effect = rendezvous_market
     mock_get_trend.side_effect = rendezvous_trend
     mock_chips_call_llm.side_effect = rendezvous_chips
+    mock_compute_seasonality.side_effect = rendezvous_seasonality
     mock_question_call_llm.return_value = (
         json.dumps(
             {
@@ -305,6 +314,7 @@ def test_suggested_chips_market_trend_run_in_parallel_not_sequential(
     mock_get_market.assert_called_once()
     mock_get_trend.assert_called_once()
     mock_chips_call_llm.assert_called_once()
+    mock_compute_seasonality.assert_called_once()
 
 
 def test_default_path_skips_link_to_ads() -> None:
@@ -320,8 +330,9 @@ def test_default_path_skips_link_to_ads() -> None:
 
 def test_default_path_has_expected_topology() -> None:
     """SDP §6.1 순서대로 연결돼 있어야 한다. suggested_chips·market_for_consult·
-    trend_for_consult는 서로의 결과를 쓰지 않아(v3 섹션F) question_analysis 직후
-    셋 다 갈라졌다가 strategy 앞에서 합류하는 병렬 구간이고, 나머지는 순차 연결이다."""
+    trend_for_consult·seasonality_for_consult는 서로의 결과를 쓰지 않아(v3 섹션F·C)
+    question_analysis 직후 넷 다 갈라졌다가 strategy 앞에서 합류하는 병렬 구간이고,
+    나머지는 순차 연결이다."""
     drawable = build_consultant().get_graph()
 
     assert set(drawable.nodes.keys()) == {
@@ -332,6 +343,7 @@ def test_default_path_has_expected_topology() -> None:
         "suggested_chips",
         "market_for_consult",
         "trend_for_consult",
+        "seasonality_for_consult",
         "strategy",
         "strategy_check",
         "security_output",
@@ -345,9 +357,11 @@ def test_default_path_has_expected_topology() -> None:
         ("question_analysis", "suggested_chips"),
         ("question_analysis", "market_for_consult"),
         ("question_analysis", "trend_for_consult"),
+        ("question_analysis", "seasonality_for_consult"),
         ("suggested_chips", "strategy"),
         ("market_for_consult", "strategy"),
         ("trend_for_consult", "strategy"),
+        ("seasonality_for_consult", "strategy"),
         ("strategy", "strategy_check"),
         ("strategy_check", "security_output"),
         ("security_output", "self_check_node"),
