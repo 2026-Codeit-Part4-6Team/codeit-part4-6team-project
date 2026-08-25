@@ -7,6 +7,7 @@ import {
   RegistrationCompletedLoginFailed,
   type RegistrationFields,
 } from "../auth";
+import { AddressMapPreview } from "./AddressMapPreview";
 import { BrandHeader } from "./BrandHeader";
 
 const emptyRegistration: RegistrationFields = {
@@ -295,35 +296,5 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
         </section>
       )}
     </main>
-  );
-}
-
-function AddressMapPreview({ preview }: { preview: GeocodePreviewResponse }) {
-  const delta = 0.004;
-  const bbox = [
-    preview.lng - delta,
-    preview.lat - delta,
-    preview.lng + delta,
-    preview.lat + delta,
-  ].join(",");
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${preview.lat},${preview.lng}`;
-
-  return (
-    <div className="map-preview" aria-label="주소 지도 미리보기">
-      <div className="map-preview-heading">
-        <div>
-          <strong>이 위치로 가게를 등록할까요?</strong>
-          <span>{preview.road_address}</span>
-        </div>
-        <span className="map-preview-badge">주소 확인됨</span>
-      </div>
-      <iframe
-        title={`${preview.road_address} 지도`}
-        src={mapUrl}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-      />
-      <small>가입을 완료하면 이 좌표가 상권 분석 기준점으로 저장됩니다.</small>
-    </div>
   );
 }

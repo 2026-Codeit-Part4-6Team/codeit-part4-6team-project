@@ -15,9 +15,9 @@ const user = {
   business_type: "카페",
   address: "서울 강남구",
   address_detail: "2층",
-  road_address: null,
-  lat: null,
-  lng: null,
+  road_address: "서울특별시 강남구 테헤란로 152 강남파이낸스센터",
+  lat: 37.5000263,
+  lng: 127.0365456,
   credits: 0,
   daily_free_used: 0,
   daily_free_reset_at: null,
@@ -54,5 +54,8 @@ describe("SettingsPage", () => {
     expect(html).toContain('value="코드잇 카페"');
     expect(html).toContain("가게 정보 저장");
     expect(html).toContain("주소 좌표와 상권 데이터의 기준");
+    expect(html).toContain("주소 지도 미리보기");
+    expect(html).toContain("현재 상권 분석 기준 위치");
+    expect(html).toContain("강남파이낸스센터");
   });
 });

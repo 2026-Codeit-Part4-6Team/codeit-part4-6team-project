@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { ApiClient, UserResponse } from "../api";
+import { AddressMapPreview } from "./AddressMapPreview";
 
 type StoreProfilePageProps = {
   api: ApiClient;
@@ -62,6 +63,18 @@ export function StoreProfilePage({ api, user, onBack, onSaved }: StoreProfilePag
           <input value={user.road_address ?? user.address ?? "주소 미등록"} readOnly aria-readonly="true" />
           <small>주소 좌표와 상권 데이터의 기준이므로 현재는 회원가입 주소를 사용합니다.</small>
         </label>
+        {user.lat !== null && user.lng !== null && (
+          <AddressMapPreview
+            preview={{
+              query: user.address ?? user.road_address ?? "",
+              road_address: user.road_address ?? user.address ?? "주소 미등록",
+              lat: user.lat,
+              lng: user.lng,
+            }}
+            heading="현재 상권 분석 기준 위치"
+            caption="이 좌표를 기준으로 광고 생성과 상권 분석이 진행됩니다."
+          />
+        )}
         <label>
           상세 주소
           <input value={addressDetail} onChange={(event) => setAddressDetail(event.target.value)} />
