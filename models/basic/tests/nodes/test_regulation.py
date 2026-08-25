@@ -61,6 +61,29 @@ def test_blocked_below_retry_cap_increments_retry_without_final_status(
 
 
 @patch("models.basic.nodes.regulation_node.check_regulation")
+def test_warn_only_copy_is_retried_and_warning_is_preserved(mock_check_regulation):
+    mock_check_regulation.return_value = {
+        "action": "warn",
+        "reason": "exaggeration",
+        "message": "최고라는 표현은 근거가 필요합니다.",
+        "alternative": "인기 메뉴로 소개해 보세요.",
+    }
+    state = {
+        "ranked_copies": [{"copy": "최고의 카페", "score": 4.5}],
+        "validation": {},
+        "copy_retry_count": 0,
+        "issues": [],
+    }
+
+    result = regulation_node(state)
+
+    assert result["copy_retry_count"] == 1
+    assert result["validation"]["regulation"]["action"] == "warn"
+    assert result["validation"]["regulation"]["alternative"] == "인기 메뉴로 소개해 보세요."
+    assert "status" not in result
+
+
+@patch("models.basic.nodes.regulation_node.check_regulation")
 def test_blocked_at_retry_cap_sets_blocked_status_and_issue(mock_check_regulation):
     mock_check_regulation.return_value = {
         "action": "block",

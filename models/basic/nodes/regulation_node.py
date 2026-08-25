@@ -10,47 +10,55 @@ def regulation_node(state: BasicState) -> dict:
     ranked = state["ranked_copies"]
     results = [check_regulation(c["copy"]) if c.get("copy") else None for c in ranked]
 
-    passed_exists = any(r is not None and r["action"] != "block" for r in results)
+    checked = [r for r in results if r is not None]
+    has_pass = any(r["action"] == "pass" for r in checked)
     validation = {**state.get("validation", {})}
 
-    if not passed_exists:
-        blocked = next((r for r in results if r is not None), None) or {
+    if has_pass:
+        updated = []
+        for c, r in zip(ranked, results):
+            if r is None or r["action"] == "pass":
+                updated.append(c)
+            else:
+                updated.append(
+                    {
+                        "copy": None,
+                        "image_b64": None,
+                        "error": {
+                            "field": "copy",
+                            "reason": "content_policy",
+                            "message": r.get("message", ""),
+                        },
+                    }
+                )
+        validation["regulation"] = {
+            "action": "pass",
+            "reason": "pass",
+            "message": "",
+            "alternative": "",
+        }
+        return {"ranked_copies": updated, "validation": validation}
+
+    worst = next((r for r in checked if r["action"] == "block"), None) or (
+        checked[0]
+        if checked
+        else {
             "action": "block",
             "reason": "no_valid_copy",
             "message": "카피 생성에 실패해 규제 검사를 진행할 수 없습니다.",
         }
-        validation["regulation"] = blocked
-        retry_count = state.get("copy_retry_count", 0) + 1
-
-        updates = {"validation": validation, "copy_retry_count": retry_count}
-        if retry_count >= COPY_MAX_RETRY:
-            updates["status"] = "blocked"
-            updates["issues"] = state.get("issues", []) + [
-                {
-                    "source": "regulation",
-                    "action": blocked.get("action", "block"),
-                    "reason": blocked.get("reason", "regulation_blocked"),
-                    "message": blocked.get("message", ""),
-                }
-            ]
-        return updates
-
-    updated = []
-    for c, r in zip(ranked, results):
-        if r is None or r["action"] != "block":
-            updated.append(c)
-        else:
-            updated.append(
-                {
-                    "copy": None,
-                    "image_b64": None,
-                    "error": {
-                        "field": "copy",
-                        "reason": "content_policy",
-                        "message": r.get("message", ""),
-                    },
-                }
-            )
-
-    validation["regulation"] = {"action": "pass", "reason": "pass", "message": ""}
-    return {"ranked_copies": updated, "validation": validation}
+    )
+    validation["regulation"] = worst
+    retry_count = state.get("copy_retry_count", 0) + 1
+    updates = {"validation": validation, "copy_retry_count": retry_count}
+    if retry_count >= COPY_MAX_RETRY:
+        updates["status"] = "blocked"
+        updates["issues"] = state.get("issues", []) + [
+            {
+                "source": "regulation",
+                "action": worst.get("action", "block"),
+                "reason": worst.get("reason", "regulation_blocked"),
+                "message": worst.get("message", ""),
+            }
+        ]
+    return updates

@@ -62,7 +62,7 @@ def route_after_regulation(state: BasicState) -> str:
     """규제 검수가 차단이면 재시도 한도 내에서 copy_gen으로 되돌리고,
     한도를 넘기면 종료한다. 통과하면 image_gen으로 진행한다."""
     result = (state.get("validation") or {}).get("regulation") or {}
-    if result.get("action") == "block":
+    if result.get("action") in ("block", "warn"):
         if state.get("copy_retry_count", 0) >= COPY_MAX_RETRY:
             return "end_blocked"
         return "copy_gen"

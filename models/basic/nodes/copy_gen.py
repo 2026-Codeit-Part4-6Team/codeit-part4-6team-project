@@ -41,8 +41,22 @@ def copy_gen_node(state: BasicState) -> dict:
         "benchmark": context_data.get("benchmark"),
     }
 
+    source_context = state.get("source_context")
+    if source_context:
+        strategy = source_context.get("strategy") or {}
+        actions = strategy.get("actions") or []
+        payload["source_context"] = {
+            "summary": strategy.get("summary", ""),
+            "actions": " / ".join(
+                action.get("content", "")
+                for action in actions
+                if action.get("content")
+            ),
+            "reasons": " · ".join(source_context.get("reasons") or []),
+        }
+
     regulation_result = (state.get("validation") or {}).get("regulation")
-    if regulation_result and regulation_result.get("action") == "block":
+    if regulation_result and regulation_result.get("action") in ("block", "warn"):
         payload["avoid"] = regulation_result.get("message")
 
     try:

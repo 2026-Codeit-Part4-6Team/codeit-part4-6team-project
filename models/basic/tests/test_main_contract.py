@@ -330,3 +330,17 @@ def test_deadline_and_source_gen_id_reach_the_graph(graph):
     assert state["source_gen_id"] == 42
     assert isinstance(state["deadline"], float) and state["deadline"] > 0
     assert state["extra"] == {}
+
+
+def test_source_context_reaches_the_graph(graph):
+    """Service가 전달한 컨설팅 원문이 Basic 그래프까지 보존된다."""
+    source = {
+        "generation_id": 42,
+        "strategy": {
+            "summary": "동네 고객 중심 홍보",
+            "actions": [{"content": "주말 이벤트"}],
+        },
+        "reasons": ["상권 분석"],
+    }
+    _run(graph, "ok", source_context=source)
+    assert graph["last_state"]["source_context"] == source

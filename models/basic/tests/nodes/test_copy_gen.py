@@ -105,6 +105,30 @@ def test_regulation_block_message_is_passed_as_avoid_hint(mock_call_llm):
 
 
 @patch("models.basic.nodes.copy_gen.call_llm")
+def test_source_context_strategy_is_passed_to_copy_prompt(mock_call_llm):
+    mock_call_llm.return_value = (
+        json.dumps({"candidates": ["카피1", "카피2", "카피3"]}),
+        10,
+    )
+    source_context = {
+        "strategy": {
+            "summary": "주말 방문을 늘리는 전략",
+            "actions": [{"content": "주말 이벤트를 홍보하세요."}],
+        },
+        "reasons": ["주말 유동인구가 많습니다."],
+    }
+
+    copy_gen_node(_state(source_context=source_context))
+
+    sent_payload = json.loads(mock_call_llm.call_args.args[1])
+    assert sent_payload["source_context"] == {
+        "summary": "주말 방문을 늘리는 전략",
+        "actions": "주말 이벤트를 홍보하세요.",
+        "reasons": "주말 유동인구가 많습니다.",
+    }
+
+
+@patch("models.basic.nodes.copy_gen.call_llm")
 def test_call_llm_exception_sets_error_status_with_classified_reason(mock_call_llm):
     mock_call_llm.side_effect = _rate_limit_error()
 
