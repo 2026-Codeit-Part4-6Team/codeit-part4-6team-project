@@ -46,6 +46,40 @@ def test_d7_actual_timeout_defaults_to_verified_180_seconds():
     assert "MODEL_REQUEST_TIMEOUT_SECONDS=180" in env_example
 
 
+def test_actual_runtime_isolated_pool_validation_and_hf_cache_are_explicit():
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    deploy = (ROOT / "compose.deploy.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    for entry in (
+        "MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}",
+        "VALIDATION_DYNAMIC_TOP_K: ${VALIDATION_DYNAMIC_TOP_K:-0}",
+        "VALIDATION_TOP_K: ${VALIDATION_TOP_K:-3}",
+        "VALIDATION_MAX_TOP_K: ${VALIDATION_MAX_TOP_K:-3}",
+        "VALIDATION_RAG_ENABLED: ${VALIDATION_RAG_ENABLED:-1}",
+        "VALIDATION_REQUIRE_LEGAL_KB: ${VALIDATION_REQUIRE_LEGAL_KB:-1}",
+        "VALIDATION_MIN_KB_CHUNKS: ${VALIDATION_MIN_KB_CHUNKS:-30}",
+        "HF_TOKEN: ${HF_TOKEN:-}",
+        "HF_HOME: ${HF_HOME:-/app/.cache/huggingface}",
+    ):
+        assert entry in compose
+
+    assert "start_period: 90s" in compose
+    assert "start_period: 90s" in deploy
+    assert "MODEL_THREAD_POOL_WORKERS=2" in env_example
+    assert "STALE_RECOVERY_SECONDS=120" in env_example
+    assert "HF_HOME=/app/.cache/huggingface" in env_example
+
+
+def test_actual_model_boundary_smoke_is_documented_as_e2e_preflight():
+    workflow_readme = (ROOT / ".github" / "workflows" / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "RUN_MODEL_BOUNDARY_SMOKE=1" in workflow_readme
+    assert "E2E" in workflow_readme
+
+
 def test_basic_dependency_group_contains_runtime_embedding_dependencies():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 

@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 from collections.abc import Callable
+from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from backend.schemas import MODEL_RESULT_ADAPTER, ModelRequest, ModelResult
@@ -48,10 +49,24 @@ class ActualChatbotClient:
         basic_callable: SyncModelCallable,
         consultant_callable: SyncModelCallable,
         timeout_seconds: int,
+        *,
+        max_workers: int = 2,
+        executor: Executor | None = None,
     ) -> None:
         self._basic = basic_callable
         self._consultant = consultant_callable
         self._timeout_seconds = timeout_seconds
+        self._executor = executor or ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="model-worker",
+        )
+        self._owns_executor = executor is None
+
+    def close(self) -> None:
+        """모델 전용 워커를 종료합니다."""
+        if self._owns_executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._owns_executor = False
 
     async def generate(self, request: ModelRequest) -> ModelResult:
         payload = request.model_dump(mode="python", by_alias=True)
@@ -62,8 +77,9 @@ class ActualChatbotClient:
         else:
             raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
 
+        loop = asyncio.get_running_loop()
         raw_result = await asyncio.wait_for(
-            asyncio.to_thread(model_callable, payload),
+            loop.run_in_executor(self._executor, model_callable, payload),
             timeout=self._timeout_seconds,
         )
         return MODEL_RESULT_ADAPTER.validate_python(
@@ -76,7 +92,9 @@ def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
     module = importlib.import_module(module_name)
     run = getattr(module, "run", None)
     if not callable(run):
-        raise TypeError(f"{module_name}.run callable을 찾을 수 없습니다.")
+        raise RuntimeError(  # noqa: TRY004 - missing runtime entrypoint must fail startup
+            f"{module_name}.run callable을 찾을 수 없습니다."
+        )
     return run
 
 
@@ -89,5 +107,6 @@ def create_chatbot_client(settings: "Settings") -> ChatbotClient:
             _load_model_entrypoint("models.basic.main"),
             _load_model_entrypoint("models.consult.main"),
             timeout_seconds=settings.model_request_timeout_seconds,
+            max_workers=settings.model_thread_pool_workers,
         )
     raise ValueError("chatbot_mode는 mock 또는 actual이어야 합니다.")
