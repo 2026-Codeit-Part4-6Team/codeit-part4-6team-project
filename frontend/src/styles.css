@@ -589,6 +589,37 @@ select:focus-visible {
   .proposal-copy { padding: 18px 10px 10px; }
 }
 
+/* 인증 화면은 작은 모바일 폭에서도 폼과 주요 액션을 우선 노출합니다. */
+@media (max-width: 560px) {
+  .auth-shell {
+    gap: 20px;
+    padding: 28px 12px 40px;
+  }
+
+  .auth-login-brand p { font-size: 14px; }
+  .auth-login-stage {
+    display: block;
+    width: 100%;
+  }
+  .auth-mascot { display: none; }
+  .auth-card,
+  .auth-card--register {
+    width: 100%;
+    padding: 24px 16px 20px;
+  }
+  .auth-form { gap: 16px; }
+  .auth-form input,
+  .auth-form textarea,
+  .auth-form select {
+    min-height: 52px;
+    padding: 11px 14px;
+  }
+  .auth-submit {
+    width: 100%;
+    min-height: 54px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
