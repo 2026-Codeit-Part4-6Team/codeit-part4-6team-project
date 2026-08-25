@@ -56,6 +56,8 @@ describe("SettingsPage", () => {
     expect(html).toContain("주소 좌표와 상권 데이터의 기준");
     expect(html).toContain("주소 지도 미리보기");
     expect(html).toContain("현재 상권 분석 기준 위치");
+    expect(html).toContain("naver-map-container");
+    expect(html).not.toContain("openstreetmap.org");
     expect(html).toContain("강남파이낸스센터");
   });
 });

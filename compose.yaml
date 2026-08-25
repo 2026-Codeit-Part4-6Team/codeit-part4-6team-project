@@ -52,6 +52,8 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        VITE_NAVER_MAPS_CLIENT_ID: ${NAVER_MAPS_API_KEY_ID:-}
     restart: unless-stopped
     environment:
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
