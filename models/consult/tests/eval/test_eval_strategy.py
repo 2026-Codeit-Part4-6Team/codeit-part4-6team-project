@@ -225,14 +225,12 @@ def test_sanitize_trend_fixture_removes_metadata_and_keeps_api_payload() -> None
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
 
     assert _sanitize_trend_fixture(item) == {
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
 
 
@@ -249,7 +247,6 @@ def test_trend_fixture_version_uses_non_null_fixture_version() -> None:
         "keyword": "탕후루",
         "direction": "상승",
         "related": [],
-        "weather": None,
     }
 
     assert _trend_fixture_version([null_item, trend_item]) == "v1-naver-apihub"
@@ -370,7 +367,6 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
     mock_call_llm.return_value = (
         json.dumps(
@@ -391,7 +387,6 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
         },
     }
 
@@ -411,7 +406,6 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
     assert mock_call_llm.call_args.kwargs == {
         "json_mode": True,
@@ -446,7 +440,6 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
     item["expected"]["trend_used"] = True
     response = {**_OK_RESPONSE, "sources": ["상권분석", "트렌드"]}
@@ -462,7 +455,6 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
         },
     }
 
@@ -478,7 +470,6 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
         }
         return {"context": context_snapshot}, response
 
@@ -533,7 +524,6 @@ def test_evaluate_item_never_reaches_live_market_or_trend_api(
         "keyword": "탕후루",
         "direction": "상승",
         "related": [],
-        "weather": None,
     }
     item["expected"]["trend_used"] = True
 

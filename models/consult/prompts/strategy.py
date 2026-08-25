@@ -116,7 +116,7 @@ def _market_section(market: dict | None) -> str:
 
 def _trend_section(trend: dict | None) -> str:
     """트렌드 데이터가 없으면(keyword 없음, 조회 실패 등) 빈 문자열을 반환해 프롬프트에서
-    통째로 빠지게 한다(상권과 동일 원칙). weather는 아직 항상 None이라 포함하지 않는다."""
+    통째로 빠지게 한다(상권과 동일 원칙)."""
     if trend is None:
         return ""
 

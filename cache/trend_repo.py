@@ -91,40 +91,18 @@ def _parse_cached_payload(result_json: str) -> dict | None:
     keyword = cached.get("keyword")
     direction = cached.get("direction")
     related = cached.get("related")
-    weather = cached.get("weather")
     if not isinstance(keyword, str):
         return None
     if direction not in {"상승", "하락", "유지"}:
         return None
     if not isinstance(related, list) or not all(isinstance(item, str) for item in related):
         return None
-    if not _is_valid_weather(weather):
-        return None
 
     return {
         "keyword": keyword,
         "direction": direction,
         "related": related,
-        "weather": weather,
     }
-
-
-def _is_valid_weather(weather: object) -> bool:
-    """weather는 None이거나 {"temp": float, "sky": str} 형태만 허용한다(계약서 기준).
-
-    형식이 다르면(문자열·리스트·필드 누락·타입 불일치 등) 캐시 전체를 무효로
-    처리한다 — 검증 없이 그대로 반환하면 이 필드를 쓰는 쪽(예: 기본 챗봇의
-    weather["temp"] 접근)에서 예외가 날 수 있다.
-    """
-    if weather is None:
-        return True
-    if not isinstance(weather, dict):
-        return False
-    temp = weather.get("temp")
-    sky = weather.get("sky")
-    if isinstance(temp, bool) or not isinstance(temp, (int, float)):
-        return False
-    return isinstance(sky, str) and bool(sky.strip())
 
 
 def _write_cache(keyword: str, result: dict) -> None:

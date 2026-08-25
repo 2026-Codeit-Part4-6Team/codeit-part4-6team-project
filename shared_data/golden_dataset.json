@@ -2752,7 +2752,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "탕후루",
         "direction": "상승",
@@ -2762,8 +2762,7 @@
           "마블스크림",
           "탕후루프랜차이즈",
           "탕후루체인점"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2827,7 +2826,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "디지털펌",
         "direction": "유지",
@@ -2837,8 +2836,7 @@
           "와칸염색",
           "긴머리히피펌",
           "허쉬펌"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2902,7 +2900,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "순살치킨",
         "direction": "유지",
@@ -2912,8 +2910,7 @@
           "닭가슴살치킨",
           "가라아게",
           "냉동치킨"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2978,7 +2975,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "다운펌",
         "direction": "유지",
@@ -2988,8 +2985,7 @@
           "다운펌기계",
           "남자옆머리누르기",
           "다운펌약"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3053,12 +3049,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "애쉬브라운",
         "direction": "하락",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3121,7 +3116,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "흑임자라떼",
         "direction": "상승",
@@ -3131,8 +3126,7 @@
           "서리태가루",
           "흑임자",
           "검은콩가루"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3196,12 +3190,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "반반치킨",
         "direction": "유지",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3267,7 +3260,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "즉석밥",
         "direction": "유지",
@@ -3277,8 +3270,7 @@
           "햇반",
           "현미밥",
           "곤약현미밥"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3344,7 +3336,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "물티슈",
         "direction": "유지",
@@ -3354,8 +3346,7 @@
           "휴지도매",
           "판촉물제작",
           "화장지도매"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3419,7 +3410,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "밀키트",
         "direction": "유지",
@@ -3429,8 +3420,7 @@
           "식자재마트",
           "생일상배달",
           "식자재유통"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3494,7 +3484,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "제로슈거",
         "direction": "하락",
@@ -3504,8 +3494,7 @@
           "수분섭취",
           "수분보충제",
           "물많이마시기"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3569,7 +3558,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "볼륨매직",
         "direction": "하락",
@@ -3579,8 +3568,7 @@
           "곱슬머리샴푸",
           "토소웅매직샴푸",
           "스트레이트파마약"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3646,7 +3634,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "닭강정",
         "direction": "유지",
@@ -3656,8 +3644,7 @@
           "닭강정맛집",
           "멕시카나닭강정",
           "속초중앙닭강정"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3723,12 +3710,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "마늘치킨",
         "direction": "하락",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3792,7 +3778,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "흑당버블티",
         "direction": "유지",
@@ -3802,8 +3788,7 @@
           "흑당시럽",
           "흑당밀크티",
           "버블티펄"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {

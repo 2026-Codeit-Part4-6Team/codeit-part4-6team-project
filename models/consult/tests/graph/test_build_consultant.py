@@ -118,7 +118,6 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피"],
-        "weather": None,
     }
     mock_question_call_llm.return_value = (
         json.dumps(
@@ -175,7 +174,6 @@ def test_graph_uses_trend_result_when_only_market_fails(
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피"],
-        "weather": None,
     }
     mock_question_call_llm.return_value = (
         json.dumps(

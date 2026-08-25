@@ -40,7 +40,6 @@ _TREND = {
     "keyword": "아이스아메리카노",
     "direction": "상승",
     "related": ["냉커피", "여름음료"],
-    "weather": None,
 }
 
 
