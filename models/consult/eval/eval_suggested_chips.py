@@ -30,7 +30,7 @@ DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 SLEEP_SECONDS = 1.0
 AREA = "consult_chips"
 SOURCE_AREA = "consult"
-_RUBRIC_CRITERIA = ("관련성", "비중복성", "다양성", "자연스러움")
+_RUBRIC_CRITERIA = ("관련성", "비중복성", "다양성", "자연스러움", "화자방향")
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,15 @@ JUDGE_SYSTEM_PROMPT = """당신은 소상공인 컨설턴트 챗봇의 추천 �
 3점: 전반적으로 이해되지만 일부 문장이 부자연스러움
 4점: 대부분 자연스러우나 한 문장 정도 다소 딱딱함
 5점: 실제 대화에서 바로 이어 물을 수 있는 자연스러운 문장임
+
+⑤ 화자방향 — 칩을 클릭하면 그 문장이 그대로 사용자의 다음 메시지로 전송된다.
+세 질문 모두 "가게 주인인 사용자가 컨설턴트 챗봇에게 묻는" 방향인가(반대로 챗봇이
+사용자에게 가게 정보·계획·예산을 되묻는 방향이면 안 됨)
+1점: 세 질문 모두 챗봇이 사용자에게 되묻는 방향임(예: "타겟 고객층은 누구인가요?")
+2점: 세 질문 중 두 개가 챗봇→사용자 방향임
+3점: 세 질문 중 한 개가 챗봇→사용자 방향이거나, 방향이 모호해 판단하기 어려움
+4점: 세 질문 모두 사용자→챗봇 방향이나 그중 한 개는 다소 모호한 표현임
+5점: 세 질문 모두 사용자가 챗봇에게 조언·정보를 요청하는 방향으로 명확함
 """
 
 
@@ -282,6 +291,7 @@ def _build_report(
             "non_redundancy_avg": _axis_avg(scored, "비중복성"),
             "diversity_avg": _axis_avg(scored, "다양성"),
             "naturalness_avg": _axis_avg(scored, "자연스러움"),
+            "speaker_direction_avg": _axis_avg(scored, "화자방향"),
             "llm_judge_avg": sum(all_scores) / len(all_scores) if all_scores else None,
             "judge_failure_rate": rate(sum(not result["scores"] for result in judged), len(judged)),
             "excluded_count": len(excluded),

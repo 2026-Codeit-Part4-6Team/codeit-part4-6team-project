@@ -9,6 +9,7 @@ import openai
 import pytest
 
 from models.consult.eval.eval_suggested_chips import (
+    _RUBRIC_CRITERIA,
     AREA,
     JUDGE_SYSTEM_PROMPT,
     _build_report,
@@ -72,6 +73,15 @@ def _source_report(
         "trend_fixture_version": "v1-naver-apihub",
         "items": items if items is not None else [_report_item()],
     }
+
+
+def test_judge_system_prompt_includes_speaker_direction_axis() -> None:
+    """D의 기존 rubric(관련성·비중복성·다양성·자연스러움)은 화자 방향(누가 누구에게
+    묻는지)을 평가하지 않아, 방향이 뒤집힌 칩도 자연스러움 5점을 받는 사각지대가
+    있었다(2026-08-24 10문항 파일럿, 전 문항 화자 방향 역전 + 자연스러움 5점).
+    새 축을 rubric 텍스트와 채점 기준 목록에 추가해 이 사각지대를 없앤다."""
+    assert "화자방향" in JUDGE_SYSTEM_PROMPT
+    assert "화자방향" in _RUBRIC_CRITERIA
 
 
 def test_load_dataset_index_filters_area_and_uses_default_store() -> None:
@@ -172,7 +182,7 @@ def test_evaluate_item_skips_judge_when_contract_violated() -> None:
 
 
 def _judge_payload(scores: dict[str, int] | None = None) -> str:
-    scores = scores or {"관련성": 5, "비중복성": 4, "다양성": 4, "자연스러움": 5}
+    scores = scores or {"관련성": 5, "비중복성": 4, "다양성": 4, "자연스러움": 5, "화자방향": 5}
     return json.dumps(
         {
             criterion: {"score": score, "reason": "근거"}
@@ -197,7 +207,9 @@ def test_evaluate_item_calls_judge_once_when_contract_ok(mock_call_llm) -> None:
 
     assert result["contract_ok"] is True
     assert result["exact_duplicate"] is False
-    assert result["scores"] == {"관련성": 5, "비중복성": 4, "다양성": 4, "자연스러움": 5}
+    assert result["scores"] == {
+        "관련성": 5, "비중복성": 4, "다양성": 4, "자연스러움": 5, "화자방향": 5,
+    }
     assert result["judge_error"] is None
     assert result["judge_skipped_reason"] is None
     mock_call_llm.assert_called_once()
@@ -252,12 +264,12 @@ def test_build_report_computes_metrics_and_preserves_source_generation_model() -
     results = [
         {
             "id": "C-001", "contract_ok": True, "exact_duplicate": False,
-            "scores": {"관련성": 5, "비중복성": 5, "다양성": 5, "자연스러움": 5},
+            "scores": {"관련성": 5, "비중복성": 5, "다양성": 5, "자연스러움": 5, "화자방향": 5},
             "judge_error": None, "judge_skipped_reason": None,
         },
         {
             "id": "C-002", "contract_ok": True, "exact_duplicate": True,
-            "scores": {"관련성": 3, "비중복성": 3, "다양성": 3, "자연스러움": 3},
+            "scores": {"관련성": 3, "비중복성": 3, "다양성": 3, "자연스러움": 3, "화자방향": 1},
             "judge_error": None, "judge_skipped_reason": None,
         },
         {
@@ -288,7 +300,8 @@ def test_build_report_computes_metrics_and_preserves_source_generation_model() -
     assert report["metrics"]["exact_duplicate_rate"] == pytest.approx(1 / 2)
     assert report["metrics"]["relevance_avg"] == pytest.approx(4.0)
     assert report["metrics"]["non_redundancy_avg"] == pytest.approx(4.0)
-    assert report["metrics"]["llm_judge_avg"] == pytest.approx(4.0)
+    assert report["metrics"]["speaker_direction_avg"] == pytest.approx(3.0)
+    assert report["metrics"]["llm_judge_avg"] == pytest.approx(3.8)
     assert report["metrics"]["judge_failure_rate"] == pytest.approx(0.0)
     assert report["metrics"]["excluded_count"] == 1
     assert report["excluded"] == [{"id": "C-999", "reason": "dataset_id_not_found"}]
@@ -315,6 +328,7 @@ def test_build_report_uses_none_for_axis_averages_when_all_judge_calls_failed() 
     assert report["metrics"]["non_redundancy_avg"] is None
     assert report["metrics"]["diversity_avg"] is None
     assert report["metrics"]["naturalness_avg"] is None
+    assert report["metrics"]["speaker_direction_avg"] is None
     assert report["metrics"]["llm_judge_avg"] is None
     assert report["metrics"]["judge_failure_rate"] == pytest.approx(1.0)
     assert report["metrics"]["contract_compliance"] == pytest.approx(1.0)
