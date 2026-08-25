@@ -30,6 +30,19 @@ Branch ruleset을 구성하고, CD에서는 배포 대상·설정·인증·헬�
 
 ## CI 작업 명세
 
+### Actual model boundary smoke (E2E 사전 점검)
+
+실제 Basic·Consultant 모델 브랜치를 통합한 workspace에서 E2E를 시작하기 전에 담당자가
+아래 게이트를 1회 실행하고 결과를 E2E 결과서에 기록합니다. 일반 PR CI에서는 실제 모델과
+API 비용을 사용하지 않도록 실행하지 않습니다.
+
+```bash
+RUN_MODEL_BOUNDARY_SMOKE=1 uv run --locked --all-groups pytest \
+  tests/integration/test_d7_model_boundary.py -q
+```
+
+게이트가 실패하면 화면 E2E를 진행하지 않고 모델 entrypoint·패키징·환경변수를 먼저 정리합니다.
+
 CI는 `main` 대상 PR의 코드와 컨테이너 구성이 실행 가능한지 검증합니다. GitHub Runner의
 임시 환경에서만 실행하며 Artifact Registry, GCP VM, JupyterHub를 변경하지 않습니다.
 

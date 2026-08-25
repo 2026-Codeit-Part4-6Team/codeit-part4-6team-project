@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from backend.schemas import MODEL_RESULT_ADAPTER, ModelRequest, ModelResult
@@ -48,10 +49,20 @@ class ActualChatbotClient:
         basic_callable: SyncModelCallable,
         consultant_callable: SyncModelCallable,
         timeout_seconds: int,
+        max_workers: int = 2,
+        executor: ThreadPoolExecutor | None = None,
     ) -> None:
         self._basic = basic_callable
         self._consultant = consultant_callable
         self._timeout_seconds = timeout_seconds
+        self._executor = executor or ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="model-worker",
+        )
+
+    def close(self) -> None:
+        """모델 전용 worker를 종료합니다(앱 shutdown 시 호출)."""
+        self._executor.shutdown(wait=False, cancel_futures=True)
 
     async def generate(self, request: ModelRequest) -> ModelResult:
         payload = request.model_dump(mode="python", by_alias=True)
@@ -62,8 +73,9 @@ class ActualChatbotClient:
         else:
             raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
 
+        loop = asyncio.get_running_loop()
         raw_result = await asyncio.wait_for(
-            asyncio.to_thread(model_callable, payload),
+            loop.run_in_executor(self._executor, model_callable, payload),
             timeout=self._timeout_seconds,
         )
         return MODEL_RESULT_ADAPTER.validate_python(
@@ -102,5 +114,6 @@ def create_chatbot_client(settings: "Settings") -> ChatbotClient:
             _load_model_entrypoint("models.basic.main"),
             _load_model_entrypoint("models.consult.main"),
             timeout_seconds=settings.model_request_timeout_seconds,
+            max_workers=settings.model_thread_pool_workers,
         )
     raise ValueError("chatbot_mode는 mock 또는 actual이어야 합니다.")

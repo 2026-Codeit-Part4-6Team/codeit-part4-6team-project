@@ -21,7 +21,14 @@ async def lifespan(_application: FastAPI):
     """실제 모델 모드에서 HF 가중치를 요청 전에 준비합니다."""
     if settings.chatbot_mode == "actual":
         preload_actual_model_weights()
-    yield
+    try:
+        yield
+    finally:
+        application_state = getattr(_application, "state", None)
+        chatbot_client = getattr(application_state, "chatbot_client", None)
+        close = getattr(chatbot_client, "close", None)
+        if callable(close):
+            close()
 
 
 def create_app() -> FastAPI:

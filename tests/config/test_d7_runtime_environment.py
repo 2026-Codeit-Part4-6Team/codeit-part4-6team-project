@@ -56,6 +56,25 @@ def test_stale_recovery_timeout_is_independent_and_defaults_to_120_seconds():
     assert "STALE_RECOVERY_SECONDS=120" in env_example
 
 
+def test_actual_runtime_exposes_validation_top_k_guard_and_model_pool_size():
+    config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    assert '"MODEL_THREAD_POOL_WORKERS", 2, minimum=1' in config
+    assert "MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}" in compose
+    assert "MODEL_THREAD_POOL_WORKERS=2" in env_example
+    assert "VALIDATION_DYNAMIC_TOP_K: ${VALIDATION_DYNAMIC_TOP_K:-0}" in compose
+    assert "VALIDATION_DYNAMIC_TOP_K=0" in env_example
+
+
+def test_actual_backend_healthcheck_allows_model_import_startup():
+    for filename in ("compose.yaml", "compose.deploy.yaml"):
+        compose = (ROOT / filename).read_text(encoding="utf-8")
+        backend = compose.split("  backend:", 1)[1].split("  frontend:", 1)[0]
+        assert "start_period: 90s" in backend
+
+
 def test_actual_runtime_wires_huggingface_cache_and_token_without_committing_secret():
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
     deploy = (ROOT / "compose.deploy.yaml").read_text(encoding="utf-8")
