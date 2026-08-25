@@ -40,7 +40,7 @@ from models.basic.nodes.copy_gen import copy_gen_node
 from models.basic.nodes.image_review import _clip_score
 from models.shared.config import OPENAI_MODEL
 from models.basic.nodes.channel import channel_node
-from models.basic.nodes.image_gen import _PLATFORM_IMAGE_PROMPT, _DEFAULT_PLATFORM, _english_caption, _generate_xbanner
+from models.basic.nodes.image_gen import _PLATFORM_IMAGE_PROMPT, _DEFAULT_PLATFORM, _english_caption, _generate_xbanner, _pick_instagram_template
 from models.basic.nodes.market_for_copy import market_for_copy_node
 from models.basic.nodes.trend_for_copy import trend_for_copy_node
 from models.shared.eval_fixtures import build_model_request
@@ -311,9 +311,7 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
                 store_type=store.get("type", "가게"), copy=copy
             )
         else:
-            template = _PLATFORM_IMAGE_PROMPT.get(
-                platform, _PLATFORM_IMAGE_PROMPT[_DEFAULT_PLATFORM]
-            )
+            template = _pick_instagram_template(store, i)
             image_prompt = template.format(
                 store_type=store.get("type", "가게"), copy=copy
             )
@@ -358,9 +356,12 @@ def run(
     limit: int,
     banner_limit: int | None = None,
     instagram_limit: int | None = None,
+    exclude: list[str] | None = None,
 ) -> dict:
     all_items = json.loads(dataset_path.read_text(encoding="utf-8"))
     basic_items = [i for i in all_items if i["area"] == "basic"]
+    if exclude:
+        basic_items = [i for i in basic_items if i["id"] not in exclude]
 
     if banner_limit is not None or instagram_limit is not None:
         banner_items = [
@@ -456,5 +457,7 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--banner-limit", type=int, default=None, help="banner 문항 수")
     parser.add_argument("--instagram-limit", type=int, default=None, help="instagram 문항 수")
+    parser.add_argument("--exclude", type=str, default="", help="제외할 문항 ID, 콤마로 구분 (예: B-012)")
     args = parser.parse_args()
-    run(args.dataset, args.limit, args.banner_limit, args.instagram_limit)
+    exclude = [x.strip() for x in args.exclude.split(",") if x.strip()]
+    run(args.dataset, args.limit, args.banner_limit, args.instagram_limit, exclude)
