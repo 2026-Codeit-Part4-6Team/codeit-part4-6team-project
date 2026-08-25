@@ -169,6 +169,7 @@ JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습�
 | `VM_DEPLOY_PATH` | `/srv/team6/app` | 배포 파일과 서버 `.env` 위치 |
 | `COMPOSE_PROJECT_NAME` | `team6-app` | 고정 Compose 프로젝트 이름 |
 | `PUBLIC_HEALTHCHECK_URL` | `http://203.0.113.10:8501/_stcore/health` | 외부 프론트엔드 점검 주소 |
+| `NAVER_MAPS_CLIENT_ID` | `public-client-id` | 프론트 지도 SDK build arg로 주입되는 공개 Client ID |
 
 ## GitHub Production Secrets
 
@@ -179,8 +180,10 @@ GitHub의 `production` Environment에 다음 Secret을 등록합니다.
 | `VM_SSH_PRIVATE_KEY` | 배포용 SSH 개인키 |
 | `VM_SSH_KNOWN_HOSTS` | `ssh-keyscan` 결과가 아닌 검증된 VM 호스트 키 |
 
-애플리케이션 API 키는 GitHub에 등록하지 않습니다. 실제 `.env`는 VM의
-`/srv/team6/app/.env`에서만 관리하고 CD가 덮어쓰지 않습니다.
+`NAVER_MAPS_CLIENT_ID`는 브라우저에 노출되는 공개 값이므로 Repository Variable로 관리하며,
+Naver Cloud Console의 허용 Web URL로 사용 범위를 제한합니다. 지오코딩에 사용하는
+`NAVER_MAPS_API_KEY`는 GitHub에 등록하지 않고 VM의 `/srv/team6/app/.env`에서만 관리합니다.
+실제 서버 `.env`는 CD가 덮어쓰지 않습니다.
 
 ## GCP 권한
 

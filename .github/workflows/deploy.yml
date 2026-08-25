@@ -28,6 +28,7 @@ env:
   VM_DEPLOY_PATH: ${{ vars.VM_DEPLOY_PATH }}
   COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
   PUBLIC_HEALTHCHECK_URL: ${{ vars.PUBLIC_HEALTHCHECK_URL }}
+  NAVER_MAPS_CLIENT_ID: ${{ vars.NAVER_MAPS_CLIENT_ID }}
 
 jobs:
   preflight:
@@ -64,6 +65,7 @@ jobs:
           : "${VM_SSH_USER:?Repository variable VM_SSH_USER is required}"
           : "${VM_DEPLOY_PATH:?Repository variable VM_DEPLOY_PATH is required}"
           : "${PUBLIC_HEALTHCHECK_URL:?Repository variable PUBLIC_HEALTHCHECK_URL is required}"
+          : "${NAVER_MAPS_CLIENT_ID:?Repository variable NAVER_MAPS_CLIENT_ID is required}"
           python scripts/validate_deploy_config.py
           cp .env.example .env
           docker compose -f compose.deploy.yaml config --quiet
@@ -113,6 +115,8 @@ jobs:
           file: ${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ env.IMAGE_BASE }}/${{ matrix.service }}:${{ github.sha }}
+          build-args: |
+            VITE_NAVER_MAPS_CLIENT_ID=${{ matrix.service == 'frontend' && env.NAVER_MAPS_CLIENT_ID || '' }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 

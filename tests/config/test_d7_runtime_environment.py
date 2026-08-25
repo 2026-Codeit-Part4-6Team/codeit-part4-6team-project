@@ -16,6 +16,28 @@ def test_env_example_documents_chatbot_mode():
     assert "CHATBOT_MODE=mock" in env_example
 
 
+def test_frontend_map_client_id_has_a_separate_public_build_setting():
+    """브라우저 공개 Client ID와 백엔드 API 키 ID의 주입 경계를 고정합니다."""
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    assert "VITE_NAVER_MAPS_CLIENT_ID: ${VITE_NAVER_MAPS_CLIENT_ID:-}" in compose
+    assert "VITE_NAVER_MAPS_CLIENT_ID=" in env_example
+
+
+def test_cd_passes_public_map_client_id_to_frontend_build():
+    """main CD도 정적 프론트 이미지에 공개 Client ID를 주입해야 합니다."""
+    workflow = (ROOT / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "NAVER_MAPS_CLIENT_ID: ${{ vars.NAVER_MAPS_CLIENT_ID }}" in workflow
+    assert "NAVER_MAPS_CLIENT_ID:?Repository variable" in workflow
+    assert "build-args:" in workflow
+    assert "VITE_NAVER_MAPS_CLIENT_ID=" in workflow
+    assert "VITE_NAVER_MAPS_CLIENT_ID=${{ env.NAVER_MAPS_API_KEY_ID" not in workflow
+
+
 def test_compose_passes_actual_model_environment_to_backend():
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
 
