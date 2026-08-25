@@ -157,6 +157,24 @@ def test_system_prompt_forbids_demand_claims_from_season_alone() -> None:
     assert "트렌드 데이터가 실제로 주어졌을 때만 주장한다" in normalized
 
 
+def test_system_prompt_demand_ban_applies_to_all_three_fields() -> None:
+    """실측(v3 60문항 재평가, 2026-08-25)에서 reasons 11건이 "여름 말기이므로
+    ~수요가 높다" 식으로 날짜만으로 수요를 단정했다 — 금지 문구가 reasons 전용
+    으로도 읽힐 수 있게 애매했던 게 원인 중 하나로 판단, summary·actions·reasons
+    전체에 적용됨을 명시한다."""
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert "summary·actions·reasons 어디에서든" in normalized
+
+
+def test_system_prompt_prioritizes_user_stated_timing_over_seasonality() -> None:
+    """사용자가 질문에서 "연말"·"겨울철"처럼 시점을 직접 제시했는데 계절성 참고
+    (예: 실제 요청일 기준 "여름 말기")가 그걸 덮어써 "여름 말기인 지금 시점에
+    연말 특선"처럼 모순된 문장이 나온 사례(C-059, 2026-08-25 재평가)를 막는다."""
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert "사용자가 제시한 시점을 우선한다" in normalized
+    assert "연말" in normalized and "겨울철" in normalized
+
+
 def test_system_prompt_no_longer_claims_date_information_is_never_given() -> None:
     """계절성 참고가 실제로 날짜 정보를 주는 이상, "실제 날짜·계절 정보는 주어지지
     않으므로"라는 예전 문구가 남아있으면 자기모순이 된다(계절성 도입 전 트렌드
