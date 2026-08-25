@@ -73,6 +73,20 @@ def test_retry_hint_lists_trend_as_allowed_reasons_source() -> None:
     assert "트렌드" in RETRY_REASONS_HINT
 
 
+def test_reasons_instruction_lists_seasonality_as_allowed_source() -> None:
+    """reasons 규칙이 허용 출처를 (가게 정보, 상권·트렌드 데이터)로만 나열하면, 뒤에서
+    별도로 허용한 "계절성 참고의 원시 날짜"와 상충하는 지시가 된다(Codex 리뷰)."""
+    reasons_instruction = SYSTEM_PROMPT.split("예시:")[0].split("트렌드 데이터가 주어지면")[0]
+
+    assert "계절성" in reasons_instruction
+
+
+def test_retry_hint_lists_seasonality_as_allowed_reasons_source() -> None:
+    """재시도 힌트도 계절성을 허용 출처로 언급하지 않으면, 재생성 시 이미 허용된
+    원시 날짜 근거를 쓰지 말라는 상충 지시가 된다(트렌드와 동일 유형, Codex 리뷰)."""
+    assert "계절성" in RETRY_REASONS_HINT
+
+
 def test_system_prompt_requests_title() -> None:
     """title은 backend/schemas.py의 ConsultantModelResult.title(min_length=1 필수)에
     대응한다 — 서비스가 Mock으로 대신 채워주고 있었을 뿐, 계약상 모델이 반환해야 한다

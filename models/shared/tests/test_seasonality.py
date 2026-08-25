@@ -1,5 +1,6 @@
 # models/shared/seasonality.py 테스트 — 두 챗봇 공용 계절성 힌트 계산
-from datetime import date
+from datetime import UTC, date, datetime
+from unittest.mock import patch
 
 import pytest
 
@@ -63,14 +64,21 @@ def test_reference_date_uses_env_var_when_set(monkeypatch) -> None:
     assert _reference_date() == date(2026, 7, 15)
 
 
-def test_reference_date_uses_kst_today_when_env_var_unset(monkeypatch) -> None:
+@patch("models.shared.seasonality.datetime")
+def test_reference_date_uses_kst_today_when_env_var_unset(mock_datetime_cls, monkeypatch) -> None:
+    """isinstance(result, date)만 확인하면, 구현이 KST 대신 UTC나 naive 로컬 시각으로
+    회귀해도 테스트가 통과해버려 이 설계가 막으려던 자정 전후 날짜 불일치를 못 잡는다
+    (Codex 리뷰). UTC 기준 20:00(=KST 기준 다음날 05:00)으로 시각을 고정해, 구현이
+    실제로 KST로 변환하는지 날짜 자체로 검증한다."""
     monkeypatch.delenv(_ENV_VAR, raising=False)
+    fixed_utc_instant = datetime(2026, 8, 24, 20, 0, tzinfo=UTC)
+    mock_datetime_cls.now.side_effect = (
+        lambda tz=None: fixed_utc_instant.astimezone(tz) if tz else fixed_utc_instant
+    )
 
-    # 실행 시각에 좌우되지 않도록, 오늘 날짜가 반환되는지만 확인한다
-    # (KST 변환 자체는 별도로 검증하지 않고, 결과가 date 인스턴스인지만 본다).
     result = _reference_date()
 
-    assert isinstance(result, date)
+    assert result == date(2026, 8, 25)
 
 
 @pytest.mark.parametrize("invalid_value", ["2026/07/15", "not-a-date", "2026-13-01", ""])

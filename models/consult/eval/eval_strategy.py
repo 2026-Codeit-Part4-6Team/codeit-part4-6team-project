@@ -4,6 +4,7 @@
 import argparse
 import json
 import logging
+import os
 import re
 import time
 from datetime import datetime
@@ -21,6 +22,7 @@ from models.shared import llm as shared_llm
 from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL
 from models.shared.eval.token_usage import build_report_header, preflight
 from models.shared.llm_errors import classify_llm_error
+from models.shared.seasonality import compute_seasonality
 
 EVAL_USER_ID = 1
 DATASET_VERSION = "v1.3"
@@ -527,6 +529,16 @@ def evaluate_dataset(
     selected = area_items[:limit] if limit is not None else area_items
 
     preflight()
+    # 계절성 기준일을 고정하지 않으면 실행일마다 프롬프트에 주입되는 계절성 힌트가
+    # 달라져, 서로 다른 날 돌린 두 리포트를 "같은 조건"으로 비교할 수 없다(Codex
+    # 리뷰). 결과 리포트 스키마에 기준일을 새 필드로 남기는 건 PM 설계 문서가 별도
+    # 승인이 필요하다고 명시해 이번 범위에서는 하지 않고, 우선 경고로만 알린다.
+    if os.getenv("VALIDATION_REFERENCE_DATE") is None:
+        logger.warning(
+            "VALIDATION_REFERENCE_DATE가 설정되지 않아 실행일(%s) 기준으로 계절성이 "
+            "계산됩니다 — 다른 시점에 실행한 리포트와 비교하려면 값을 고정하세요.",
+            compute_seasonality()["reference_date"],
+        )
     run_at = datetime.now(ZoneInfo("Asia/Seoul"))
     results = []
     for index, item in enumerate(selected):

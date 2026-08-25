@@ -1024,6 +1024,70 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     mock_sleep.assert_called_once_with(1.0)
 
 
+def _minimal_result(item_id: str) -> dict:
+    return {
+        "id": item_id,
+        "passed": True,
+        "scores": {"자연스러움": 4},
+        "unexpected_numbers": [],
+        "response": _OK_RESPONSE,
+        "context_snapshot": {"same_industry_count": 177},
+        "trend_path": {
+            "expected": False, "actual": False, "matched": True,
+            "keyword": None, "trend_in_context": False,
+        },
+        "judge_error": None,
+        "actions_retried": False,
+        "actions_truncated": False,
+        "_status_ok": True,
+        "_contract_ok": True,
+        "_judge_ok": True,
+        "_latency_s": 1.0,
+    }
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_warns_when_reference_date_is_not_pinned(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch, caplog
+) -> None:
+    """VALIDATION_REFERENCE_DATE를 안 고정하면 실행일마다 계절성 입력이 달라져
+    두 리포트를 같은 조건으로 비교할 수 없다 — 최소한 경고 로그로 알린다
+    (Codex 리뷰. 결과 리포트 스키마에 기준일을 새 필드로 넣는 건 PM 설계 문서가
+    별도 승인이 필요하다고 명시해 이번 범위에서는 하지 않는다)."""
+    monkeypatch.delenv("VALIDATION_REFERENCE_DATE", raising=False)
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.side_effect = lambda item: _minimal_result(item["id"])
+
+    with caplog.at_level("WARNING"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    assert "VALIDATION_REFERENCE_DATE" in caplog.text
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_does_not_warn_when_reference_date_is_pinned(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("VALIDATION_REFERENCE_DATE", "2026-07-15")
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.side_effect = lambda item: _minimal_result(item["id"])
+
+    with caplog.at_level("WARNING"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    assert "VALIDATION_REFERENCE_DATE" not in caplog.text
+
+
 @patch("models.consult.eval.eval_strategy.preflight")
 @patch("models.consult.eval.eval_strategy._evaluate_item")
 def test_evaluate_dataset_keeps_two_reports_created_on_same_day(
