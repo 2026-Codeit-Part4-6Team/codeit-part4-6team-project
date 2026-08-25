@@ -46,14 +46,15 @@ def test_d7_actual_timeout_defaults_to_verified_180_seconds():
     assert "MODEL_REQUEST_TIMEOUT_SECONDS=180" in env_example
 
 
-def test_basic_dependency_group_contains_sentence_transformers():
+def test_basic_dependency_group_contains_runtime_embedding_dependencies():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     project_dependencies = config["project"].get("dependencies", [])
     basic_dependencies = config["dependency-groups"]["basic"]
 
     assert not any(dep.startswith("sentence-transformers") for dep in project_dependencies)
-    assert any(dep.startswith("sentence-transformers") for dep in basic_dependencies)
+    assert any(dep.startswith("openai") for dep in basic_dependencies)
+    assert any(dep.startswith("transformers") for dep in basic_dependencies)
 
 
 def test_backend_image_has_ci_and_actual_runtime_targets():

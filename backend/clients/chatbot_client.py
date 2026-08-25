@@ -76,7 +76,7 @@ def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
     module = importlib.import_module(module_name)
     run = getattr(module, "run", None)
     if not callable(run):
-        raise RuntimeError(f"{module_name}.run callable을 찾을 수 없습니다.")
+        raise TypeError(f"{module_name}.run callable을 찾을 수 없습니다.")
     return run
 
 
