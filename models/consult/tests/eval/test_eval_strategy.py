@@ -1071,6 +1071,48 @@ def test_evaluate_dataset_warns_when_reference_date_is_not_pinned(
 
 @patch("models.consult.eval.eval_strategy.preflight")
 @patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_raises_when_full_run_has_no_reference_date(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """전체 평가(limit=None)는 비교 재현성이 핵심이라, 경고만 하고 계속 진행하면
+    원래 막으려던 문제(실행일마다 다른 계절성 입력)를 못 막는다 — 즉시 차단한다
+    (Codex 리뷰)."""
+    monkeypatch.delenv("VALIDATION_REFERENCE_DATE", raising=False)
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(EvalPreflightError, match="VALIDATION_REFERENCE_DATE"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=None, report_dir=tmp_path / "reports"
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_raises_before_any_item_when_reference_date_malformed(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """형식이 잘못되면 문항의 그래프 내부(seasonality_for_consult)에서야 예외가
+    잡혀 전체 문항이 실패 처리되고, 이미 병렬로 나간 다른 노드의 LLM·API 호출
+    비용까지 낭비할 위험이 있다 — 문항 반복 전에 미리 걸러낸다(Codex 리뷰)."""
+    monkeypatch.setenv("VALIDATION_REFERENCE_DATE", "잘못된값")
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="VALIDATION_REFERENCE_DATE"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
 def test_evaluate_dataset_does_not_warn_when_reference_date_is_pinned(
     mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch, caplog
 ) -> None:

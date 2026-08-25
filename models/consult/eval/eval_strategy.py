@@ -20,7 +20,7 @@ from models.consult.graph.build_consultant import build_consultant
 from models.consult.main import assemble_response, build_initial_state
 from models.shared import llm as shared_llm
 from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL
-from models.shared.eval.token_usage import build_report_header, preflight
+from models.shared.eval.token_usage import EvalPreflightError, build_report_header, preflight
 from models.shared.llm_errors import classify_llm_error
 from models.shared.seasonality import compute_seasonality
 
@@ -530,14 +530,27 @@ def evaluate_dataset(
 
     preflight()
     # 계절성 기준일을 고정하지 않으면 실행일마다 프롬프트에 주입되는 계절성 힌트가
-    # 달라져, 서로 다른 날 돌린 두 리포트를 "같은 조건"으로 비교할 수 없다(Codex
-    # 리뷰). 결과 리포트 스키마에 기준일을 새 필드로 남기는 건 PM 설계 문서가 별도
-    # 승인이 필요하다고 명시해 이번 범위에서는 하지 않고, 우선 경고로만 알린다.
-    if os.getenv("VALIDATION_REFERENCE_DATE") is None:
+    # 달라져, 서로 다른 날 돌린 두 리포트를 "같은 조건"으로 비교할 수 없다. 전체
+    # 평가(limit=None)는 비교 재현성이 핵심이라 미설정을 즉시 차단한다 — 결과
+    # 리포트 스키마에 기준일을 새 필드로 남기는 건 PM 설계 문서가 별도 승인이
+    # 필요하다고 명시해 이번 범위에서는 하지 않는다(Codex 리뷰).
+    reference_date_pinned = os.getenv("VALIDATION_REFERENCE_DATE") is not None
+    if limit is None and not reference_date_pinned:
+        raise EvalPreflightError(
+            "전체 평가는 VALIDATION_REFERENCE_DATE를 반드시 고정해야 합니다 — "
+            "고정하지 않으면 실행일마다 계절성 입력이 달라져 다른 시점 리포트와 "
+            "비교할 수 없습니다."
+        )
+    # 문항 반복 전에 한 번 호출해 형식을 검증한다 — 여기서 걸러야 잘못된 값이 각
+    # 문항의 그래프 내부(seasonality_for_consult)에서야 예외로 잡혀 전체 문항이
+    # 실패 처리되면서, 이미 병렬로 나간 다른 노드의 LLM·API 호출 비용까지
+    # 낭비하는 걸 막는다(Codex 리뷰).
+    seasonality = compute_seasonality()
+    if not reference_date_pinned:
         logger.warning(
             "VALIDATION_REFERENCE_DATE가 설정되지 않아 실행일(%s) 기준으로 계절성이 "
             "계산됩니다 — 다른 시점에 실행한 리포트와 비교하려면 값을 고정하세요.",
-            compute_seasonality()["reference_date"],
+            seasonality["reference_date"],
         )
     run_at = datetime.now(ZoneInfo("Asia/Seoul"))
     results = []
