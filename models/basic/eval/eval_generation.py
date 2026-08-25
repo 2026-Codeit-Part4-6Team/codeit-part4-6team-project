@@ -20,6 +20,7 @@ from models.basic.graph.build_basic import build_basic_graph
 from models.basic.main import assemble_response
 from models.shared.eval_fixtures import build_model_request
 from models.shared.llm import call_llm
+from models.shared.config import OPENAI_MODEL
 
 _MARKET_FIXTURE = {
     "total_count": 6691,

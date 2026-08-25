@@ -22,6 +22,7 @@ def _classify_image_error(exc: Exception) -> str:
         return "timeout"
     return "unknown"
 
+
 _PLATFORM_IMAGE_SIZE = {
     "instagram": "1024x1024",  # 정사각형
     "xbanner": "1024x1536",  # 세로형 스탠드 배너 (상단·하단 동일 사이즈)

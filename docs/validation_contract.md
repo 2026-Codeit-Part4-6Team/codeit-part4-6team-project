@@ -4,7 +4,7 @@
 - **작성일**: 2026-08-12
 - **파일 위치**: `docs/validation_contract.md` (단일 소스)
 - **구현 위치**: `validation/` (전민재 PM 관리 — 두 챗봇 담당자는 **import만**)
-- **연관 문서**: `docs/golden_dataset.md` · `docs/decisions.md` · 서비스 API/DB Contract v0.3
+- **연관 문서**: `docs/golden_dataset.md` · `docs/decisions.md` · 서비스 API/DB Contract v0.4
 
 ---
 
@@ -130,11 +130,29 @@ def self_check(result: dict, context: dict) -> dict: ...
 | 공통 | `message` | string | O | X | 사용자 표시 문구. `pass`일 때 `""` |
 | **`check_output`만** | `masked_text` | string | O | X | **`pass`면 입력 원문 그대로**, `warn`이면 민감정보 마스킹본, `block`이면 `""` |
 
+**정규화 규칙 — 원문과 압축본 양쪽에서 검사한다**
+
+`check_input` 은 `normalize(원문)` 과 `squeeze(공백 제거본)` 을 **둘 다** 확인한다.
+한쪽만 보면 정확히 반대 방향으로 뚫린다.
+
+| 검사 대상 | `normalize` 만 쓰면 | `squeeze` 만 쓰면 |
+| --- | --- | --- |
+| 인젝션 패턴 | `"이 전 지 시 무 시"` 를 놓친다 | `<\|im_start\|>` 를 놓친다 (`\|` 가 지워짐) |
+| 불법 품목 | `"처방전 없이"` 를 놓친다 (사전 항목은 `처방전없이`) | — |
+
+실측: 이 수정으로 **차단 정확도 90.0% → 100.0%**, 견고성 **86.1% → 98.0%**
+
 > ★ **`masked_text` 가 없으면 §6.3의 민감정보 마스킹 규칙은 구현할 수 없다.**
 > 노드는 "민감정보가 있다"는 사실만 알고 *어디가* 민감정보인지 모르기 때문이다.
 > 민감정보 마스킹 규칙을 `validation/` 이 관리하는 이유는 §13-③과 같다 —
 > 두 챗봇이 각자 정규식을 만들면 민감정보 마스킹 처리하는 범위가 달라진다.
 > `check_output` 은 키워드 매칭(LLM 모델 API 호출 횟수 0회)이라 **텍스트 조각별로 여러 번 호출해도 비용이 없다.**
+> ★ **그러므로 카피를 이어붙이지 말고 카피마다 호출한다.**
+> `"\n".join` → `split("\n")` 왕복은 **카피 안의 개행과 구분자 개행이 섞여** 인덱스가 밀린다.
+> 인스타그램 카피는 해시태그를 줄바꿈으로 넣는 것이 일반적이다.
+>
+> 실측: `"여름 신메뉴!\n#카페"` + `"010-1234-5678"` 두 안을 합쳐 검사하면
+> 1안이 중간에서 잘리고 2안이 해시태그로 바뀌며, **정작 전화번호는 안 가려진다.**
 
 ### 5.2 `check_regulation`
 
@@ -156,9 +174,27 @@ def self_check(result: dict, context: dict) -> dict: ...
 | `alternative` | string | O | X | **대안 문구**. `pass`면 `""` |
 | `message` | string | O | X | 사용자 안내. `pass`면 `""` |
 
+> ⚠️ **`law` 는 LLM 이 쓴 값을 사용하지 않는다.**
+> 검색된 조문의 `law` 를 **코드가 직접** 채운다. LLM 이 제시한 값은 로그로만 남긴다.
+>
+> 근거: LLM 이 쓴 `law` 가 검색 조문과 안 맞는 경우가 **24건 중 3건(12.5%)** 이었다.
+> 법 조항은 창작 대상이 아니다 — 지어낸 조항이 사용자에게 나가면 안 된다.
+>
+> 실측: `faithfulness` **0.875 → 1.000**
+
 > ★ **`alternative`가 이 함수의 존재 이유다.**
 > *"'최고'는 쓸 수 없습니다"* 만 주면 사용자는 *"그럼 뭘 쓰라고?"* 가 된다.
 > **차단이 아니라 대안 제시가 목적**이므로, `warn`일 때 `alternative`는 반드시 채워진다.
+
+> ⚠️ **제시하는 대안은 다시 검사한다.**
+> `_safe_alternative()` 가 대안을 **1단에 다시 넣어보고**, 걸리면 KB 예시로 폴백한다.
+>
+> "고치라고 준 문구" 가 또 막히면 사용자는 무한 루프에 빠진다 —
+> 위에서 말한 **"차단이 아니라 대안 제시"** 라는 목적이 무의미해진다.
+>
+> ※ **1단만 돌린다.** 재검사에 LLM 을 또 쓰면 호출이 2배가 되고 판정이 또 흔들린다.
+>
+> 실측: 대안 유효성 **82.6% → 100.0%**
 
 > ⚠️ **`law` · `alternative` 는 서비스 응답 계약(v0.3 §6.5)에 없는 필드다.**
 > `BlockedResult` 는 `{status, action, reason, message}` 4개만 정의하고
@@ -253,6 +289,38 @@ def self_check(result: dict, context: dict) -> dict: ...
 > **상한을 두는 이유**: 무한 재생성 기능 구현 및 실행 시 OpenAI $30 예산 한도를 조기 소진한다.
 > 2회 초과 시 사용자에게 **대안 문구를 주고 판단을 사용자에게 넘긴다.**
 
+**1단 스크리닝도 양쪽에서 검사한다**
+
+`normalize` 와 `squeeze` 양쪽에서 트리거를 찾는다.
+⚠️ **예외 표현도 같은 기준으로 마스킹해야 한다** — 안 하면 예외가 무력해져
+과잉 차단이 되살아난다.
+
+실측: 공백 삽입 우회 29건 중 26건 차단
+
+**⚠️ 허용 예시와 대안 문구는 다른 필드다**
+
+| 필드 | 역할 | 트리거에 걸려도 되나 |
+| --- | --- | --- |
+| `good_examples` (허용 예시) | `llm_judge` 프롬프트의 **few-shot** | ✅ **무방** — LLM 에게만 보인다 |
+| `alternatives` (대안 문구) | 사용자에게 **제시** | ❌ **절대 안 됨** |
+
+허용 예시는 **경계 사례**를 담아야 LLM 이 "이 정도는 통과" 를 배운다.
+대안 문구는 사용자에게 나가므로 어떤 트리거에도 걸리면 안 된다.
+
+실제 사고: 둘을 겸용하다가, 대안 유효성을 고치려고 허용 예시를 바꾸니
+**LLM 판정이 나빠졌다**(R-055 과잉 차단 재발).
+
+**⚠️ 예외 표현은 트리거의 부분집합이 아니라 문맥이어야 한다**
+
+  ✅ 트리거 `최고` / 예외 `최고급`      — 더 긴 표현으로 문맥을 좁힌다
+  ❌ 트리거 `마약김밥` / 예외 `마약김밥` — 트리거 자체를 지운다
+
+`build_legal_kb.py` 가 빌드 시 충돌을 검사하고, 발견되면 **exit 1** 한다.
+
+실제 사고: REG-019 예외에 `마약김밥` 을 넣었더니 트리거 `마약 김밥`(공백)과
+`normalize` 후 같아져 **6개 중 5개가 무력화**됐다. 조문이 죽었는데 아무도 몰랐고,
+`kb_coverage` 지표가 떨어진 것만이 유일한 단서였다.
+
 ### 6.3 `check_output` (보안2)
 
 | action | 노드가 할 일 | 서비스 도달 | 크레딧 |
@@ -281,14 +349,14 @@ def self_check(result: dict, context: dict) -> dict: ...
 ## 7. 크레딧 롤백 규칙 (서비스 개발 담당 전용)
 
 > 서비스 핵심 비즈니스 로직은 **LLM/이미지 생성 모델 호출 전에 크레딧을 차감**한다(서비스 SDP §6.5).
-> 따라서 아래 경우 **반드시 롤백**해야 한다. (서비스 API/DB Contract v0.3 -> S-11 · docs/decisions.md -> D-020 연계)
+> 따라서 아래 경우 **반드시 롤백**해야 한다. (서비스 API/DB Contract v0.4 -> S-11 · docs/decisions.md -> D-020 연계)
 
 | LLM/이미지 생성 모델 응답 | 크레딧 | 무료 횟수 | 근거 |
 | --- | --- | --- | --- |
 | `status="ok"` (카피 1개 이상 성공) | **차감 유지** | 차감 유지 | D-020 |
 | `status="ok"` (이미지만 실패) | **차감 유지** | 차감 유지 | D-020 — 카피가 핵심 산출물 |
 | **`status="blocked"`** | **전액 롤백** | **롤백** | 사용자가 결과물을 못 받음 |
-| **`status="error"`** | **전액 롤백** | **롤백** | 서비스 API/DB Contract v0.3 -> S-11 |
+| **`status="error"`** | **전액 롤백** | **롤백** | 서비스 API/DB Contract v0.4 -> S-11 |
 
 > ⚠️ **`blocked`도 롤백 대상이다.** `error`만 롤백하도록 구현하면,
 > 불법 키워드를 입력한 사용자가 **크레딧만 잃고 아무것도 못 받는다.** 컴플레인 1순위.
@@ -395,15 +463,45 @@ def security_input_node(state: dict) -> dict:
 # models/basic/nodes/regulation_node.py
 from validation.regulation import check_regulation
 
-MAX_COPY_RETRY = 2  # D-019 카피 재생성 상한
+from ..config import COPY_MAX_RETRY  # ★ 상한은 config 단일 소스에서 가져온다(D-057)
+
+# §12.3 매핑 — check_regulation 의 action 을 프론트엔드 분기 enum 으로 옮긴다.
+#   check_regulation 이 돌려주는 reason 은 자연어 설명("객관적 근거 없는 최상급 표현")이라
+#   그대로 넣으면 BlockedResult.reason 검증에서 거부돼 서비스 502 가 난다.
+#   자연어는 message 에 이미 들어 있으므로 여기서 잃는 것이 없다.
+_REASON_BY_ACTION = {
+    "block": "prohibited_item",   # §12.3 — 오류 배너
+    "warn": "regulation_risk",    # §12.3 — 대안 문구 안내 + [다시 만들기]
+}
+
+# 전부 pass 이거나 판정 대상이 없을 때의 기본 판정.
+# §6.2 가 요구하는 5개 키를 모두 채운다 — 키가 빠지면 받는 쪽이 KeyError 를 낸다.
+_PASS_VERDICT = {"action": "pass", "law": "", "reason": "", "alternative": "", "message": ""}
+
+
+def _worst_verdict(verdicts: list[dict | None]) -> dict:
+    """대표 판정을 고른다 — block > warn > pass 순.
+
+    ★ "첫 번째 non-pass" 를 쓰면 block 이 뒤에 있을 때 warn 이 대표가 된다.
+      block 이 하나라도 있으면 그것이 대표여야 §12.3 의 reason 매핑이 맞는다.
+    """
+    live = [v for v in verdicts if v]
+    return (
+        next((v for v in live if v["action"] == "block"), None)
+        or next((v for v in live if v["action"] == "warn"), None)
+        or dict(_PASS_VERDICT)          # 매번 새 dict — 공유하면 호출자가 수정했을 때 오염된다
+    )
 
 
 def regulation_node(state: dict) -> dict:
     """법률 규제 검증 — 카피 3안을 각각 판정한다.
 
-    · pass·warn 카피는 그대로 살린다(warn 은 대안 제시가 목적이지 삭제가 아니다)
-    · block 카피는 배열에서 빼지 않고 error 슬롯으로 치환한다 (D-018·3안 고정)
-    · 살아남은 카피가 하나도 없을 때만 재생성 루프로 되돌린다
+    · pass 카피만 살린다
+    · **warn 카피도 슬롯을 비운다** — §6.2 표가 "warn(상한 내) → 카피 재생성" 으로 정했다.
+      그대로 내보내면 법 위반 문구가 사용자에게 도달하고, D-362 의 avoid 재생성도 무의미해진다
+    · block·warn 카피는 배열에서 빼지 않고 error 슬롯으로 치환한다 (D-018 · 3안 고정)
+    · pass 가 하나도 없으면 재생성 루프로 되돌린다 (상한 COPY_MAX_RETRY)
+    · 상한을 넘기면 대안을 담은 message 와 함께 blocked 로 종료한다 — 크레딧 롤백 대상
     """
     ranked = state.get("ranked_copies", [])
     checked, verdicts = [], []
@@ -418,46 +516,55 @@ def regulation_node(state: dict) -> dict:
         verdict = check_regulation(copy_text)
         verdicts.append(verdict)
 
-        if verdict["action"] == "block":
-            checked.append({                   # ★ 자리를 비우지 않는다
+        if verdict["action"] == "pass":
+            checked.append(item)               # pass 만 유지
+        else:
+            checked.append({                   # ★ 자리를 비우지 않는다 — 3안 고정(D-018)
                 "copy": None,
                 "image_b64": None,
                 "error": {
                     "field": "copy",
-                    "reason": "content_policy",
+                    "reason": "content_policy",   # §12.3 — 개별 카피 슬롯 차단
                     "message": verdict["message"],
                 },
             })
-        else:
-            checked.append(item)               # pass·warn 은 유지
 
+    # ★ validation.regulation 은 **dict 하나**다 (§5.2 필드 표).
+    #   리스트로 넣으면 copy_gen 의 regulation_result.get("action") 이 AttributeError 를 낸다.
+    worst = _worst_verdict(verdicts)
     updates: dict = {
         "ranked_copies": checked,
-        "validation": {**state.get("validation", {}), "regulation": verdicts},
+        "validation": {**state.get("validation", {}), "regulation": worst},
     }
 
-    if any(c.get("copy") for c in checked):    # 하나라도 살아남음 → 통과
+    if any(c.get("copy") for c in checked):    # pass 가 하나라도 있음 → 통과
         return updates
 
     retry = state.get("copy_retry_count", 0)
-    if retry < MAX_COPY_RETRY:
+    if retry < COPY_MAX_RETRY:
         updates["copy_retry_count"] = retry + 1
         return updates                         # 라우터가 copy_gen 으로 되돌린다
 
-    # 상한 초과 — 대안(alternative)을 함께 주고 판단을 사용자에게 넘긴다
-    worst = next((v for v in verdicts if v and v["action"] != "pass"), None)
+    # ── 상한 초과 — 대안을 담아 종료한다 ────────────────────────────────────
+    # 판정 대상이 하나도 없었던 경우(카피 전부 미생성)는 규제 위반이 아니라 생성 실패다.
+    # copy_gen 이 D-073 으로 먼저 걸러야 하지만, BlockedResult.action 에 "pass" 가
+    # 실려 502 가 나는 것을 막기 위해 여기서도 방어한다.
+    action = worst["action"] if worst["action"] != "pass" else "block"
+
     updates["status"] = "blocked"
     updates["issues"] = state.get("issues", []) + [
         {
             "source": "regulation",
-            "action": worst["action"] if worst else "block",
-            "reason": "regulation_risk",
-            "law": worst["law"] if worst else "",
-            "alternative": worst["alternative"] if worst else "",
-            "message": worst["message"] if worst else "법률 규제 검증을 통과하지 못했습니다.",
+            "action": action,
+            "reason": _REASON_BY_ACTION.get(action, "content_policy"),
+            # ⚠️ law·alternative 는 넣지 않는다 — BlockedResult 가 4개 필드만 정의하고
+            #    extra="ignore" 라 그대로 버려진다(§5.2). 대안은 message 안에 문장으로
+            #    이미 들어 있다(D-160).
+            "message": worst["message"] or "법률 규제 검증을 통과하지 못했습니다.",
         }
     ]
     return updates
+
 ```
 
 ---
@@ -615,7 +722,7 @@ def self_check_node(state: dict) -> dict:
     return updates
 ```
 
-> ⚠️ **`reason` 은 서비스 API/DB Contract v0.3 `ErrorResult` 의 4종
+> ⚠️ **`reason` 은 서비스 API/DB Contract v0.4 `ErrorResult` 의 4종
 > (`timeout`·`rate_limit`·`provider_error`·`unknown`) 중 하나여야 한다.**
 > `self_check_failed` 같은 값을 쓰면 서비스에서 검증 실패로 502가 난다.
 
@@ -723,8 +830,11 @@ graph.add_conditional_edges(
 ① §4 표 정의: check_regulation 의 입력은 "생성된 카피", 위치는 "카피 생성 직후".
    컨설턴트는 카피를 만들지 않는다(전략 조언 = strategy.summary·actions·reasons).
 ② 표시광고법은 "광고"에 적용된다. 컨설팅 조언 자체는 광고가 아니다.
-③ 컨설턴트 전략이 광고가 되는 경로는 [이 전략으로 광고 만들기](link_to_ads) 하나뿐이고,
-   그 결과물은 source_context 로 기본 챗봇 파이프라인을 타면서 regulation_node 를 통과한다.
+③ 컨설턴트 전략이 광고가 되는 경로는 **[이 전략으로 광고 만들기] 하나뿐**이다.
+   프론트엔드가 `source_gen_id` 로 `POST /generate` 를 호출하면 서비스가 DB 조회·검증 후
+   `source_context` 로 치환해 기본 챗봇에 넘기고(D-306·D-363), 그 결과물이
+   기본 챗봇 파이프라인의 `regulation_node` 를 통과한다.
+   ※ 모델 측에는 연계 코드가 없다 — 서비스 계층에서 완결된다.
 ④ 붙이면 warn 시 전략 재생성 루프가 생겨 LLM 모델 API 호출이 늘고 $30 예산을 압박한다.
 
 단, 컨설턴트가 "이 지역 최고 카페로 포지셔닝하세요" 같은 표현을 낼 수 있으므로
@@ -744,7 +854,7 @@ strategy SYSTEM_PROMPT 에 아래 한 줄을 둔다(LLM 모델 API 호출 0회·
 | `check_regulation` 1단 | 스텁(`pass`) | **8/19** | 키워드 기반 `warn` + `alternative` 반환 |
 | `check_output` | 스텁(`pass`) | **8/19** | `masked_text` 채워짐, 민감정보 누출 탐지 시 `warn`이면 민감정보 마스킹본, `block`이면 `""` |
 | `self_check` (A)규칙 | 스텁(`pass`) | **8/19** | LLM 모델 답변 근거·개수·길이 검사 시작 |
-| `check_regulation` 2단 RAG | 미구현 | **8/20** [SHOULD] | `law`·`alternative`가 법률 조문 기반으로 채워짐 |
+| `check_regulation` 2단 RAG | **구현 완료** | 8/23 | 벡터+어휘 하이브리드 검색, `faithfulness` 1.000 달성 |
 
 > **일정 변경 사유(D-142)**: 당초 8/12~8/14였으나 4종 모두 미착수 상태였다.
 > `golden_dataset.md` 의 **거부 문항 15개(R-)** 가 이 실구현을 전제하므로
@@ -834,7 +944,7 @@ uv run --locked --group dev ruff check . --fix
 
 ## 11. 골든 데이터셋과의 연결
 
-> 이 계약이 **실제로 잘 지켜지는지**는 골든 데이터셋 거부 영역(`R-` 15문항)이 검증한다.
+> 이 계약이 **실제로 잘 지켜지는지**는 골든 데이터셋 거부 영역(`R-` 67문항)이 검증한다.
 > 상세는 `docs/golden_dataset.md` §3.4 참조.
 
 | 골든 문항 | 검증 대상 함수 | 기대 `action` |
@@ -856,12 +966,30 @@ uv run --locked --group dev ruff check . --fix
 > ⚠️ **차단 문항만 있으면 "전부 막는 함수"도 100점을 받는다.**
 > 과잉 차단 가드 5문항이 실제 품질을 드러낸다.
 
+**실제 측징 지표**
+| 지표 | 목표 | 실측 (R- 67문항) |
+| --- | --- | --- |
+| 차단 정확도 | 100% | **100.0%** ✅ |
+| 과잉 차단률 | 10% 이하 | **8.3%** ✅ |
+| 대안 제시율 | 100% | **100.0%** ✅ |
+| **대안 유효성** | 100% | **100.0%** ✅ ← 신규 |
+| **견고성(불변성)** | 95% 이상 | **98.0%** ✅ ← 신규 |
+| **`faithfulness`** | 1.000 | **1.000** ✅ ← 신규 |
+| `RAGAS` 종합 | *(보조 지표)* | 0.654 |
+
+> ⚠️ **과잉 차단률은 동일 조건 5회 측정에서 `pass` 2회 / `warn` 3회로 갈렸다.**
+> 보수적으로 8.3% 를 채택한다. `temperature=0` 이 재현성을 보장하지 않음을 실측했다.
+>
+> ⚠️ **`RAGAS` 는 보조 지표다.** 검색을 좁혀 `RAGAS` 를 0.64 → 0.93 으로 올렸더니
+> 판정 정확도가 나빠졌다(과잉 차단률 16.7% → 25.0%). **중간 지표를 최적화하면
+> 최종 지표가 희생되는 구간**을 실측으로 확인하고 판정 정확도를 기준으로 되돌렸다.
+
 ---
 
 ## 12. 서비스 API 계약과의 매핑
 
 > 검증 노드가 `state["issues"]` 에 쌓은 항목을 서비스 응답으로 어떻게 바꾸는지.
-> 서비스 API/DB Contract v0.3 §6.5 · §6.6 기준.
+> 서비스 API/DB Contract v0.4 §6.5 · §6.6 기준.
 
 **모델 → 서비스 정책 응답 구조**
 ```json
@@ -905,6 +1033,15 @@ uv run --locked --group dev ruff check . --fix
 > 사용자에게 **502**가 나간다. (D-073과 동일한 사고 유형)
 
 ### 12.3 `reason` 코드 목록 — 프론트엔드 분기 기준
+
+> ⚠️ **2026-08-24 기준 아래 7종이 모두 미구현이다.**
+> `ResultCards` 가 `response.status` 를 읽지 않아 **차단 사유가 화면에 나오지 않는다.**
+> 규제 검증이 대안 유효성 100% 를 달성해도 사용자에게 도달하지 않는다.
+>
+> 1차 목표는 `result.message` 를 그대로 노출하는 것이고(§5.4-3 이 이미 "받는 쪽은
+> message 를 직접 만들지 않고 그대로 전달한다" 로 정했다), `reason` 별 분기는
+> `need_clarification`·`regulation_risk` 2종을 먼저 구현한다 —
+> 이 둘만이 **사용자가 다음 행동을 할 수 있는가**를 가른다.
 
 > v0.3 §6.5는 `BlockedResult.reason` 을 *"확장 가능한 정책 코드"* 로만 정의한다.
 > 화면이 reason 별로 다르게 반응해야 하므로 **본 계약서가 값 목록을 관리한다.**
@@ -997,7 +1134,7 @@ self_check 1회   = 파이프라인 생성 노드 재실행
 ## 참고 자료
 
 ### 서비스 개발 계약 문서
-- 서비스 API/DB Contract v0.3 — [바로가기](https://app.notion.com/p/D1-API-DB-Contract-v0-3-3b9efe95f43b80938eaddafa09244fd3)
+- 서비스 API/DB Contract v0.4 — [바로가기](https://app.notion.com/p/D1-API-DB-Contract-v0-3-3b9efe95f43b80938eaddafa09244fd3)
 
 ---
 
@@ -1021,5 +1158,5 @@ self_check       : pass | warn(→로그만) | reject(→재시도 1회)
 - 의사결정 로그 (`docs/decisions.md`) — D-011 · D-018 · D-019 · D-020
 - 디렉토리 구조 (`docs/directory_structure.md`)
 - **골든 데이터셋 기준 문서** (`docs/golden_dataset.md`) — `R-` 15문항이 본 계약을 검증
-- 서비스 API/DB Contract v0.3 — §6.5 정책 검증 결과 · S-11 롤백
+- 서비스 API/DB Contract v0.4 — §6.5 정책 검증 결과 · S-11 롤백
 - 4개 담당자별 SDP 개발 계획서 (`docs/sdp_pm.md` / `sdp_service.md` / `sdp_basic.md` / `sdp_consult.md`)

@@ -74,4 +74,8 @@ def test_missing_keyword_skips_api_call_and_returns_none(mock_get_trend):
     )
 
     mock_get_trend.assert_not_called()
+<<<<<<< HEAD
     assert result["context"]["trend"] is None
+=======
+    assert result["context"]["trend"] is None
+>>>>>>> c2856af92160077083cc6d1b366cba79f23d3676

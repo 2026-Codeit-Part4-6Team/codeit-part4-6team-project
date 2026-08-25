@@ -184,3 +184,69 @@ def test_e2e_scenario_d_clarification_round_trip():
     )
     response = assemble_response(final_state)
     assert response["status"] == "ok"
+
+
+def test_e2e_scenario_e_self_check_reject_retries_then_succeeds():
+    """self_check이 처음엔 reject, 재시도 후 pass면 copy_gen부터 다시 돌아
+    최종적으로 ok가 나온다(D-156 self_check_retry_count 루프)."""
+    outcomes = iter(
+        [
+            {"action": "reject", "reasons": ["제안 개수 부족"], "message": "부족"},
+            {"action": "pass", "reasons": [], "message": ""},
+        ]
+    )
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            side_effect=lambda *a, **kw: next(outcomes),
+        ),
+    ):
+        graph = build_basic_graph()
+        final_state = graph.invoke(
+            {
+                "chatbot_type": "basic",
+                "user_id": 1,
+                "question": "여름 신메뉴 홍보 문구 만들어줘",
+                "store": _STORE,
+                "platform": "instagram",
+                "extra": {},
+            }
+        )
+
+    response = assemble_response(final_state)
+    assert response["status"] == "ok"
+    assert final_state["self_check_retry_count"] == 1
+
+
+def test_e2e_scenario_f_self_check_reject_exhausts_retry_and_blocks():
+    """self_check이 계속 reject면 SELF_CHECK_MAX_RETRY에서 blocked로 끝난다."""
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            return_value={
+                "action": "reject",
+                "reasons": ["근거 없음"],
+                "message": "부족",
+            },
+        ),
+    ):
+        graph = build_basic_graph()
+        final_state = graph.invoke(
+            {
+                "chatbot_type": "basic",
+                "user_id": 1,
+                "question": "여름 신메뉴 홍보 문구 만들어줘",
+                "store": _STORE,
+                "platform": "instagram",
+                "extra": {},
+            }
+        )
+
+    response = assemble_response(final_state)
+    assert response["status"] == "blocked"
+    assert response["reason"] == "unknown"
+    assert final_state["self_check_retry_count"] == 2

@@ -1,21 +1,13 @@
 """골든 데이터셋 area=basic 문항으로 이미지 생성 결과를 평가한다.
 
 B- 문항 중 지정된 개수(기본 20개)를 골라 카피 생성 → 이미지 생성 → CLIP
-Score(정합성)·Aesthetic Score(미적 품질)를 산출한다. 멀티모달 LLM-Judge는
-비용이 더 커서 별도 단계로 남겨둔다.
-
-Aesthetic Score는 LAION Aesthetic Predictor(CLIP ViT-L/14 임베딩 기반 소형
-MLP)를 이 파일 안에서 직접 로드한다 — CLIP Score용 인스턴스(ViT-B/32,
-image_review.py)와는 별도 인스턴스다(체크포인트가 요구하는 임베딩 차원이
-다름). 체크포인트는 최초 호출 시 이 파일과 같은 디렉토리에 자동
-다운로드·캐시된다.
+Score(정합성)를 산출한다. 멀티모달 LLM-Judge는 비용이 더 커서 별도 단계로
+남겨둔다.
 
 실행: uv run python -m models.basic.eval.eval_image \
     --dataset shared_data/golden_dataset.json --limit 20
 
 models/shared/eval_fixtures.py 파일 도착 후 실행 가능하다.
-
-참고: https://github.com/christophschuhmann/improved-aesthetic-predictor
 """
 
 import argparse
@@ -24,106 +16,32 @@ import io
 import json
 import sys
 import time
-import urllib.request
+from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
-from openai import OpenAI
-from collections import defaultdict
+from unittest.mock import patch
 
-import torch
+from openai import OpenAI
 from PIL import Image
-from torch import nn
-from transformers import CLIPModel, CLIPProcessor
 
 from models.basic.clients.image_client import IMAGE_MODEL, generate_image
-from models.basic.nodes.copy_gen import copy_gen_node
-from models.basic.nodes.image_review import _clip_score
-from models.shared.config import OPENAI_MODEL
 from models.basic.nodes.channel import channel_node
-from models.basic.nodes.image_gen import _PLATFORM_IMAGE_PROMPT, _DEFAULT_PLATFORM, _english_caption, _generate_xbanner
+from models.basic.nodes.copy_gen import copy_gen_node
+from models.basic.nodes.image_gen import (
+    _DEFAULT_PLATFORM,
+    _PLATFORM_IMAGE_PROMPT,
+    _english_caption,
+    _generate_xbanner,
+    _pick_instagram_template,
+)
+from models.basic.nodes.image_review import _clip_score
 from models.basic.nodes.market_for_copy import market_for_copy_node
 from models.basic.nodes.trend_for_copy import trend_for_copy_node
+from models.shared.config import OPENAI_MODEL
 from models.shared.eval_fixtures import build_model_request
-from unittest.mock import patch
 
 DATASET_VERSION = "v1.2"
 _OUTPUT_DIR = Path(__file__).parent / "image_samples"
-
-# Aesthetic Score (LAION Aesthetic Predictor)
-
-_AESTHETIC_CHECKPOINT_URL = (
-    "https://raw.githubusercontent.com/christophschuhmann/"
-    "improved-aesthetic-predictor/main/sac%2Blogos%2Bava1-l14-linearMSE.pth"
-)
-_AESTHETIC_CHECKPOINT_PATH = Path(__file__).parent / "aesthetic_predictor.pth"
-
-_aesthetic_clip_model = None
-_aesthetic_clip_processor = None
-_aesthetic_predictor = None
-
-
-class _AestheticMLP(nn.Module):
-    """LAION improved-aesthetic-predictor와 동일한 구조(CLIP L/14 768차원 입력)."""
-
-    def __init__(self, input_size: int = 768):
-        super().__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, 1024),
-            nn.Dropout(0.2),
-            nn.Linear(1024, 128),
-            nn.Dropout(0.2),
-            nn.Linear(128, 64),
-            nn.Dropout(0.1),
-            nn.Linear(64, 16),
-            nn.Linear(16, 1),
-        )
-
-    def forward(self, x):
-        return self.layers(x)
-
-
-def _load_aesthetic_clip():
-    global _aesthetic_clip_model, _aesthetic_clip_processor
-    if _aesthetic_clip_model is None:
-        _aesthetic_clip_model = CLIPModel.from_pretrained(
-            "openai/clip-vit-large-patch14"
-        )
-        _aesthetic_clip_processor = CLIPProcessor.from_pretrained(
-            "openai/clip-vit-large-patch14"
-        )
-    return _aesthetic_clip_model, _aesthetic_clip_processor
-
-
-def _load_aesthetic_predictor() -> _AestheticMLP:
-    global _aesthetic_predictor
-    if _aesthetic_predictor is None:
-        if not _AESTHETIC_CHECKPOINT_PATH.exists():
-            _AESTHETIC_CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
-            urllib.request.urlretrieve(
-                _AESTHETIC_CHECKPOINT_URL, _AESTHETIC_CHECKPOINT_PATH
-            )
-        _aesthetic_predictor = _AestheticMLP()
-        _aesthetic_predictor.load_state_dict(
-            torch.load(_AESTHETIC_CHECKPOINT_PATH, map_location="cpu")
-        )
-        _aesthetic_predictor.eval()
-    return _aesthetic_predictor
-
-
-def aesthetic_score(image: Image.Image) -> float:
-    """이미지의 미적 품질 점수를 1~10 스케일로 반환한다(높을수록 좋음)."""
-    model, processor = _load_aesthetic_clip()
-    predictor = _load_aesthetic_predictor()
-
-    inputs = processor(images=image, return_tensors="pt")
-    with torch.no_grad():
-        vision_outputs = model.vision_model(pixel_values=inputs["pixel_values"])
-        image_embed = model.visual_projection(vision_outputs.pooler_output)
-        image_embed = image_embed / image_embed.norm(dim=-1, keepdim=True)
-        score = predictor(image_embed.float())
-
-    return score.item()
-
 
 _vision_client: OpenAI | None = None
 
@@ -149,7 +67,9 @@ _IMAGE_RUBRIC_CRITERIA = {
 }
 
 
-def judge_image_rubric(store: dict, copy: str, image: Image.Image, platform: str) -> dict:
+def judge_image_rubric(
+    store: dict, copy: str, image: Image.Image, platform: str
+) -> dict:
     """비전 모델(gpt-4o-mini)로 이미지 rubric 3항목을 1~5점으로 채점한다.
     platform별로 기준이 다르다 — instagram은 피드 적합성, xbanner는 배너 가독성을 본다."""
     buf = io.BytesIO()
@@ -175,7 +95,10 @@ def judge_image_rubric(store: dict, copy: str, image: Image.Image, platform: str
         temperature=0.0,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": "너는 광고 이미지 품질을 심사하는 심사위원이다."},
+            {
+                "role": "system",
+                "content": "너는 광고 이미지 품질을 심사하는 심사위원이다.",
+            },
             {
                 "role": "user",
                 "content": [
@@ -212,7 +135,6 @@ def moderation_check(image: Image.Image) -> dict:
         category for category, value in result.categories.model_dump().items() if value
     ]
     return {"flagged": result.flagged, "categories": flagged_categories}
-
 
 
 _MARKET_FIXTURE = {
@@ -264,7 +186,9 @@ def _build_context(request: dict) -> dict:
         }
     return state["context"]
 
+
 # 골든 데이터셋 기반 평가
+
 
 def _next_run_dir(base_dir: Path) -> Path:
     """같은 날 여러 번 실행해도 이전 결과를 덮어쓰지 않도록, base_dir 아래에
@@ -311,9 +235,7 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
                 store_type=store.get("type", "가게"), copy=copy
             )
         else:
-            template = _PLATFORM_IMAGE_PROMPT.get(
-                platform, _PLATFORM_IMAGE_PROMPT[_DEFAULT_PLATFORM]
-            )
+            template = _pick_instagram_template(store, i)
             image_prompt = template.format(
                 store_type=store.get("type", "가게"), copy=copy
             )
@@ -323,7 +245,7 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
 
         caption = _english_caption(store.get("type", "store"), copy)
         clip = _clip_score(image, caption or image_prompt)
-        aesthetic = aesthetic_score(image)
+
         image_rubric = judge_image_rubric(store, copy, image, platform)
         moderation = moderation_check(image)
 
@@ -336,7 +258,6 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
                 "image_prompt": image_prompt,
                 "caption_en": caption,
                 "clip_score": clip,
-                "aesthetic_score": aesthetic,
                 "image_rubric": image_rubric,
                 "moderation": moderation,
                 "image_path": str(image_path),
@@ -358,9 +279,12 @@ def run(
     limit: int,
     banner_limit: int | None = None,
     instagram_limit: int | None = None,
+    exclude: list[str] | None = None,
 ) -> dict:
     all_items = json.loads(dataset_path.read_text(encoding="utf-8"))
     basic_items = [i for i in all_items if i["area"] == "basic"]
+    if exclude:
+        basic_items = [i for i in basic_items if i["id"] not in exclude]
 
     if banner_limit is not None or instagram_limit is not None:
         banner_items = [
@@ -397,7 +321,6 @@ def run(
     all_image_evals = [img for r in passed for img in r["images"]]
 
     clip_scores = [img["clip_score"] for img in all_image_evals]
-    aesthetic_scores = [img["aesthetic_score"] for img in all_image_evals]
 
     rubric_by_criterion = defaultdict(list)
     for img in all_image_evals:
@@ -426,11 +349,6 @@ def run(
             "clip_score_avg": (
                 round(sum(clip_scores) / len(clip_scores), 4) if clip_scores else None
             ),
-            "aesthetic_score_avg": (
-                round(sum(aesthetic_scores) / len(aesthetic_scores), 4)
-                if aesthetic_scores
-                else None
-            ),
             "moderation_flagged_rate": moderation_flagged_rate,
         },
         "items": results,
@@ -455,6 +373,15 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--banner-limit", type=int, default=None, help="banner 문항 수")
-    parser.add_argument("--instagram-limit", type=int, default=None, help="instagram 문항 수")
+    parser.add_argument(
+        "--instagram-limit", type=int, default=None, help="instagram 문항 수"
+    )
+    parser.add_argument(
+        "--exclude",
+        type=str,
+        default="",
+        help="제외할 문항 ID, 콤마로 구분 (예: B-012)",
+    )
     args = parser.parse_args()
-    run(args.dataset, args.limit, args.banner_limit, args.instagram_limit)
+    exclude = [x.strip() for x in args.exclude.split(",") if x.strip()]
+    run(args.dataset, args.limit, args.banner_limit, args.instagram_limit, exclude)
