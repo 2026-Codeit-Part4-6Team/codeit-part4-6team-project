@@ -155,7 +155,11 @@ def image_gen_node(state: BasicState) -> dict:
                 {
                     **c,
                     "image_b64": None,
-                    "error": {"field": "image", "reason": reason, "message": str(exc)},
+                    "error": {
+                        "field": "image",
+                        "reason": reason,
+                        "message": str(exc) or "이미지 생성 중 오류가 발생했습니다.",
+                    },
                 }
             )
             prompts.append(None)

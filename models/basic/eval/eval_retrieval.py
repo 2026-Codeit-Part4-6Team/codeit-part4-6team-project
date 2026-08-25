@@ -7,12 +7,20 @@
 import argparse
 import json
 import sys
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 
 from models.basic.retrieval.vectorstore import search_benchmark
 
 TOP_K = 5
+
+
+def _dataset_version(dataset_path: Path) -> str:
+    """데이터셋 파일 내용 해시로 버전 라벨을 만든다 — 하드코딩된 버전 문자열이
+    실제 파일 내용과 어긋나는 사고(eval_refusal에서 발생)를 방지한다."""
+    digest = hashlib.sha256(dataset_path.read_bytes()).hexdigest()[:8]
+    return f"auto-{digest}"
 
 
 def _hit_at_k(relevant_ids: list[str], retrieved_ids: list[str]) -> bool:
@@ -30,10 +38,16 @@ def run(dataset_path: Path) -> dict:
     items = json.loads(dataset_path.read_text(encoding="utf-8"))
 
     results = []
+    errors = []
     for item in items:
-        retrieved = search_benchmark(item["query"], k=TOP_K)
-        retrieved_ids = [r["id"] for r in retrieved]
+        try:
+            retrieved = search_benchmark(item["query"], k=TOP_K)
+        # BLE001 억제 사유: 문항 하나의 검색 실패로 전체 평가를 죽이지 않는다
+        except Exception as exc:  # noqa: BLE001
+            errors.append({"id": item["id"], "error": f"{type(exc).__name__}: {exc}"})
+            continue
 
+        retrieved_ids = [r["id"] for r in retrieved]
         results.append(
             {
                 "id": item["id"],
@@ -48,10 +62,13 @@ def run(dataset_path: Path) -> dict:
         )
 
     processed = len(results)
-    if processed != len(items):
-        print(f"{len(items)}문항 중 {processed}건 처리 — 불일치", file=sys.stderr)
+    print(f"{len(items)}문항 중 {processed}건 처리 (검색 실패 {len(errors)}건)")
+    if errors:
+        print(f"실패 문항: {[e['id'] for e in errors]}", file=sys.stderr)
+
+    if processed == 0:
+        print("전 문항 검색 실패 — 평가할 결과가 없습니다.", file=sys.stderr)
         sys.exit(1)
-    print(f"{len(items)}문항 중 {processed}건 처리")
 
     hit_rate = sum(r["hit"] for r in results) / processed
     mrr = sum(r["reciprocal_rank"] for r in results) / processed
@@ -59,8 +76,9 @@ def run(dataset_path: Path) -> dict:
     report = {
         "run_at": datetime.now(UTC).isoformat(),
         "area": "retrieval",
-        "dataset_version": "v1.2",
+        "dataset_version": _dataset_version(dataset_path),
         "item_count": processed,
+        "generation_failures": errors,
         "metrics": {
             f"hit_rate_at_{TOP_K}": round(hit_rate, 3),
             "mrr": round(mrr, 3),
@@ -76,10 +94,3 @@ def run(dataset_path: Path) -> dict:
     )
     print(f"결과 저장: {out_path}")
     return report
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=Path, required=True)
-    args = parser.parse_args()
-    run(args.dataset)
