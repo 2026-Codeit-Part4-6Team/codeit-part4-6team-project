@@ -16,24 +16,29 @@ import io
 import json
 import sys
 import time
-
+from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
-from openai import OpenAI
-from collections import defaultdict
+from unittest.mock import patch
 
+from openai import OpenAI
 from PIL import Image
 
 from models.basic.clients.image_client import IMAGE_MODEL, generate_image
-from models.basic.nodes.copy_gen import copy_gen_node
-from models.basic.nodes.image_review import _clip_score
-from models.shared.config import OPENAI_MODEL
 from models.basic.nodes.channel import channel_node
-from models.basic.nodes.image_gen import _PLATFORM_IMAGE_PROMPT, _DEFAULT_PLATFORM, _english_caption, _generate_xbanner, _pick_instagram_template
+from models.basic.nodes.copy_gen import copy_gen_node
+from models.basic.nodes.image_gen import (
+    _DEFAULT_PLATFORM,
+    _PLATFORM_IMAGE_PROMPT,
+    _english_caption,
+    _generate_xbanner,
+    _pick_instagram_template,
+)
+from models.basic.nodes.image_review import _clip_score
 from models.basic.nodes.market_for_copy import market_for_copy_node
 from models.basic.nodes.trend_for_copy import trend_for_copy_node
+from models.shared.config import OPENAI_MODEL
 from models.shared.eval_fixtures import build_model_request
-from unittest.mock import patch
 
 DATASET_VERSION = "v1.2"
 _OUTPUT_DIR = Path(__file__).parent / "image_samples"
@@ -60,7 +65,9 @@ _IMAGE_RUBRIC_CRITERIA = {
 }
 
 
-def judge_image_rubric(store: dict, copy: str, image: Image.Image, platform: str) -> dict:
+def judge_image_rubric(
+    store: dict, copy: str, image: Image.Image, platform: str
+) -> dict:
     """비전 모델(gpt-4o-mini)로 이미지 rubric 3항목을 1~5점으로 채점한다.
     platform별로 기준이 다르다 — instagram은 피드 적합성, xbanner는 배너 가독성을 본다."""
     buf = io.BytesIO()
@@ -86,7 +93,10 @@ def judge_image_rubric(store: dict, copy: str, image: Image.Image, platform: str
         temperature=0.0,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": "너는 광고 이미지 품질을 심사하는 심사위원이다."},
+            {
+                "role": "system",
+                "content": "너는 광고 이미지 품질을 심사하는 심사위원이다.",
+            },
             {
                 "role": "user",
                 "content": [
@@ -123,7 +133,6 @@ def moderation_check(image: Image.Image) -> dict:
         category for category, value in result.categories.model_dump().items() if value
     ]
     return {"flagged": result.flagged, "categories": flagged_categories}
-
 
 
 _MARKET_FIXTURE = {
@@ -175,7 +184,9 @@ def _build_context(request: dict) -> dict:
         }
     return state["context"]
 
+
 # 골든 데이터셋 기반 평가
+
 
 def _next_run_dir(base_dir: Path) -> Path:
     """같은 날 여러 번 실행해도 이전 결과를 덮어쓰지 않도록, base_dir 아래에
@@ -360,8 +371,15 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--banner-limit", type=int, default=None, help="banner 문항 수")
-    parser.add_argument("--instagram-limit", type=int, default=None, help="instagram 문항 수")
-    parser.add_argument("--exclude", type=str, default="", help="제외할 문항 ID, 콤마로 구분 (예: B-012)")
+    parser.add_argument(
+        "--instagram-limit", type=int, default=None, help="instagram 문항 수"
+    )
+    parser.add_argument(
+        "--exclude",
+        type=str,
+        default="",
+        help="제외할 문항 ID, 콤마로 구분 (예: B-012)",
+    )
     args = parser.parse_args()
     exclude = [x.strip() for x in args.exclude.split(",") if x.strip()]
     run(args.dataset, args.limit, args.banner_limit, args.instagram_limit, exclude)

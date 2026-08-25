@@ -5,9 +5,9 @@
 """
 
 import argparse
+import hashlib
 import json
 import sys
-import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -94,3 +94,10 @@ def run(dataset_path: Path) -> dict:
     )
     print(f"결과 저장: {out_path}")
     return report
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=Path, required=True)
+    args = parser.parse_args()
+    run(args.dataset)
