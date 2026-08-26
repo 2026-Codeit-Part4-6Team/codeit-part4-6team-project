@@ -156,13 +156,12 @@ def get_market(lat: float, lng: float, radius: int = 500) -> dict:
     }
 
 # cache/trend_repo.py — 컨설턴트 챗봇 모델 개발 담당자가 제공
-def get_trend(keyword: str, industry: str = None) -> dict:
+def get_trend(keyword: str) -> dict | None:
     """검색어 트렌드 조회 — Cache-Aside. 실패 시 None."""
     return {
-        "keyword": "아이스아메리카노",
-        "direction": "상승",          # 상승/하락/유지
-        "related": ["여름음료", "냉커피"],  # 추후 네이버 검색광고 API 호출, 응답 데이터 활용 및 related(연관 검색어) 필드 값 할당 로직 구현 예정
-        "weather": {"temp": 31, "sky": "맑음"}   # 선택 - 날씨 API 추가 구현 검토 예정
+        "keyword": "아이스아메리카노",      # 조회한 검색어
+        "direction": "상승",              # 상승/하락/유지
+        "related": ["여름음료", "냉커피"],  # 연관 검색어 - 네이버 검색광고 API 호출
     }
 ```
 
