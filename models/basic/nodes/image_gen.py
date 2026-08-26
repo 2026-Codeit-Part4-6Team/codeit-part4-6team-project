@@ -42,6 +42,17 @@ _BENEFIT_KEYWORDS = (
 )
 
 
+_COMMON_IMAGE_RULES = (
+    "할인·무료·증정 문구를 넣을 때는 조건을 반드시 함께 적는다 — "
+    '"한 잔 무료"가 아니라 "두 잔 구매 시 한 잔 무료"처럼 조건과 묶어서 '
+    "표시한다. "
+    "화면에 넣는 한국어는 큰 글씨 위주로 하고, 작은 보조 문구·뱃지·라벨은 "
+    "최소화한다 — 작은 글씨에서 한글이 깨지는 문제가 실측으로 확인됐다."
+    "주어진 카피·정보에 없는 내용(혜택, 가격, 기간, 상호·주소 외 연락처 등)을 "
+    "새로 만들어 넣지 않는다 — 화면이 허전해 보여도 없는 정보를 채우지 않는다. "
+)
+
+
 def _split_benefit_clause(copy: str) -> tuple[str, str | None]:
     """카피를 문장 단위로 나눠, 할인·무료·이벤트 등 혜택 키워드가 포함된
     문장은 하단 배너용으로, 나머지(가게 자체 소개)는 상단 배너용으로
@@ -72,7 +83,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "시선이 집중되게 한다. 인스타그램 피드에서 시선을 끄는 선명한 톤. "
         "문구에 없는 할인율·이벤트명·상품명을 새로 만들어 넣지 않는다. "
         "이미지에는 해시태그를 포함시키지 않는다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "instagram_character": (
         "{store_type} 광고 이미지. 귀엽고 개성 있는 AI 캐릭터"
         "(인스타툰 스타일의 사람이나 동물 캐릭터) "
@@ -82,7 +94,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "브랜드 컬러를 캐릭터 의상이나 소품에 살짝 반영한다."
         "문구에 없는 할인율·이벤트명·상품명을 새로 만들어 넣지 않는다. "
         "이미지에는 해시태그를 포함시키지 않는다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "instagram_meme": (
         "{store_type} 광고 이미지. 밈(meme) 스타일 — MZ세대 타겟. "
         "고객이 겪을 법한 불편한 상황을 과장된 표정의 캐릭터/짤 형태로 표현하고, "
@@ -93,7 +106,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "말풍선·자막에 문구에 없는 할인율·이벤트명 등 구체적 수치를 새로 "
         "지어내지 않는다. "
         "이미지에는 해시태그를 포함시키지 않는다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_top_picture": (
         "세로형 스탠드 배너(X배너)의 상단부 디자인. 업종에 어울리는 색상 배경"
         "(업종에 어울리는 색상 — {store_type} 분위기에 맞게). "
@@ -104,7 +118,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "실제 사진처럼 보이는 상업 사진 스타일. 제품·메뉴 사진을 중심에 두고 "
         "자연스러운 조명과 구도로 촬영한 느낌을 낸다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_top_flat": (
         "세로형 스탠드 배너(X배너)의 상단부 디자인. 업종에 어울리는 색상 배경"
         "(업종에 어울리는 색상 — {store_type} 분위기에 맞게). "
@@ -115,7 +130,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "사진이 아닌 플랫 그래픽 포스터 디자인 스타일. 단순화된 일러스트와 "
         "도형·패턴으로 구성한다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_top_typography": (
         "세로형 스탠드 배너(X배너)의 상단부 디자인. 업종에 어울리는 색상 배경"
         "(업종에 어울리는 색상 — {store_type} 분위기에 맞게). "
@@ -128,7 +144,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "그래픽 일러스트로, 문구를 가리지 않는 구석 자리에 포인트로만 "
         "곁들인다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_bottom_picture": (
         "세로형 스탠드 배너(X배너)의 하단부 디자인. 밝고 단순한 배경"
         "(상단부와 비슷한 계열의 색상). "
@@ -147,7 +164,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "실제 사진처럼 보이는 상업 사진 스타일로, 상단부와 어울리는 소품 "
         "사진을 작게 곁들인다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_bottom_flat": (
         "세로형 스탠드 배너(X배너)의 하단부 디자인. 밝고 단순한 배경"
         "(상단부와 비슷한 계열의 색상). "
@@ -165,7 +183,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "전체적으로는 정보 전달 위주의 차분한 레이아웃. "
         "사진이 아닌 플랫 그래픽/일러스트 기반으로 표현한다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
     "xbanner_bottom_typography": (
         "세로형 스탠드 배너(X배너)의 하단부 디자인. 밝고 단순한 배경"
         "(상단부와 비슷한 계열의 색상). "
@@ -185,7 +204,8 @@ _PLATFORM_IMAGE_PROMPT = {
         "작은 스티커 느낌의 아이콘이나 플랫 그래픽 요소를 구석에 포인트로 "
         "곁들인다. "
         "배너 거치대나 다리(스탠드 프레임)는 그리지 않는다 — 배너 인쇄면만 표현한다."
-    ),
+    )
+    + _COMMON_IMAGE_RULES,
 }
 _DEFAULT_PLATFORM = "instagram"
 
@@ -225,11 +245,13 @@ def _generate_xbanner(store: dict, copy: str, index: int) -> str:
     provided_info = f'상호 "{store.get("name")}", 주소 "{store.get("address")}"'
     if bottom_text:
         benefit_clause = (
-            "다음 혜택 정보를 작은 배너나 스티커 형태로 하단부에 강조해서 "
-            f'표시한다: "{bottom_text}" 이 문구를 화면에서 가장 크고 굵은 '
-            "글씨로 독립된 요소처럼 강조해서 배치한다 — 나머지 텍스트보다 "
-            "눈에 띄게 크게 표시한다. 문구를 다른 표현으로 바꾸거나 요약하지 "
-            "않고 주어진 그대로 표시한다."
+            "다음 혜택 정보를 조건까지 포함해 하나의 배지·스티커 안에 통째로 "
+            f'표시한다: "{bottom_text}" 이 배지를 화면에서 가장 크고 눈에 '
+            "띄게 강조해서 배치한다. "
+            "문구를 다른 표현으로 바꾸거나 요약하지 않고 주어진 그대로 "
+            "표시한다 — 특히 '무료'·'할인' 같은 단어만 따로 떼어내 별도의 "
+            "거대한 문구로 만들지 않는다. 조건 없이 혜택 단어만 단독으로 "
+            "화면에 크게 표시하지 않는다."
         )
     else:
         benefit_clause = "혜택을 강조하는 별도 텍스트는 넣지 않는다."
@@ -290,9 +312,19 @@ def image_gen_node(state: BasicState) -> dict:
             if platform == "xbanner":
                 image_b64 = _generate_xbanner(store, c["copy"], i)
                 top_key, _ = _pick_xbanner_template(i)
-                top_text, _ = _split_benefit_clause(c["copy"])
-                prompt_record = _PLATFORM_IMAGE_PROMPT[top_key].format(
-                    store_type=store.get("type", "가게"), copy=top_text
+                top_text, bottom_text = _split_benefit_clause(c["copy"])
+                bottom_desc = (
+                    f'하단에는 상호·주소와 혜택 강조 문구("{bottom_text}")가 '
+                    "표기된다."
+                    if bottom_text
+                    else "하단에는 상호·주소가 표기된다."
+                )
+                prompt_record = (
+                    _PLATFORM_IMAGE_PROMPT[top_key].format(
+                        store_type=store.get("type", "가게"), copy=top_text
+                    )
+                    + " "
+                    + bottom_desc
                 )
             else:
                 size = _PLATFORM_IMAGE_SIZE.get(
@@ -307,6 +339,7 @@ def image_gen_node(state: BasicState) -> dict:
             updated.append({**c, "image_b64": image_b64})
             images.append(image_b64)
             prompts.append(prompt_record)
+            captions_en.append(_english_caption(store.get("type", "가게"), c["copy"]))
         # BLE001 억제 사유: 항목 하나 실패가 배치 전체를 죽이지 않도록 모든 예외를 잡아 개별 에러로 기록
         except Exception as exc:  # noqa: BLE001
             reason = _classify_image_error(exc)
