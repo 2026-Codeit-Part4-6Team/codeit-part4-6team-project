@@ -164,9 +164,9 @@ LLM 모델이 상권 데이터를 전혀 읽지 않고 few-shot 을 그대로 �
 | **컨설턴트 (전략 제안)** | `C-` | **20** | 컨설턴트 챗봇 담당 |
 | **거부 (규제·보안)** | `R-` | **15** | **전민재 PM** |
 | **합계** | — | **60** | — |
-| *(별도)* 기본 챗봇 (카피 생성) | `B-` | 20 [SHOULD] | 기본 챗봇 담당 |
+| *(별도)* 기본 챗봇 (카피 생성) | `B-` | 25 [SHOULD] | 기본 챗봇 담당 |
 | *(별도)* 컨설턴트 (전략 제안) | `C-` | 40 [SHOULD] | 컨설턴트 챗봇 담당 |
-| *(별도)* 거부 (규제·보안) | `R-` | 10 [SHOULD] | **전민재 PM** |
+| *(별도)* 거부 (규제·보안) | `R-` | 52 [SHOULD] | **전민재 PM** |
 | *(별도)* 검색 평가셋 | `RT-` | 10 [SHOULD] | 기본 챗봇 담당 (§6.1) |
 
 > **근거**: 프로젝트 가이드 권장치가 **50~100개**다. 60은 하한을 넘기면서
@@ -421,10 +421,6 @@ def test_consult_items_declare_trend_fixture_and_expected_path():
         if fixture:
             assert fixture.get("fixture_version"), f"{item['id']}: fixture_version 누락"
             assert fixture.get("captured_at"), f"{item['id']}: captured_at 누락"
-            assert fixture.get("weather") is None, (
-                f"{item['id']}: weather 는 항상 null 이다 — "
-                f"get_trend()가 값을 반환하지 않는다(D-230)"
-            )
             assert "트렌드" in item["expected"]["must_include_sources"], (
                 f"{item['id']}: trend_used=true 면 sources 에 '트렌드'가 있어야 한다"
             )
@@ -542,8 +538,7 @@ def test_consult_items_declare_trend_fixture_and_expected_path():
       "captured_at": "2026-08-14",
       "keyword": "아이스아메리카노",
       "direction": "상승",
-      "related": ["커피쿠폰", "커피종류", "에스프레소", "컴포즈커피쿠폰", "커피쿠폰이벤트"],
-      "weather": null
+      "related": ["커피쿠폰", "커피종류", "에스프레소", "컴포즈커피쿠폰", "커피쿠폰이벤트"]
     }
   },
   "expected": {
@@ -580,7 +575,6 @@ def test_consult_items_declare_trend_fixture_and_expected_path():
 | `expected.number_scope` | string | O | 숫자 검사 범위. 기본 `"reasons"` — 근거 배열만 본다 |
 | `expected.hallucination_check` | string | O | `strict`(화이트리스트 밖 숫자 = 실패) \| `off` |
 | `input.trend_fixture` | object \| **null** | **O** | `get_trend()` 반환값. **질문에 특정 대상이 없으면 명시적으로 `null`** — 생략하지 않는다. **v1.3 신설** |
-| `trend_fixture.fixture_version` | string | 값 있을 때 O | `v1-naver-apihub`. `weather` 는 항상 `null`(D-230) |
 | `expected.trend_used` | bool | **O** | 이 질문이 운영에서 `get_trend()` 를 호출하는지. 경로 재현성 검증용(§6.4). **v1.3 신설** |
 
 **★ `fixture_version` 이 왜 필요한가 (v1.2 추가)**
@@ -1180,7 +1174,6 @@ LLM Judge 점수 해석 전에 이 값을 먼저 확인한다.
 □ allowed_numbers 가 market_fixture 값에서 실제로 파생 가능하다
 □ number_scope 가 reasons 로 되어 있다
 □ trend_fixture 유무와 expected.trend_used 가 서로 일치한다
-□ trend_fixture.weather 가 전부 null 이다 (get_trend()는 값을 반환하지 않음, D-230)
 □ trend_fixture.related 가 FEWSHOT_TERMS 와 겹치지 않는다 (D-218)
 
 [거부 영역]

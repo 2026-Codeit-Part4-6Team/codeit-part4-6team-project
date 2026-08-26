@@ -3,7 +3,7 @@ name = "codeit-part4-6team-project"
 version = "0.1.0"
 description = "소상공인을 위한 생성형 AI 광고 콘텐츠 제작 서비스"
 requires-python = ">=3.11,<3.12"
-dependencies = []
+
 
 [dependency-groups]
 backend = [
@@ -38,6 +38,10 @@ basic = [
     "pillow>=12.3.0",
     "torch>=2.13.0",
     "transformers>=5.15.0",
+]
+validation = [
+    "numpy>=1.26.0",
+    "openai>=1.50.0,<3.0.0",
 ]
 
 [tool.pytest.ini_options]

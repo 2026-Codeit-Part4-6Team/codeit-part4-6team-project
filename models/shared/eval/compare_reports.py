@@ -46,12 +46,40 @@ _CONDITIONS = (
     "trend_fixture_version",
 )
 
+# ★ 영역별 선택 조건 — 있으면 비교하고, 없으면 그냥 넘어간다.
+#   _CONDITIONS 에 넣으면 _REQUIRED 로도 들어가 **모든 영역의 필수 헤더**가 된다.
+#   retrieval_mode·rag_enabled 는 R-(거부) 전용이라 B-·C- 결과 파일에는 없다.
+#   전 영역 필수로 만들면 기존 결과 파일이 전부 "필수 헤더 누락" 으로 거부된다.
+_OPTIONAL_CONDITIONS = (
+    "retrieval_mode",
+    "rag_enabled",
+)
+
 # 이 조건은 단독으로 달라도 비교가 성립한다(§11.2.1)
 _COMPARABLE_ALONE = {
     "generation_model": "생성 모델 성능 차이",
     "judge_model": "채점자 성향 차이",
     "fixture_version": "입력 데이터 정확도 개선 효과",
+    # RAG 전환은 두 조건이 함께 바뀌는 것이 정상이다(_LINKED_CONDITIONS 로 하나로 묶인다)
+    "rag_enabled + retrieval_mode": "2단 RAG 판정 전환 효과",
 }
+
+# ★ RAG 를 켜면 검색 모드도 함께 바뀐다 — 원인이 하나라 분리할 수 없다.
+#   §11.2 의 "한 번에 하나만 바꾼다" 는 서로 **독립인** 조건에 적용되는 규칙이다.
+#   이 짝을 분리 요구하면 RAG 전환 A/B 를 영원히 비교할 수 없다.
+_LINKED_CONDITIONS = (("rag_enabled", "retrieval_mode"),)
+
+
+def _collapse_linked(changed: list[str]) -> list[str]:
+    """함께 바뀌는 것이 정상인 조건 쌍을 하나의 항목으로 묶는다."""
+    remaining = list(changed)
+    for pair in _LINKED_CONDITIONS:
+        if all(key in remaining for key in pair):
+            for key in pair:
+                remaining.remove(key)
+            remaining.append(" + ".join(pair))
+    return remaining
+
 
 # 비교 가능하지만 해석에 단서가 붙는 경우
 _CAVEAT = {
@@ -135,9 +163,19 @@ def validate_report(report: dict, label: str = "") -> list[str]:
         problems.append(
             f"{tag}unattributed_tokens={unattributed} — 계획에 없던 모델 호출이 섞였다(D-278)"
         )
-    if report.get("area") == "refusal" and usage.get("judge_tokens"):
+    # ⚠️ D-277 의 "R- 는 Judge 0회" 는 **골든 데이터셋 rubric 채점**을 말한다.
+    #    check_regulation 2단 판정은 성격이 다른 LLM 모델 호출이므로 여기서 막으면 안 된다.
+    #    실제로 2단을 켠 결과 파일이 "비교 불가" 로 거부돼 LLM 모델 A/B 비교를 못 했다.
+    #    rag_enabled 필드가 있으면 2단을 의도적으로 켠 실행으로 본다.
+    if (
+        report.get("area") == "refusal"
+        and report.get("rag_enabled") is None
+        and usage.get("judge_tokens")
+    ):
         problems.append(
-            f"{tag}거부 영역인데 judge_tokens={usage['judge_tokens']} (R- 는 LLM 0회, D-277)"
+            f"{tag}거부 영역인데 judge_tokens={usage['judge_tokens']} "
+            "(R- 는 rubric 채점 LLM 0회, D-277). "
+            "check_regulation 2단을 켠 실행이면 rag_enabled 필드를 기록하라"
         )
 
     return problems
@@ -217,6 +255,13 @@ def compare_reports(before_path: str, after_path: str) -> dict:
 
     # ── 게이트 2: 조건 변경 — 초안 로직 유지 ────────────────────────────────
     changed = [key for key in _CONDITIONS if before.get(key) != after.get(key)]
+    # 선택 조건은 양쪽 파일에 모두 있을 때만 비교한다 — 한쪽에만 있으면
+    # "새 필드가 생겼다" 는 뜻이지 "조건이 달라졌다" 가 아니다.
+    changed += [
+        key for key in _OPTIONAL_CONDITIONS
+        if key in before and key in after and before[key] != after[key]
+    ]
+    changed = _collapse_linked(changed)
 
     # ── 게이트 3: 모수 일치 — 초안 ③ 결함 차단 ─────────────────────────────
     # dataset_version 이 같은데 문항 수가 다르면 한쪽이 측정을 빠뜨린 것이다.

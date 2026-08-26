@@ -21,8 +21,7 @@ def trend_for_consult(state: ConsultState) -> dict:
     if keyword is None:
         return {"context": {"trend": None}}
 
-    store = state["store"]
-    trend = get_trend(keyword, industry=store["type"])
+    trend = get_trend(keyword)
 
     if trend is None:
         return {"context": {"trend": None}}

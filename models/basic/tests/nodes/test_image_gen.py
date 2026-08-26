@@ -1,3 +1,4 @@
+import base64
 from unittest.mock import patch
 
 import httpx
@@ -6,6 +7,18 @@ import openai
 from models.basic.nodes.image_gen import image_gen_node
 
 _STORE = {"name": "카페 코드잇", "type": "카페", "lat": 37.5, "lng": 127.0}
+
+
+def _fake_png_b64() -> str:
+    """실제 디코딩 가능한 1x1 투명 PNG. xbanner 테스트는 Image.open()으로
+    실제 디코딩을 하므로 "base64imagedata" 같은 가짜 문자열로는 안 된다."""
+    return base64.b64encode(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+            "1f15c4890000000a49444154789c6300010000050001"
+            "0d0a2db40000000049454e44ae426082"
+        )
+    ).decode()
 
 
 def _rate_limit_error() -> openai.RateLimitError:
@@ -143,19 +156,43 @@ def test_instagram_platform_uses_square_size_and_style(mock_generate_image):
 
 
 @patch("models.basic.nodes.image_gen.generate_image")
-def test_banner_platform_uses_landscape_size_and_style(mock_generate_image):
-    mock_generate_image.return_value = "base64imagedata"
+def test_xbanner_platform_generates_top_and_bottom_then_stacks(mock_generate_image):
+    mock_generate_image.return_value = _fake_png_b64()
     state = {
         "store": _STORE,
-        "platform": "banner",
+        "platform": "xbanner",
         "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
     }
 
-    image_gen_node(state)
+    result = image_gen_node(state)
 
-    prompt = mock_generate_image.call_args.args[0]
-    assert mock_generate_image.call_args.kwargs["size"] == "1536x1024"
-    assert "여백" in prompt
+    assert mock_generate_image.call_count == 2
+    calls = mock_generate_image.call_args_list
+    top_prompt = calls[0].args[0]
+    bottom_prompt = calls[1].args[0]
+    assert calls[0].kwargs["size"] == "1024x1536"
+    assert calls[1].kwargs["size"] == "1024x1536"
+    assert "여름 신메뉴" in top_prompt
+    assert "카페 코드잇" in bottom_prompt
+    assert "다른 브랜드명" in bottom_prompt  # 안전장치 문구 포함 확인
+    assert result["ranked_copies"][0]["image_b64"] is not None
+
+
+@patch("models.basic.nodes.image_gen.generate_image")
+def test_xbanner_generation_failure_records_error_without_crashing(mock_generate_image):
+    mock_generate_image.side_effect = _rate_limit_error()
+    state = {
+        "store": _STORE,
+        "platform": "xbanner",
+        "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
+    }
+
+    result = image_gen_node(state)
+
+    item = result["ranked_copies"][0]
+    assert item["image_b64"] is None
+    assert item["error"]["field"] == "image"
+    assert item["error"]["reason"] == "rate_limit"
 
 
 @patch("models.basic.nodes.image_gen.generate_image")

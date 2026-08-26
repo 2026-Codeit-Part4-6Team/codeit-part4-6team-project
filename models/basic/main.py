@@ -101,7 +101,6 @@ def assemble_response(state):
             "message": "모델 처리 중 오류가 발생했습니다.",
         }
 
-
     # blocked
     last_issue = (state.get("issues") or [{}])[-1]
     action = last_issue.get("action")
