@@ -192,6 +192,16 @@ def test_demo_account_requests_use_role_usernames_and_shared_secret(monkeypatch)
     )
 
 
+def test_demo_account_requests_use_e2e_canonical_address_by_default(monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "shared-demo-password")
+
+    requests = demo_seed.demo_account_requests_from_env()
+
+    assert all(
+        request.address == "서울 강남구 역삼동" for request in requests.values()
+    )
+
+
 def test_seed_demo_accounts_is_idempotent_for_each_role(db):
     requests = {
             role: register_request(
