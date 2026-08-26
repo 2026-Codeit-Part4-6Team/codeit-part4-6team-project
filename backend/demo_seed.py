@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -13,6 +14,14 @@ from backend.database import SessionLocal
 from backend.models import User
 from backend.schemas import RegisterRequest
 from backend.services.auth_service import GeocodingPolicy, register_user
+
+DEMO_ACCOUNT_ROLES = ("pm", "basic", "consultant", "service")
+_ROLE_LABELS = {
+    "pm": "PM",
+    "basic": "Basic",
+    "consultant": "Consultant",
+    "service": "Service",
+}
 
 
 async def seed_demo_user(
@@ -44,6 +53,35 @@ async def seed_demo_user(
     return user, True
 
 
+async def seed_demo_accounts(
+    db: Session,
+    requests: Mapping[str, RegisterRequest],
+    geocoder: GeocodingClient,
+    policy: GeocodingPolicy,
+    *,
+    app_env: str,
+    now: datetime,
+    daily_free_limit: int,
+) -> list[tuple[str, User, bool]]:
+    """역할별 데모 계정을 순서대로 만들고 기존 계정은 그대로 재사용합니다."""
+    if app_env.strip().lower() == "production":
+        raise RuntimeError("demo seed is disabled in production")
+
+    seeded: list[tuple[str, User, bool]] = []
+    for role, request in requests.items():
+        user, created = await seed_demo_user(
+            db,
+            request,
+            geocoder,
+            policy,
+            app_env=app_env,
+            now=now,
+            daily_free_limit=daily_free_limit,
+        )
+        seeded.append((role, user, created))
+    return seeded
+
+
 def _required_env(name: str) -> str:
     value = os.getenv(name, "").strip()
     if not value:
@@ -54,6 +92,36 @@ def _required_env(name: str) -> str:
 def _optional_env(name: str) -> str | None:
     value = os.getenv(name, "").strip()
     return value or None
+
+
+def _role_env(role: str, field: str, default: str | None = None) -> str | None:
+    value = os.getenv(f"DEMO_{role.upper()}_{field}", "").strip()
+    return value or default
+
+
+def demo_account_requests_from_env() -> dict[str, RegisterRequest]:
+    """공통 비밀번호와 역할별 override로 네 개의 데모 요청을 구성합니다."""
+    shared_password = os.getenv("DEMO_ACCOUNT_PASSWORD", "").strip()
+    requests: dict[str, RegisterRequest] = {}
+    for role in DEMO_ACCOUNT_ROLES:
+        password = _role_env(role, "PASSWORD", shared_password)
+        if not password:
+            raise ValueError(
+                f"DEMO_ACCOUNT_PASSWORD 또는 DEMO_{role.upper()}_PASSWORD가 필요합니다"
+            )
+        username = _role_env(role, "USERNAME", f"demo-{role}")
+        label = _ROLE_LABELS[role]
+        requests[role] = RegisterRequest(
+            username=username,
+            password=password,
+            name=_role_env(role, "NAME", f"{label} 데모 사용자"),
+            email=_role_env(role, "EMAIL", f"demo-{role}@example.com"),
+            business_name=_role_env(role, "BUSINESS_NAME", f"매출부스터 {label} 데모 매장"),
+            business_type=_role_env(role, "BUSINESS_TYPE", "카페"),
+            address=_role_env(role, "ADDRESS", "서울 강남구 테헤란로 1"),
+            address_detail=_role_env(role, "ADDRESS_DETAIL"),
+        )
+    return requests
 
 
 def _request_from_env() -> RegisterRequest:
@@ -69,10 +137,12 @@ def _request_from_env() -> RegisterRequest:
     )
 
 
-async def _run() -> tuple[User, bool]:
+async def _run() -> list[tuple[str, User, bool]]:
     app_env = os.getenv("APP_ENV", "development")
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
+    if not settings.demo_accounts_enabled:
+        raise RuntimeError("demo accounts are disabled")
 
     policy = GeocodingPolicy(
         fallback_enabled=settings.geocode_fallback_enabled,
@@ -80,9 +150,9 @@ async def _run() -> tuple[User, bool]:
         fallback_lng=settings.geocode_fallback_lng,
     )
     with SessionLocal() as db:
-        return await seed_demo_user(
+        return await seed_demo_accounts(
             db,
-            _request_from_env(),
+            demo_account_requests_from_env(),
             get_geocoding_client(),
             policy,
             app_env=app_env,
@@ -94,13 +164,14 @@ async def _run() -> tuple[User, bool]:
 def main() -> int:
     """환경변수로 개발자 계정을 생성하고 결과만 출력합니다."""
     try:
-        user, created = asyncio.run(_run())
+        seeded = asyncio.run(_run())
     except (RuntimeError, ValueError) as error:
         print(f"demo seed failed: {error}")
         return 2
 
-    state = "created" if created else "already exists"
-    print(f"demo user {state}: {user.username}")
+    for role, user, created in seeded:
+        state = "created" if created else "already exists"
+        print(f"demo user {state}: {role} ({user.username})")
     return 0
 
 

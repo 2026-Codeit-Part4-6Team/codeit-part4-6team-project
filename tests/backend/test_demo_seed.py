@@ -5,6 +5,7 @@ import pytest
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
+from backend import demo_seed
 from backend.clients.geocoding_client import GeocodingResult
 from backend.database import create_database_engine
 from backend.demo_seed import seed_demo_user
@@ -107,3 +108,59 @@ def test_seed_keeps_existing_user_and_password_unchanged(db):
     assert created is False
     assert second.id == first.id
     assert second.password_hash == original_hash
+
+
+def test_demo_account_requests_use_role_usernames_and_shared_secret(monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "shared-demo-password")
+
+    requests = demo_seed.demo_account_requests_from_env()
+
+    assert tuple(requests) == ("pm", "basic", "consultant", "service")
+    assert tuple(requests[role].username for role in requests) == (
+        "demo-pm",
+        "demo-basic",
+        "demo-consultant",
+        "demo-service",
+    )
+    assert all(
+        request.password.get_secret_value() == "shared-demo-password"
+        for request in requests.values()
+    )
+
+
+def test_seed_demo_accounts_is_idempotent_for_each_role(db):
+    requests = {
+            role: register_request(
+            username=f"demo-{role}",
+            email=f"demo-{role}@example.com",
+        )
+        for role in ("pm", "basic", "consultant", "service")
+    }
+
+    seed = demo_seed.seed_demo_accounts
+    first = asyncio.run(
+        seed(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+    second = asyncio.run(
+        seed(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+
+    assert [role for role, _user, created in first] == ["pm", "basic", "consultant", "service"]
+    assert all(created for _role, _user, created in first)
+    assert all(not created for _role, _user, created in second)
