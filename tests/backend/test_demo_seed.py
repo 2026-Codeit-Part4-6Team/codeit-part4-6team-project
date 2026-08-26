@@ -3,13 +3,14 @@ from datetime import UTC, datetime
 
 import pytest
 from pydantic import SecretStr
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend import demo_seed
 from backend.clients.geocoding_client import GeocodingResult
 from backend.database import create_database_engine
 from backend.demo_seed import seed_demo_user
-from backend.models import Base
+from backend.models import Base, User
 from backend.schemas import RegisterRequest
 from backend.services.auth_service import GeocodingPolicy
 
@@ -77,6 +78,66 @@ def test_seed_creates_demo_user_with_registration_contract(db):
     assert user.username == "developer"
     assert user.business_name == "데모 카페"
     assert user.road_address == "서울 강남구 테헤란로 1"
+
+
+def test_seed_assigns_initial_credits_for_e2e_demo(db):
+    user, created = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+
+    assert created is True
+    assert user.credits == 20_000
+    assert user.daily_free_used == 0
+
+
+def test_reset_demo_accounts_removes_only_named_users(db):
+    requests = {
+        role: register_request(
+            username=f"demo-{role}",
+            email=f"demo-{role}@example.com",
+        )
+        for role in ("pm", "basic", "consultant", "service")
+    }
+    asyncio.run(
+        demo_seed.seed_demo_accounts(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+    asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(username="keep-me", email="keep@example.com"),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+
+    # The reset helper is intentionally scoped to the four demo usernames.
+    removed = demo_seed.reset_demo_accounts(
+        db, tuple(request.username for request in requests.values())
+    )
+
+    assert removed == 4
+    assert db.scalars(select(User)).all()[0].username == "keep-me"
 
 
 def test_seed_keeps_existing_user_and_password_unchanged(db):

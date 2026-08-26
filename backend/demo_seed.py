@@ -1,17 +1,18 @@
 """명시적으로 실행하는 시연용 사용자 seed 명령입니다."""
 
+import argparse
 import asyncio
 import os
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from backend.clients.geocoding_client import GeocodingClient, get_geocoding_client
 from backend.config import settings
 from backend.database import SessionLocal
-from backend.models import User
+from backend.models import Generation, Payment, User
 from backend.schemas import RegisterRequest
 from backend.services.auth_service import GeocodingPolicy, register_user
 
@@ -33,10 +34,13 @@ async def seed_demo_user(
     app_env: str,
     now: datetime,
     daily_free_limit: int,
+    initial_credits: int = 0,
 ) -> tuple[User, bool]:
     """기존 사용자를 변경하지 않고 개발·시연 환경에 계정을 준비합니다."""
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
+    if initial_credits < 0:
+        raise ValueError("initial_credits는 0 이상이어야 합니다.")
 
     existing = db.scalar(select(User).where(User.username == request.username))
     if existing is not None:
@@ -50,6 +54,9 @@ async def seed_demo_user(
         now=now,
         daily_free_limit=daily_free_limit,
     )
+    user.credits = initial_credits
+    db.commit()
+    db.refresh(user)
     return user, True
 
 
@@ -62,6 +69,7 @@ async def seed_demo_accounts(
     app_env: str,
     now: datetime,
     daily_free_limit: int,
+    initial_credits: int = 0,
 ) -> list[tuple[str, User, bool]]:
     """역할별 데모 계정을 순서대로 만들고 기존 계정은 그대로 재사용합니다."""
     if app_env.strip().lower() == "production":
@@ -77,9 +85,40 @@ async def seed_demo_accounts(
             app_env=app_env,
             now=now,
             daily_free_limit=daily_free_limit,
+            initial_credits=initial_credits,
         )
         seeded.append((role, user, created))
     return seeded
+
+
+def reset_demo_accounts(db: Session, usernames: tuple[str, ...]) -> int:
+    """지정한 데모 사용자와 그 생성·결제 이력만 초기화합니다."""
+    normalized = tuple(
+        dict.fromkeys(username.strip().lower() for username in usernames if username.strip())
+    )
+    if not normalized:
+        return 0
+
+    users = list(db.scalars(select(User).where(User.username.in_(normalized))))
+    if not users:
+        return 0
+
+    user_ids = [user.id for user in users]
+    generation_ids = list(
+        db.scalars(select(Generation.id).where(Generation.user_id.in_(user_ids)))
+    )
+    if generation_ids:
+        # 파생 생성이 원본 생성의 self-FK를 참조할 수 있으므로 먼저 연결을 끊습니다.
+        db.execute(
+            update(Generation)
+            .where(Generation.source_gen_id.in_(generation_ids))
+            .values(source_gen_id=None)
+        )
+        db.execute(delete(Generation).where(Generation.id.in_(generation_ids)))
+    db.execute(delete(Payment).where(Payment.user_id.in_(user_ids)))
+    db.execute(delete(User).where(User.id.in_(user_ids)))
+    db.commit()
+    return len(users)
 
 
 def _required_env(name: str) -> str:
@@ -137,7 +176,18 @@ def _request_from_env() -> RegisterRequest:
     )
 
 
-async def _run() -> list[tuple[str, User, bool]]:
+def _initial_credits_from_env() -> int:
+    raw = os.getenv("DEMO_INITIAL_CREDITS", "20000").strip()
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise ValueError("DEMO_INITIAL_CREDITS는 정수여야 합니다") from error
+    if value < 0:
+        raise ValueError("DEMO_INITIAL_CREDITS는 0 이상이어야 합니다")
+    return value
+
+
+async def _run(*, reset: bool = False) -> list[tuple[str, User, bool]]:
     app_env = os.getenv("APP_ENV", "development")
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
@@ -150,21 +200,32 @@ async def _run() -> list[tuple[str, User, bool]]:
         fallback_lng=settings.geocode_fallback_lng,
     )
     with SessionLocal() as db:
+        requests = demo_account_requests_from_env()
+        if reset:
+            reset_demo_accounts(db, tuple(request.username for request in requests.values()))
         return await seed_demo_accounts(
             db,
-            demo_account_requests_from_env(),
+            requests,
             get_geocoding_client(),
             policy,
             app_env=app_env,
             now=datetime.now(UTC),
             daily_free_limit=settings.daily_free_limit,
+            initial_credits=_initial_credits_from_env(),
         )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """환경변수로 개발자 계정을 생성하고 결과만 출력합니다."""
+    parser = argparse.ArgumentParser(description="로컬/시연용 역할별 계정 seed")
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="지정된 데모 계정과 생성·결제 이력을 삭제한 뒤 다시 생성합니다.",
+    )
+    args = parser.parse_args(argv)
     try:
-        seeded = asyncio.run(_run())
+        seeded = asyncio.run(_run(reset=args.reset))
     except (RuntimeError, ValueError) as error:
         print(f"demo seed failed: {error}")
         return 2
