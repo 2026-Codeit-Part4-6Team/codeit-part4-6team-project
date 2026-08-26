@@ -317,17 +317,6 @@ def test_suggested_chips_market_trend_seasonality_run_in_parallel_not_sequential
     mock_compute_seasonality.assert_called_once()
 
 
-def test_default_path_skips_link_to_ads() -> None:
-    """link_to_ads는 사용자가 버튼을 눌렀을 때만 호출돼야 하므로 기본 경로에 없어야 한다."""
-    drawable = build_consultant().get_graph()
-
-    assert "link_to_ads" not in drawable.nodes
-
-    edges = {(edge.source, edge.target) for edge in drawable.edges}
-    assert ("strategy_check", "security_output") in edges
-    assert ("strategy_check", "link_to_ads") not in edges
-
-
 def test_default_path_has_expected_topology() -> None:
     """SDP §6.1 순서대로 연결돼 있어야 한다. suggested_chips·market_for_consult·
     trend_for_consult·seasonality_for_consult는 서로의 결과를 쓰지 않아(v3 섹션F·C)

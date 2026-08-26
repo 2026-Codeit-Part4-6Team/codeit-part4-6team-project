@@ -1,10 +1,13 @@
 import json
 
 from models.shared.llm import call_llm
+from models.shared.llm_errors import classify_llm_error
 
 from ..config import COPY_MAX_RETRY
 from ..graph.state import BasicState
-from ..llm_errors import classify_llm_error
+
+FEWSHOT_TERMS: list[str] = []
+FEWSHOT_NUMBERS: list[int] = []
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고법을 준수한다.
 '최고', '유일', '1등'처럼 근거 없는 과장 표현과 질병 예방·치료 효능 표현은 쓰지 않는다.
