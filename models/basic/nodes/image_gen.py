@@ -2,9 +2,9 @@ import base64
 import io
 import re
 
-
 import openai
 from PIL import Image
+
 from models.shared.llm import call_llm
 
 from ..clients.image_client import generate_image
