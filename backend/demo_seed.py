@@ -155,7 +155,7 @@ def demo_account_requests_from_env() -> dict[str, RegisterRequest]:
             password=password,
             name=_role_env(role, "NAME", f"{label} 데모 사용자"),
             email=_role_env(role, "EMAIL", f"demo-{role}@example.com"),
-            business_name=_role_env(role, "BUSINESS_NAME", f"매출부스터 {label} 데모 매장"),
+            business_name=_role_env(role, "BUSINESS_NAME", "코드잇 카페"),
             business_type=_role_env(role, "BUSINESS_TYPE", "카페"),
             address=_role_env(role, "ADDRESS", "서울 강남구 테헤란로 1"),
             address_detail=_role_env(role, "ADDRESS_DETAIL"),

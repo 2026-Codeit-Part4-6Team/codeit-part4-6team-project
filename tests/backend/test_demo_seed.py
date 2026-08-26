@@ -184,6 +184,9 @@ def test_demo_account_requests_use_role_usernames_and_shared_secret(monkeypatch)
         "demo-service",
     )
     assert all(
+        request.business_name == "코드잇 카페" for request in requests.values()
+    )
+    assert all(
         request.password.get_secret_value() == "shared-demo-password"
         for request in requests.values()
     )
