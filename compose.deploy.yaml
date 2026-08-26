@@ -10,12 +10,13 @@ services:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
     volumes:
       - "${APP_DATA_DIR:-/srv/team6/data}:/app/data"
+      - "${HF_HOME_HOST_PATH:-/srv/team6/models}:/app/.cache/huggingface"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s
+      start_period: 90s
 
   frontend:
     image: ${IMAGE_BASE:?IMAGE_BASE is required}/frontend:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -25,7 +26,7 @@ services:
     ports:
       - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-8501}:8501"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8501').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
