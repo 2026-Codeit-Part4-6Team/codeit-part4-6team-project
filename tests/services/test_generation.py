@@ -562,8 +562,17 @@ def test_generate_insufficient_credits_does_not_insert(tmp_path):
         assert db.query(Generation).count() == 0
 
 
-@pytest.mark.parametrize("action", ["block", "reask", "warn"])
-def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, action):
+@pytest.mark.parametrize(
+    ("action", "reason"),
+    [
+        ("block", "illegal_or_injection"),
+        ("reask", "insufficient_info"),
+        ("warn", "regulation_risk"),
+    ],
+)
+def test_generate_blocked_result_compensates_committed_free_usage(
+    tmp_path, action, reason
+):
     from asyncio import run
 
     from backend.services.generation_service import generate
@@ -575,7 +584,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         blocked = {
             "status": "blocked",
             "action": action,
-            "reason": "insufficient_info",
+            "reason": reason,
             "message": "추가 정보를 입력해 주세요.",
         }
 
@@ -598,6 +607,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         assert response.result is not None
         assert response.result.status == "blocked"
         assert response.result.action == action
+        assert response.result.reason == reason
         assert response.usage.credits_used == 0
         assert user.daily_free_used == 0
         assert row is not None
@@ -606,6 +616,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         stored_result = json.loads(row.result_json)
         assert stored_result["status"] == "blocked"
         assert stored_result["action"] == action
+        assert stored_result["reason"] == reason
 
 
 def test_generate_error_result_compensates_paid_credit_and_raises(tmp_path):
