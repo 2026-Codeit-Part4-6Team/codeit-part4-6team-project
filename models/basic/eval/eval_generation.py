@@ -239,17 +239,19 @@ def run(dataset_path: Path, area: str, items_limit: int | None = None) -> dict:
             response, context_snapshot = generate_one_with_context(item)
         except Exception as exc:  # noqa: BLE001 — 문항 하나 실패로 전체를 죽이지 않는다
             errors.append({"id": item["id"], "error": f"{type(exc).__name__}: {exc}"})
-            results.append({
-                "id": item["id"],
-                "passed": False,
-                "checks": {},
-                "scores": {},
-                "faithfulness": None,
-                "answer_relevance": None,
-                "response": None,
-                "context_snapshot": {},
-                "generated": False,
-            })
+            results.append(
+                {
+                    "id": item["id"],
+                    "passed": False,
+                    "checks": {},
+                    "scores": {},
+                    "faithfulness": None,
+                    "answer_relevance": None,
+                    "response": None,
+                    "context_snapshot": {},
+                    "generated": False,
+                }
+            )
             continue
         latencies.append(time.monotonic() - start)
 
@@ -289,7 +291,9 @@ def run(dataset_path: Path, area: str, items_limit: int | None = None) -> dict:
         k: round(sum(v) / len(v), 2) for k, v in scores_by_criterion.items()
     }
 
-    faithfulness_scores = [r["faithfulness"] for r in results if r["faithfulness"] is not None]
+    faithfulness_scores = [
+        r["faithfulness"] for r in results if r["faithfulness"] is not None
+    ]
     answer_relevance_scores = [
         r["answer_relevance"] for r in results if r["answer_relevance"] is not None
     ]
@@ -307,11 +311,13 @@ def run(dataset_path: Path, area: str, items_limit: int | None = None) -> dict:
             "llm_judge_by_criterion": llm_judge_by_criterion,
             "faithfulness_avg": (
                 round(sum(faithfulness_scores) / len(faithfulness_scores), 2)
-                if faithfulness_scores else None
+                if faithfulness_scores
+                else None
             ),
             "answer_relevance_avg": (
                 round(sum(answer_relevance_scores) / len(answer_relevance_scores), 2)
-                if answer_relevance_scores else None
+                if answer_relevance_scores
+                else None
             ),
             "contract_compliance": round(
                 sum(r["passed"] for r in results) / processed, 2
@@ -337,6 +343,7 @@ def run(dataset_path: Path, area: str, items_limit: int | None = None) -> dict:
     )
     print(f"결과 저장: {out_path}")
     return report
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -4,7 +4,7 @@ B- 문항 중 지정된 개수(기본 20개)를 골라 카피 생성 → 이미�
 Score(정합성)를 산출한다. 멀티모달 LLM-Judge는 비용이 더 커서 별도 단계로
 남겨둔다.
 
-실행: uv run python -m models.basic.eval.eval_image --dataset shared_data/golden_dataset.json 
+실행: uv run python -m models.basic.eval.eval_image --dataset shared_data/golden_dataset.json
 --banner-limit 5 --instagram-limit 10 --exclude B-012,B-040,B-057
 
 models/shared/eval_fixtures.py 파일 도착 후 실행 가능하다.
@@ -377,8 +377,15 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--banner-limit", type=int, default=None, help="banner 문항 수")
-    parser.add_argument("--instagram-limit", type=int, default=None, help="instagram 문항 수")
-    parser.add_argument("--exclude", type=str, default="", help="제외할 문항 ID, 콤마로 구분 (예: B-012)")
+    parser.add_argument(
+        "--instagram-limit", type=int, default=None, help="instagram 문항 수"
+    )
+    parser.add_argument(
+        "--exclude",
+        type=str,
+        default="",
+        help="제외할 문항 ID, 콤마로 구분 (예: B-012)",
+    )
     args = parser.parse_args()
     exclude = [x.strip() for x in args.exclude.split(",") if x.strip()]
     run(args.dataset, args.limit, args.banner_limit, args.instagram_limit, exclude)

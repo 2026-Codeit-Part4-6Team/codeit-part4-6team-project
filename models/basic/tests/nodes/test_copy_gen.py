@@ -181,7 +181,13 @@ def test_seasonality_included_in_payload(mock_call_llm):
         "question": "여름 신메뉴 홍보",
         "platform": "instagram",
         "store": _STORE,
-        "context": {"seasonality": {"reference_date": "2026-08-24", "calendar_period": "8월 하순", "season_hint": "여름 말기"}},
+        "context": {
+            "seasonality": {
+                "reference_date": "2026-08-24",
+                "calendar_period": "8월 하순",
+                "season_hint": "여름 말기",
+            }
+        },
     }
 
     copy_gen_node(state)
