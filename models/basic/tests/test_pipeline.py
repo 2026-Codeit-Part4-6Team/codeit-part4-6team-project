@@ -14,6 +14,8 @@ _STORE = {
     "lng": 127.0,
 }
 
+_FAKE_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
 
 def _fake_call_llm(
     system: str, user: str, json_mode: bool = False, deadline: float | None = None
@@ -23,6 +25,9 @@ def _fake_call_llm(
     payload = json.loads(user)
 
     if "카피라이터" in system:
+        assert (
+            payload.get("benchmark") is not None
+        ), "benchmark 컨텍스트가 copy_gen에 전달되지 않았습니다."
         content = json.dumps(
             {
                 "candidates": [
@@ -46,12 +51,18 @@ def _fake_call_llm(
                 {
                     "sufficient": False,
                     "rewritten_question": question,
+                    "keyword": "",
                     "message": "무엇을 광고하고 싶으신지 조금 더 알려주세요.",
                 }
             )
         else:
             content = json.dumps(
-                {"sufficient": True, "rewritten_question": question, "message": ""}
+                {
+                    "sufficient": True,
+                    "rewritten_question": question,
+                    "keyword": question,
+                    "message": "",
+                }
             )
         return content, 10
 
@@ -67,15 +78,14 @@ def _fake_get_trend(question, industry=None):
         "keyword": industry or "카페",
         "direction": "상승",
         "related": ["아이스 아메리카노"],
-        "weather": None,
     }
 
 
 @pytest.fixture(autouse=True)
 def _mock_external_calls():
-    """외부 API(OpenAI, 상권/트렌드 API)를 모두 모킹해 e2e 테스트를 CI에서도
-    네트워크/크리덴셜 없이 실행 가능하게 한다. 나머지 의존성(check_input/
-    check_output/self_check/check_regulation/generate_image/search_benchmark)은
+    """외부 API(OpenAI, 상권/트렌드 API, 이미지 생성, CLIP)를 전부 모킹해 e2e
+    테스트를 CI에서도 네트워크/무거운 모델 로드 없이 빠르고 안정적으로 실행되게
+    한다. 나머지 의존성(check_input/check_output/self_check/check_regulation)은
     현재 전부 D1 스텁이라 모킹 없이도 예외 없이 통과한다."""
     with (
         patch(
@@ -89,6 +99,17 @@ def _mock_external_calls():
         ),
         patch(
             "models.basic.nodes.trend_for_copy.get_trend", side_effect=_fake_get_trend
+        ),
+        patch(
+            "models.basic.nodes.image_gen.generate_image",
+            return_value=_FAKE_IMAGE_B64,
+        ),
+        patch("models.basic.nodes.image_review._clip_score", return_value=0.9),
+        patch(
+            "models.basic.nodes.benchmark_node.search_benchmark",
+            return_value=[
+                {"id": "bm_001", "industry": "카페", "copy": "시원한 콜드브루 한 잔"}
+            ],
         ),
     ):
         yield
@@ -163,3 +184,69 @@ def test_e2e_scenario_d_clarification_round_trip():
     )
     response = assemble_response(final_state)
     assert response["status"] == "ok"
+
+
+def test_e2e_scenario_e_self_check_reject_retries_then_succeeds():
+    """self_check이 처음엔 reject, 재시도 후 pass면 copy_gen부터 다시 돌아
+    최종적으로 ok가 나온다(D-156 self_check_retry_count 루프)."""
+    outcomes = iter(
+        [
+            {"action": "reject", "reasons": ["제안 개수 부족"], "message": "부족"},
+            {"action": "pass", "reasons": [], "message": ""},
+        ]
+    )
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            side_effect=lambda *a, **kw: next(outcomes),
+        ),
+    ):
+        graph = build_basic_graph()
+        final_state = graph.invoke(
+            {
+                "chatbot_type": "basic",
+                "user_id": 1,
+                "question": "여름 신메뉴 홍보 문구 만들어줘",
+                "store": _STORE,
+                "platform": "instagram",
+                "extra": {},
+            }
+        )
+
+    response = assemble_response(final_state)
+    assert response["status"] == "ok"
+    assert final_state["self_check_retry_count"] == 1
+
+
+def test_e2e_scenario_f_self_check_reject_exhausts_retry_and_blocks():
+    """self_check이 계속 reject면 SELF_CHECK_MAX_RETRY에서 blocked로 끝난다."""
+    with (
+        patch("models.basic.nodes.self_check_node.SELF_CHECK_MAX_RETRY", 2),
+        patch("models.basic.graph.build_basic.SELF_CHECK_MAX_RETRY", 2),
+        patch(
+            "models.basic.nodes.self_check_node.self_check",
+            return_value={
+                "action": "reject",
+                "reasons": ["근거 없음"],
+                "message": "부족",
+            },
+        ),
+    ):
+        graph = build_basic_graph()
+        final_state = graph.invoke(
+            {
+                "chatbot_type": "basic",
+                "user_id": 1,
+                "question": "여름 신메뉴 홍보 문구 만들어줘",
+                "store": _STORE,
+                "platform": "instagram",
+                "extra": {},
+            }
+        )
+
+    response = assemble_response(final_state)
+    assert response["status"] == "blocked"
+    assert response["reason"] == "unknown"
+    assert final_state["self_check_retry_count"] == 2

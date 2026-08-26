@@ -101,7 +101,8 @@ def test_no_valid_copies_blocks_without_calling_check_regulation(mock_check_regu
     assert result["validation"]["regulation"] == {
         "action": "block",
         "reason": "no_valid_copy",
-        "message": "",
+        "message": "카피 생성에 실패해 규제 검사를 진행할 수 없습니다.",
+        "alternative": "",
     }
     assert result["status"] == "blocked"
 
@@ -144,10 +145,15 @@ def test_partial_block_replaces_blocked_copy_with_placeholder_slot(
     }
     assert result["validation"]["regulation"]["action"] == "pass"
 
+
 @patch("models.basic.nodes.regulation_node.check_regulation")
 def test_passed_copy_does_not_leak_internal_regulation_key(mock_check_regulation):
     mock_check_regulation.return_value = {
-        "action": "pass", "law": "", "reason": "", "alternative": "", "message": "",
+        "action": "pass",
+        "law": "",
+        "reason": "",
+        "alternative": "",
+        "message": "",
     }
     state = {
         "ranked_copies": [{"copy": "정상 카피", "score": 4.5}],
@@ -187,3 +193,27 @@ def test_middle_item_blocked_stays_in_original_rank_position(mock_check_regulati
 
     assert [c["copy"] for c in result["ranked_copies"]] == ["A", None, "C"]
     assert result["ranked_copies"][1]["error"]["reason"] == "content_policy"
+
+
+@patch("models.basic.nodes.regulation_node.check_regulation")
+def test_blocked_at_retry_cap_with_empty_message_falls_back_to_default(
+    mock_check_regulation,
+):
+    """check_regulation이 빈 메시지를 주더라도 blocked 응답의 message는
+    빈 문자열이면 안 된다(D-215, BlockedResult.message min_length=1)."""
+    mock_check_regulation.return_value = {
+        "action": "block",
+        "reason": "exaggeration",
+        "message": "",
+    }
+    state = {
+        "ranked_copies": [{"copy": "최고의 카페 코드잇!", "score": 4.5}],
+        "validation": {},
+        "copy_retry_count": 1,
+        "issues": [],
+    }
+
+    result = regulation_node(state)
+
+    assert result["status"] == "blocked"
+    assert result["issues"][0]["message"] == "요청을 처리할 수 없습니다."

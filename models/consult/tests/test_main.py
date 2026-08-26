@@ -4,6 +4,8 @@
 따로 검증하므로 여기서는 run()의 안전망 범위만 다룬다."""
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from models.consult.main import build_initial_state, run
 
 _STORE = {"name": "카페 코드잇", "type": "카페", "address": "서울 강남구 역삼동",
@@ -79,27 +81,45 @@ def test_ok_state_is_assembled_into_ok_response(mock_build_consultant) -> None:
 
 
 @patch("models.consult.main.build_consultant")
-def test_graph_invoke_exception_becomes_error_response(mock_build_consultant) -> None:
+def test_graph_invoke_exception_becomes_error_response(mock_build_consultant, caplog) -> None:
     """그래프 실행 자체가 예외를 던지면 ErrorResult 형태로 감싼다."""
     mock_graph = MagicMock()
     mock_graph.invoke.side_effect = RuntimeError("그래프 내부 오류")
     mock_build_consultant.return_value = mock_graph
 
-    response = run(_request())
+    with caplog.at_level("ERROR"):
+        response = run(_request())
 
     assert response["status"] == "error"
     assert response["reason"] == "unknown"
+    # 요청 구성 실패 로그("컨설턴트 요청 구성 실패")와 구분되는 별도 문구여야
+    # 로그만 보고 두 실패를 구별할 수 있다(D-287).
+    assert "컨설턴트 파이프라인 실행 실패" in caplog.text
 
 
-def test_malformed_request_becomes_error_response_not_raw_exception() -> None:
-    """request에 필수 키(store)가 빠져도 KeyError가 그대로 새어나가면 안 된다 —
-    run()은 "어떤 실패든 계약을 지키는 dict를 돌려준다"고 약속했다."""
+@pytest.mark.parametrize("missing_key", ["chatbot_type", "user_id", "question", "store"])
+@patch("models.consult.main.build_consultant")
+def test_missing_required_key_returns_error_without_invoking_graph(
+    mock_build_consultant, missing_key, caplog
+) -> None:
+    """필수 키(chatbot_type·user_id·question·store)가 하나라도 빠지면 KeyError가
+    그대로 새어나가지 않을 뿐 아니라, 그래프를 아예 호출하지 않고(LLM 모델 호출
+    0회) 즉시 error를 반환해야 한다(D-287·D-323) — "요청이 잘못된 건지 모델이
+    죽은 건지"를 traceback만으로 구분할 수 있게, 요청 구성 실패와 그래프 실행
+    실패를 별도 try로 나눈다. build_consultant()가 호출되지 않았는지로 그래프가
+    실제로 안 도는지 확인하고(선언 대조가 아니라 동작 검사), 로그 문구가 그래프
+    실행 실패 쪽과 다른지까지 확인해야 "구조가 실제로 분리됐다"를 검증한다 —
+    분리 전에도 KeyError는 build_consultant() 호출 이전에 나서 이 assert_not_called
+    만으로는 우연히 통과했었다."""
     malformed_request = _request()
-    del malformed_request["store"]
+    del malformed_request[missing_key]
 
-    response = run(malformed_request)
+    with caplog.at_level("ERROR"):
+        response = run(malformed_request)
 
     assert response["status"] == "error"
+    mock_build_consultant.assert_not_called()
+    assert "컨설턴트 요청 구성 실패" in caplog.text
 
 
 @patch("models.consult.main.build_consultant")

@@ -5,9 +5,12 @@ import torch
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
 
-from ..graph.state import BasicState
+from ..graph.state import REASON_UNKNOWN, BasicState
 
-MIN_CLIP_SCORE = 0.25  # 참고용 임계값 — MVP에서는 미적용
+# 참고용 임계값 — MVP에서는 미적용
+# 실측 근거(영문 캡션 5쌍): 정답 평균 0.3468 통과 / 오답 평균 0.2185 차단.
+# 여유 각각 +0.0968 / -0.0315. 표본이 작아 지금은 적용하지 않고 근거로만 남긴다.
+MIN_CLIP_SCORE = 0.25
 
 _clip_model = None
 _clip_processor = None
@@ -56,6 +59,7 @@ def image_review_node(state: BasicState) -> dict:
     has_copy_count = 0
     decode_fail_count = 0
     prompts = state.get("image_prompts") or []
+    captions_en = state.get("image_captions_en") or []
 
     for i, c in enumerate(state["ranked_copies"]):
         if not c.get("copy"):
@@ -68,8 +72,9 @@ def image_review_node(state: BasicState) -> dict:
             reviewed.append(c)
             continue
 
+        caption = captions_en[i] if i < len(captions_en) else None
         prompt = prompts[i] if i < len(prompts) else None
-        text_for_clip = prompt or c["copy"]
+        text_for_clip = caption or prompt or c["copy"]
 
         try:
             image = Image.open(io.BytesIO(base64.b64decode(c["image_b64"])))
@@ -83,7 +88,7 @@ def image_review_node(state: BasicState) -> dict:
                     "image_b64": None,
                     "error": {
                         "field": "image",
-                        "reason": "decode_failed",
+                        "reason": REASON_UNKNOWN,
                         "message": "이미지 디코딩에 실패했습니다.",
                     },
                 }

@@ -72,6 +72,9 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build and start services
+        env:
+          BACKEND_BUILD_TARGET: actual
+          CHATBOT_MODE: mock
         run: docker compose up --build -d --wait --wait-timeout 180
 
       - name: Verify public health endpoints
@@ -85,7 +88,7 @@ jobs:
               assert json.load(response) == {"status": "ok"}
 
           with urllib.request.urlopen(
-              "http://127.0.0.1:8501/_stcore/health", timeout=10
+              "http://127.0.0.1:8501/", timeout=10
           ) as response:
               assert response.status == 200
 
@@ -93,14 +96,12 @@ jobs:
 
       - name: Verify frontend-to-backend connection
         run: |
-          docker compose exec -T frontend /app/.venv/bin/python - <<'PY'
-          import os
-
-          from frontend.api_client import ApiClient
-
-          result = ApiClient(os.environ["BACKEND_URL"], timeout=10).health()
-          assert result == {"status": "ok"}
-          PY
+          docker compose exec -T frontend node --input-type=module - <<'JS'
+          const response = await fetch(`${process.env.BACKEND_URL}/health`);
+          if (!response.ok) throw new Error(`backend health failed: ${response.status}`);
+          const result = await response.json();
+          if (result.status !== "ok") throw new Error(`unexpected health: ${JSON.stringify(result)}`);
+          JS
 
       - name: Print service logs on failure
         if: failure()
