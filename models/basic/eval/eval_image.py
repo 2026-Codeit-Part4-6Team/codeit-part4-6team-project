@@ -4,8 +4,8 @@ B- 문항 중 지정된 개수(기본 20개)를 골라 카피 생성 → 이미�
 Score(정합성)를 산출한다. 멀티모달 LLM-Judge는 비용이 더 커서 별도 단계로
 남겨둔다.
 
-실행: uv run python -m models.basic.eval.eval_image \
-    --dataset shared_data/golden_dataset.json --limit 20
+실행: uv run python -m models.basic.eval.eval_image --dataset shared_data/golden_dataset.json 
+--banner-limit 5 --instagram-limit 10 --exclude B-012,B-040,B-057
 
 models/shared/eval_fixtures.py 파일 도착 후 실행 가능하다.
 """
@@ -33,6 +33,8 @@ from models.basic.nodes.image_gen import (
     _english_caption,
     _generate_xbanner,
     _pick_instagram_template,
+    _pick_xbanner_template,
+    _split_benefit_clause,
 )
 from models.basic.nodes.image_review import _clip_score
 from models.basic.nodes.market_for_copy import market_for_copy_node
@@ -230,9 +232,11 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
     for i, copy in enumerate(copies):
         start = time.monotonic()
         if platform == "xbanner":
-            image_b64 = _generate_xbanner(store, copy)
-            image_prompt = _PLATFORM_IMAGE_PROMPT["xbanner_top"].format(
-                store_type=store.get("type", "가게"), copy=copy
+            image_b64 = _generate_xbanner(store, copy, i)
+            top_key, _ = _pick_xbanner_template(i)
+            top_text, _ = _split_benefit_clause(copy)
+            image_prompt = _PLATFORM_IMAGE_PROMPT[top_key].format(
+                store_type=store.get("type", "가게"), copy=top_text
             )
         else:
             template = _pick_instagram_template(store, i)
