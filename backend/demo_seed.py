@@ -169,9 +169,11 @@ def main() -> int:
         print(f"demo seed failed: {error}")
         return 2
 
-    for role, user, created in seeded:
+    for role, _user, created in seeded:
         state = "created" if created else "already exists"
-        print(f"demo user {state}: {role} ({user.username})")
+        # SessionLocal이 종료된 뒤 ORM 객체의 lazy/expired 필드에 접근하지 않습니다.
+        # 역할명만 출력해 seed 결과를 확인하고 사용자 정보는 로그에 남기지 않습니다.
+        print(f"demo user {state}: {role}")
     return 0
 
 
