@@ -45,6 +45,22 @@ export function generationPayload(pending: PendingGeneration): GeneratePayload {
   return buildGeneratePayload(pending.estimatePayload, acceptedCredits(pending.estimate));
 }
 
+export type GenerationAction = {
+  kind: "generate" | "confirm";
+  pending: PendingGeneration;
+};
+
+export function nextGenerationAction(
+  estimate: EstimateResponse,
+  estimatePayload: EstimatePayload,
+  idempotencyKey: string,
+): GenerationAction {
+  return {
+    kind: estimate.requires_confirmation ? "confirm" : "generate",
+    pending: createPendingGeneration(estimatePayload, estimate, idempotencyKey),
+  };
+}
+
 export function apiErrorMessage(statusCode: number, detail: unknown): string {
   if (statusCode === 401) {
     return "로그인이 만료되었습니다. 다시 로그인해 주세요.";

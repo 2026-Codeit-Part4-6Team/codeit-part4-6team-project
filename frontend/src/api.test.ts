@@ -114,4 +114,45 @@ describe("ApiClient", () => {
       api.estimate({ chatbot_type: "basic", question: "광고", platform: "xbanner" }),
     ).rejects.toEqual(new ApiError(402, { required: 50, current: 10 }));
   });
+
+  it("serializes the selected proposal for publish", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          generation_id: 7,
+          status: "published",
+          hitl_approved: true,
+          proposal_index: 1,
+        }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.publishGeneration(7, { proposal_index: 1, image_b64: null });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/generations/7/publish");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ proposal_index: 1, image_b64: null }),
+    );
+  });
+
+  it("requests the latest waiting copy", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: 4, copy_text: "곧 완성됩니다.", industry: null }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await expect(api.waitingCopy()).resolves.toEqual({
+      id: 4,
+      copy_text: "곧 완성됩니다.",
+      industry: null,
+    });
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/waiting-copies");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
+  });
 });
