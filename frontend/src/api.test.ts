@@ -111,7 +111,7 @@ describe("ApiClient", () => {
     const api = new ApiClient("/api", fetcher);
 
     await expect(
-      api.estimate({ chatbot_type: "basic", question: "광고", platform: "banner" }),
+      api.estimate({ chatbot_type: "basic", question: "광고", platform: "xbanner" }),
     ).rejects.toEqual(new ApiError(402, { required: 50, current: 10 }));
   });
 

@@ -8,9 +8,12 @@ from pydantic import (
     EmailStr,
     Field,
     SecretStr,
+    ValidationError,
     field_validator,
     model_validator,
 )
+
+from backend.logging_utils import payload_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -297,8 +300,6 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
-
-
 class ConsultantSourceContext(StrictModel):
     """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
 
@@ -366,15 +367,25 @@ class ModelResultAdapter:
             if isinstance(value, BaseModel)
             else value
         )
-        status = _ModelResultEnvelope.model_validate(payload).status
-
-        if status == "blocked":
-            return BlockedResult.model_validate(payload)
-        if status == "error":
-            return ErrorResult.model_validate(payload)
-        if chatbot_type == "basic":
-            return BasicModelResult.model_validate(payload)
-        return ConsultantModelResult.model_validate(payload)
+        status = None
+        try:
+            status = _ModelResultEnvelope.model_validate(payload).status
+            if status == "blocked":
+                return BlockedResult.model_validate(payload)
+            if status == "error":
+                return ErrorResult.model_validate(payload)
+            if chatbot_type == "basic":
+                return BasicModelResult.model_validate(payload)
+            return ConsultantModelResult.model_validate(payload)
+        except ValidationError as error:
+            logger.warning(
+                "모델 응답 검증 실패 — chatbot_type=%s status=%s errors=%s payload=%s",
+                chatbot_type,
+                status,
+                [(item["loc"], item["type"]) for item in error.errors()],
+                payload_for_log(payload),
+            )
+            raise
 
 
 MODEL_RESULT_ADAPTER = ModelResultAdapter()
