@@ -618,4 +618,5 @@ select:focus-visible {
 .billing-gate-card span { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
 .billing-gate-card h2 { margin: 12px 0 24px; text-transform: lowercase; }
 .billing-gate-card button { width: 100%; min-height: 44px; border: 0; border-radius: 10px; }
+.payment-notice { color: #8b5e00; font-size: .82rem; }
 @media (max-width: 720px) { .billing-gate-grid { grid-template-columns: 1fr; } }

@@ -73,6 +73,7 @@ def test_purchase_increases_credits_and_is_idempotent(payment_client: TestClient
     assert first.json()["credits"] == 5_000
     assert first.json()["amount"] == 48_500
     assert first.json()["vat_included"] is False
+    assert first.json()["provider"] == "pending"
     assert replay.status_code == 201
     assert replay.json() == first.json()
     assert payment_client.get("/users/me").json()["credits"] == 5_000

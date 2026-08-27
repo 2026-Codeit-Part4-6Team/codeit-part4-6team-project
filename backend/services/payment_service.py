@@ -54,6 +54,7 @@ def _response(payment: Payment, user: User) -> PaymentResponse:
         vat_included=False,
         balance=user.credits,
         status="completed",
+        provider="pending",
     )
 
 

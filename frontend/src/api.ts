@@ -52,6 +52,7 @@ export type PaymentResponse = {
   vat_included: false;
   balance: number;
   status: "completed";
+  provider: "pending";
 };
 
 export type GenerationResponse = {

@@ -177,6 +177,7 @@ class PaymentResponse(StrictModel):
     vat_included: Literal[False]
     balance: int = Field(ge=0)
     status: Literal["completed"]
+    provider: Literal["pending"] = "pending"
 
 
 class GenerateExtra(StrictModel):

@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { ApiClient, PaymentPackage } from "../../api";
-
-const fallbackPackages: PaymentPackage[] = [
-  { id: "starter", credits: 5_000, amount: 48_500, discount_percent: 3 },
-  { id: "standard", credits: 10_000, amount: 93_000, discount_percent: 7 },
-  { id: "pro", credits: 20_000, amount: 180_000, discount_percent: 10 },
-];
+import { createIdempotencyKey } from "../../requestId";
 
 function money(amount: number) {
   return `${amount.toLocaleString("ko-KR")}원`;
@@ -23,13 +18,30 @@ export function BillingPage({
   onCreditsChanged?: (credits: number) => void;
   onBack: () => void;
 }) {
-  const [packages, setPackages] = useState(fallbackPackages);
+  const [packages, setPackages] = useState<PaymentPackage[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
   const [buying, setBuying] = useState<PaymentPackage["id"] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void api.paymentCatalog().then((catalog) => setPackages(catalog.packages)).catch(() => undefined);
+    let active = true;
+    setCatalogStatus("loading");
+    setPackages([]);
+    void api.paymentCatalog()
+      .then((catalog) => {
+        if (!active) return;
+        setPackages(catalog.packages);
+        setCatalogStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setPackages([]);
+        setCatalogStatus("error");
+      });
+    return () => {
+      active = false;
+    };
   }, [api]);
 
   async function purchase(packageId: PaymentPackage["id"]) {
@@ -37,7 +49,7 @@ export function BillingPage({
     setMessage(null);
     setError(null);
     try {
-      const result = await api.purchasePackage(packageId, crypto.randomUUID());
+      const result = await api.purchasePackage(packageId, createIdempotencyKey());
       onCreditsChanged?.(result.balance);
       setMessage(`${result.credits.toLocaleString("ko-KR")} 크레딧이 충전되었습니다. 현재 잔액 ${result.balance.toLocaleString("ko-KR")} 크레딧`);
     } catch {
@@ -54,10 +66,13 @@ export function BillingPage({
         <p className="kicker">CREDIT STORE</p>
         <h1 id="billing-title">크레딧 충전</h1>
         <p>현재 잔액 {currentCredits.toLocaleString("ko-KR")} 크레딧 · 모든 금액은 VAT 별도입니다.</p>
+        <p className="payment-notice" role="note">⚠️ PG 연동 전 단계입니다. 지금은 실제 결제가 발생하지 않고 크레딧만 지급됩니다 — 시연·테스트 용도입니다.</p>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p className="saved-note" role="status">{message}</p>}
-      <div className="billing-gate-grid">
+      {catalogStatus === "loading" && <p role="status">가격 정보를 불러오는 중입니다.</p>}
+      {catalogStatus === "error" && <p className="form-error" role="alert">가격 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
+      <div className="billing-gate-grid" aria-busy={catalogStatus === "loading"}>
         {packages.map((item) => (
           <article className="card billing-gate-card" key={item.id}>
             <span>{item.discount_percent}% 할인</span>
@@ -65,7 +80,7 @@ export function BillingPage({
             <strong>{item.credits.toLocaleString("ko-KR")} 크레딧</strong>
             <p>{money(item.amount)} <small>VAT 별도</small></p>
             <button type="button" className="primary" disabled={buying !== null} onClick={() => void purchase(item.id)}>
-              {buying === item.id ? "처리 중…" : "결제하기"}
+              {buying === item.id ? "처리 중…" : "충전하기 (시연용)"}
             </button>
           </article>
         ))}

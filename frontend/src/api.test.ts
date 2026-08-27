@@ -92,6 +92,7 @@ describe("ApiClient", () => {
         vat_included: false,
         balance: 5000,
         status: "completed",
+        provider: "pending",
       }), { status: 201 }));
     const api = new ApiClient("/api", fetcher);
 

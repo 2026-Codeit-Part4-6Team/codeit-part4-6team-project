@@ -66,12 +66,12 @@ describe("D5 protected routes", () => {
     expect(renderRoute("settings")).toContain("고급 제공 모델");
   });
 
-  it("renders the confirmed payment catalog with a transaction action", () => {
+  it("does not invent payment packages before the server catalog loads", () => {
     const html = renderRoute("billing");
 
     expect(html).toContain("크레딧 충전");
-    expect(html).toContain("starter");
-    expect(html).toContain("48,500원");
-    expect(html).toContain("결제하기");
+    expect(html).toContain("가격 정보를 불러오는 중");
+    expect(html).not.toContain("48,500원");
+    expect(html).not.toContain("충전하기 (시연용)");
   });
 });
