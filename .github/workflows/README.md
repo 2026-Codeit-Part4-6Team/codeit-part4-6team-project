@@ -79,6 +79,20 @@ Windows와 Linux 모두 테스트 통과 후 `pytest` 프로세스가 정상 종
 시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는 PR 병합만 차단하고 실행 중인 VM
 서비스에는 영향을 주지 않습니다.
 
+### Actual model boundary smoke (E2E 사전 점검)
+
+실제 Basic·Consultant 모델을 합친 통합 workspace에서는 E2E 시작 직전에 모델 경계 smoke를
+수동으로 실행합니다. 일반 PR CI에서는 모델 호출 비용과 가중치 다운로드를 피하기 위해 실행하지
+않으며, 실행자는 통합 테스트 담당자가 담당 브랜치와 로그를 함께 공유합니다.
+
+```bash
+RUN_MODEL_BOUNDARY_SMOKE=1 uv run --locked --all-groups \
+  pytest tests/integration/test_d7_model_boundary.py -q
+```
+
+이 smoke가 통과하고 backend/frontend healthcheck가 healthy인 상태를 1차 E2E 진입 조건으로
+삼습니다. 실패하면 E2E 결과서에 모델 entrypoint·환경변수·가중치 캐시 상태를 먼저 기록합니다.
+
 ## CD 작업 명세
 
 CD는 CI를 통과해 `main`에 병합된 커밋을 이미지로 만들고 GCP VM에 배포합니다. 자동 Push

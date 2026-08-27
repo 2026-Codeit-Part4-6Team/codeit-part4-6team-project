@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from pydantic import ValidationError
 
@@ -108,3 +110,24 @@ def test_unknown_status_is_schema_failure():
         MODEL_RESULT_ADAPTER.validate_python(
             {"status": "mystery", "message": "unknown"}, chatbot_type="basic"
         )
+
+
+def test_validation_failure_logs_payload_without_base64(caplog):
+    """검증 실패 payload는 진단 가능하되 base64 원문은 로그에 노출하지 않습니다."""
+    payload = basic_payload()
+    payload["proposals"][0]["image_b64"] = "A" * 100_000
+    del payload["title"]
+
+    with (
+        caplog.at_level(logging.WARNING, logger="backend.schemas"),
+        pytest.raises(ValidationError),
+    ):
+        MODEL_RESULT_ADAPTER.validate_python(payload, chatbot_type="basic")
+
+    warning = next(record for record in caplog.records if record.levelno == logging.WARNING)
+    message = warning.getMessage()
+    assert "chatbot_type=basic" in message
+    assert "title" in message
+    assert "image_b64 omitted" in message
+    assert "A" * 400 not in message
+    assert len(message) < 4_000

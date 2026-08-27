@@ -7,7 +7,7 @@ OpenAI Chat Completion 공통 래퍼.
 컨설턴트 구현본(D-035)을 토대로, 기본 챗봇이 필요로 한 두 기능을 합쳤다.
   · (text, tokens) 반환 — 계약상 tokens_used가 두 챗봇 모두 필수 필드다
   · json_mode — response_format으로 JSON을 강제해 파싱 실패를 줄인다
-여기에 D-049(요청 데드라인)를 추가했다. 재시도 백오프(최대 14초)가
+여기에 D-052(요청 데드라인)를 추가했다. 재시도 백오프(최대 14초)가
 서비스 타임아웃 60초를 잠식하지 않도록, 남은 예산이 다음 대기시간보다
 짧으면 재시도를 포기하고 즉시 예외를 올린다.
 
@@ -34,7 +34,7 @@ from models.shared.config import (
 logger = logging.getLogger(__name__)
 
 _client: OpenAI | None = None
-_total_tokens = 0
+_total_tokens: dict[str, int] = {}
 
 
 def _get_client() -> OpenAI:
@@ -54,10 +54,21 @@ def reset_client() -> None:
     global _client
     _client = None
 
+def reset_total_tokens() -> None:
+    """테스트에서 누적 토큰 카운터를 비운다."""
+    _total_tokens.clear()
 
-def get_total_tokens() -> int:
-    """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용."""
-    return _total_tokens
+
+def get_total_tokens(model: str | None = None) -> int:
+    """프로세스 시작 이후 누적 토큰 수 — $30 예산 모니터링·평가 스크립트용.
+
+    model 을 지정하면 그 모델만, 생략하면 전체 합계를 반환한다(D-257).
+    생성 모델과 Judge 모델의 소비량을 나눠 보기 위해 모델별로 집계한다.
+    집계에 없는 모델을 조회해도 KeyError 가 아니라 0 을 반환한다.
+    """
+    if model is None:
+        return sum(_total_tokens.values())
+    return _total_tokens.get(model, 0)
 
 
 def call_llm(
@@ -66,8 +77,13 @@ def call_llm(
     *,
     json_mode: bool = False,
     deadline: float | None = None,
+    model: str | None = None,          # ← None 이면 OPENAI_MODEL
+    temperature: float | None = None,  # ← None 이면 LLM_TEMPERATURE
 ) -> tuple[str, int]:
     """OpenAI를 호출해 (응답 텍스트, 사용 토큰 수)를 반환한다.
+    model 을 지정하면 그 모델로 호출한다 — LLM Judge 처럼 생성과 다른 모델을
+    써야 하는 경우에만 쓴다(D-251). 기본값 None 은 OPENAI_MODEL 이므로
+    기존 호출부(노드 전부)는 한 줄도 바뀌지 않는다.
 
     Args:
         system: 시스템 프롬프트.
@@ -75,15 +91,22 @@ def call_llm(
         json_mode: True면 JSON 객체 응답을 강제한다.
         deadline: time.monotonic() 기준 절대 마감 시각.
             생략하면 호출 시점부터 LLM_DEADLINE_SECONDS를 예산으로 쓴다.
+        temperature: 생략하면 LLM_TEMPERATURE. LLM Judge 는 반드시 0 을 넘긴다 —
+            채점 재현성이 골든 데이터셋의 제1 요건이다(§1.4 · D-275).
 
     Raises:
         openai.RateLimitError: 재시도 상한 도달 또는 남은 예산 부족.
         ValueError: 응답에 텍스트 content가 없을 때.
     """
-    global _total_tokens
-
     if deadline is None:
         deadline = time.monotonic() + LLM_DEADLINE_SECONDS
+
+    # ★ 한 번만 해석해서 호출·집계 양쪽에 같은 값을 쓴다.
+    #   raw model 을 집계 키로 쓰면 생략 시 None 이 키가 되어 집계가 깨진다(D-264).
+    resolved_model = model or OPENAI_MODEL
+    # ⚠️ temperature 는 0.0 이 유효값이라 `or` 를 쓰면 안 된다 — 0.0 이 falsy 여서
+    #    조용히 0.3 으로 되돌아간다. model 과 달리 None 비교가 필수다.
+    resolved_temperature = LLM_TEMPERATURE if temperature is None else temperature
 
     kwargs = {"response_format": {"type": "json_object"}} if json_mode else {}
     messages = [
@@ -94,16 +117,18 @@ def call_llm(
     for attempt in range(LLM_MAX_RETRIES + 1):
         try:
             response = _get_client().chat.completions.create(
-                model=OPENAI_MODEL,
-                temperature=LLM_TEMPERATURE,
+                model=resolved_model,
+                temperature=resolved_temperature,
                 messages=messages,
                 **kwargs,
             )
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI 응답에 텍스트 content가 없습니다.")
+
             tokens = response.usage.total_tokens if response.usage else 0
-            _total_tokens += tokens
+            # dict 는 없는 키에 += 가 KeyError 다 — get(k, 0) 으로 초기값을 준다.
+            _total_tokens[resolved_model] = _total_tokens.get(resolved_model, 0) + tokens
             return content, tokens
 
         except openai.RateLimitError:

@@ -15,5 +15,21 @@ class ConsultState(CommonState):
     변환하는 단계 없이 이 구조를 그대로 최종 응답 payload로 조립하면 된다.
     """
 
-    retry_count: NotRequired[int]  # 근거 부족 재생성 루프 카운터 (SDP §6.5, 최대 2회)
+    retry_count: NotRequired[int]  # 전략 재시도 누적값(reasons §6.5+actions 0개 재생성 합산 최대 2회)
+    actions_retried: NotRequired[bool]  # 이 문항에서 actions 0개 재생성이 있었는지(D-139 후속)
+    actions_truncated: NotRequired[bool]  # 이 문항에서 actions 초과분 절단이 있었는지(D-139 후속)
     suggested_chips: NotRequired[list[str]]  # 추천 질문 칩 3종 (SDP §2.1, D1 회의에서 응답 계약 추가 합의)
+    # 칩 생성이 형식 오류로 고정 폴백 문구를 썼는지 여부 (PM 리뷰, PR #105) — 폴백이 조용히
+    # 발생하면 평가에서 "칩 3개=100%"가 실제로는 폴백일 수 있어 흔적을 남긴다.
+    chips_fallback: NotRequired[bool]
+    # 그래프 진입 시(security_input) 1회 세팅, 모든 call_llm 호출이 공유하는 절대 마감
+    # (time.monotonic() 기준). 안 넘기면 매 call_llm 호출이 각자 새 예산을 받아, strategy의
+    # 재시도(최대 3회)+429 백오프가 겹치면 서비스 60초 타임아웃에 근접할 수 있다(D-144, PM 리뷰 PR #93).
+    deadline: NotRequired[float]
+    # BasicState(models/basic/graph/state.py)와 동일 패턴 — CommonState엔 없어서
+    # 검증 노드가 반환해도 LangGraph가 스키마 밖 키로 보고 조용히 버렸다(Codex 리뷰로
+    # 발견, assemble_response()의 blocked/error 분기가 항상 무력화되는 치명적 버그였음).
+    status: NotRequired[str]  # ok, blocked, error
+    issues: NotRequired[
+        list[dict]
+    ]  # [{"source": ..., "action": "block"/"reask"/"warn", "reason": ..., "message": ...}, ...]
