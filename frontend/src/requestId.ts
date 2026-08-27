@@ -7,9 +7,11 @@ function formatUuid(bytes: Uint8Array): string {
 }
 
 /**
- * HTTP 환경에서도 사용할 수 있는 멱등 키를 생성합니다.
- * randomUUID()를 사용할 수 없는 일반 HTTP origin에서는 getRandomValues로
- * RFC 4122 v4 UUID를 만들어 결제·생성 재요청 키로 사용합니다.
+ * Creates a UUID suitable for generation/payment idempotency keys.
+ *
+ * `randomUUID()` is unavailable on plain HTTP origins. `getRandomValues()`
+ * remains available there, so use it to build an RFC 4122 v4 UUID instead of
+ * weakening the key with timestamps or Math.random().
  */
 export function createIdempotencyKey(
   cryptoSource: CryptoSource = globalThis.crypto,
