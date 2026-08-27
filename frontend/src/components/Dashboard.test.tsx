@@ -42,6 +42,12 @@ describe("D5 dashboard", () => {
     expect(html).toContain("7회 남음");
     expect(html).toContain("컨설턴트 챗봇");
     expect(html).toContain("게시물 생성");
+    expect(html).toContain("카피니와 분석이");
+    expect(html).toContain("/assets/mascots/copyni.png");
+    expect(html).toContain("/assets/mascots/bunseoki.png");
+    expect(html).toContain("/assets/brand/salesbooster-logo.png");
+    expect(html).toContain('alt="매출부스터 AI"');
+    expect(html).toContain("매출부스터 AI");
     expect(html).toContain("사이드바 접기");
     expect(html).not.toContain("블로그");
   });

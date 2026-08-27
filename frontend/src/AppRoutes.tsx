@@ -13,9 +13,10 @@ type ProtectedRouteViewProps = {
   route: AppRoute;
   onNavigate: (route: AppRoute) => void;
   onLogout: () => void;
+  onCreditsChanged?: (credits: number) => void;
 };
 
-export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: ProtectedRouteViewProps) {
+export function ProtectedRouteView({ api, user, route, onNavigate, onLogout, onCreditsChanged }: ProtectedRouteViewProps) {
   let content;
   if (route === "dashboard") {
     content = <DashboardHome onNavigate={onNavigate} />;
@@ -28,7 +29,7 @@ export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: P
   } else if (route === "settings") {
     content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
   } else {
-    content = <BillingPage onBack={() => onNavigate("dashboard")} />;
+    content = <BillingPage api={api} currentCredits={user.credits} onCreditsChanged={onCreditsChanged} onBack={() => onNavigate("dashboard")} />;
   }
 
   return (
