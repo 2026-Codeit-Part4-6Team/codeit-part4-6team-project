@@ -67,7 +67,7 @@ export type GenerationListItem = {
   chatbot_type: "basic" | "consultant";
   title: string | null;
   question: string;
-  platform: "instagram" | "banner" | null;
+  platform: "instagram" | "xbanner" | null;
   plan: "free" | "paid";
   credits_used: number;
   tokens_used: number;

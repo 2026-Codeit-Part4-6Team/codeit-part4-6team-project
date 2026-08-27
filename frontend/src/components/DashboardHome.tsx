@@ -35,7 +35,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <img className="feature-mascot" src="/assets/mascots/copyni.png" alt="" aria-hidden="true" />
           <small>카피니와 광고 만들기</small>
           <strong>게시물 생성</strong>
-          <span>SNS &amp; 현수막</span>
+          <span>SNS &amp; X-배너</span>
         </button>
       </div>
     </section>
