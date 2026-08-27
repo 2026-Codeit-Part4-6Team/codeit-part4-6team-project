@@ -340,8 +340,21 @@ class ErrorResult(InboundModel):
     message: str = Field(min_length=1)
 
 
+class HistoryErrorResult(StrictModel):
+    """생성 이력에 표시할 안전한 실패 결과입니다.
+
+    저장된 ErrorResult의 원문 message는 외부 제공자 오류가 섞일 수 있으므로
+    이 공개 계약에는 서비스가 정한 사용자 안내 문구만 포함합니다.
+    """
+
+    status: Literal["error"]
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
+    message: str = Field(min_length=1)
+
+
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
 PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
+HistoryGenerationResult = PublicGenerationResult | HistoryErrorResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -461,7 +474,7 @@ class GenerationDetailResponse(GenerationListItem):
     """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
 
     source_gen_id: int | None = Field(default=None, gt=0)
-    result: PublicGenerationResult | None = None
+    result: HistoryGenerationResult | None = None
     copy_content: str | None = None
     image_b64: str | None = None
     selected_proposal_index: Literal[0, 1, 2] | None = None
