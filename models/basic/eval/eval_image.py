@@ -273,7 +273,7 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
         if platform == "xbanner":
             image_b64 = _generate_xbanner(store, copy, i, business_details)
             top_key, _ = _pick_xbanner_template(i)
-            top_text, _ = _split_benefit_clause(copy)
+            top_text, _ = _split_benefit_clause(copy, store.get("type", "가게"))
             image_prompt = _PLATFORM_IMAGE_PROMPT[top_key].format(
                 store_type=store.get("type", "가게"), copy=top_text
             )

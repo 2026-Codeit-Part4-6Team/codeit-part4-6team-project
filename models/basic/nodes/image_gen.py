@@ -55,17 +55,48 @@ _COMMON_IMAGE_RULES = (
 )
 
 
-def _split_benefit_clause(copy: str) -> tuple[str, str | None]:
+def _intro_without_benefit(copy: str, store_type: str) -> str:
+    """카피 전체가 혜택 문장뿐이라 상단에 쓸 일반 소개 문장이 없을 때,
+    혜택 조건·수치는 빼고 가게 소개 톤으로 짧게 다시 쓴 한 줄을
+    반환한다. 이미지 생성 모델에게 '일부만 골라 표시'를 맡기면 안
+    지켜지는 문제가 실측으로 확인돼(상단에 혜택 문구가 그대로 노출),
+    텍스트 단계에서 미리 LLM으로 다시 써 넘긴다. 실패하면 store_type
+    기반의 최소한의 안전한 문구로 대체한다."""
+    try:
+        raw, _tokens = call_llm(
+            "다음 광고 카피에서 할인·무료·이벤트 같은 혜택 조건·수치는 "
+            "모두 빼고, 가게를 소개하는 짧고 임팩트 있는 한 줄만 새로 "
+            "써라. 원래 카피의 톤과 소재는 살리되 혜택 관련 내용만 "
+            "제거한다. 결과 문장만 답한다(따옴표·설명 없이).",
+            f"업종: {store_type}\n카피: {copy}",
+        )
+        text = raw.strip().strip('"')
+        return text if text else f"{store_type}에서 만나보세요"
+    # BLE001 억제 사유: 실패해도 배너 생성 자체는 계속 진행 — 최소한의 안전 문구로 대체
+    except Exception:  # noqa: BLE001
+        return f"{store_type}에서 만나보세요"
+
+
+def _split_benefit_clause(copy: str, store_type: str = "가게") -> tuple[str, str | None]:
     """카피를 문장 단위로 나눠, 할인·무료·이벤트 등 혜택 키워드가 포함된
     문장은 하단 배너용으로, 나머지(가게 자체 소개)는 상단 배너용으로
     분리한다. 혜택 문장이 없으면 전체를 상단에 쓰고 하단은 None을
-    반환해 스티커 자체를 생략하게 한다. 이미지 생성 모델에게 '일부만
-    추출'을 맡기면 상단 문구를 하단에 그대로 반복하는 문제가 실측으로
-    확인되어, 텍스트 단계에서 파이썬으로 미리 나눈다."""
+    반환해 스티커 자체를 생략하게 한다. 카피 전체가 혜택 문장뿐이면
+    상단에 전체 카피를 그대로 반복하는 대신, 혜택 조건을 뺀 짧은
+    소개 문구를 LLM으로 새로 받아 쓴다 — 안 그러면 혜택 문구가
+    상단·하단에 그대로 중복 노출되는 문제가 실측으로 확인됐다.
+    이미지 생성 모델에게 '일부만 추출'을 맡기면 상단 문구를 하단에
+    그대로 반복하는 문제가 실측으로 확인되어, 텍스트 단계에서
+    파이썬으로 미리 나눈다."""
     clauses = [c.strip() for c in re.split(r"(?<=[!.?~])\s+", copy) if c.strip()]
     benefit = [c for c in clauses if any(k in c for k in _BENEFIT_KEYWORDS)]
     rest = [c for c in clauses if c not in benefit]
-    top_text = " ".join(rest) if rest else copy
+    if rest:
+        top_text = " ".join(rest)
+    elif benefit:
+        top_text = _intro_without_benefit(copy, store_type)
+    else:
+        top_text = copy
     bottom_text = " ".join(benefit) if benefit else None
     return top_text, bottom_text
 
@@ -165,6 +196,9 @@ _PLATFORM_IMAGE_PROMPT = {
         "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
         "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
         "않은 항목은 화면에 아예 넣지 않는다. "
+        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
+        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
+        "개수만큼만 표시한다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -185,6 +219,9 @@ _PLATFORM_IMAGE_PROMPT = {
         "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
         "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
         "않은 항목은 화면에 아예 넣지 않는다. "
+        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
+        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
+        "개수만큼만 표시한다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -204,6 +241,9 @@ _PLATFORM_IMAGE_PROMPT = {
         "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
         "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
         "않은 항목은 화면에 아예 넣지 않는다. "
+        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
+        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
+        "개수만큼만 표시한다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -246,7 +286,7 @@ def _generate_xbanner(
     기간) 상호·주소 뒤에 덧붙인다."""
     size = _PLATFORM_IMAGE_SIZE["xbanner"]
     top_key, bottom_key = _pick_xbanner_template(index)
-    top_text, bottom_text = _split_benefit_clause(copy)
+    top_text, bottom_text = _split_benefit_clause(copy, store.get("type", "가게"))
 
     top_prompt = _PLATFORM_IMAGE_PROMPT[top_key].format(
         store_type=store.get("type", "가게"), copy=top_text
@@ -365,7 +405,9 @@ def image_gen_node(state: BasicState) -> dict:
             if platform == "xbanner":
                 image_b64 = _generate_xbanner(store, c["copy"], i, business_details)
                 top_key, _ = _pick_xbanner_template(i)
-                top_text, bottom_text = _split_benefit_clause(c["copy"])
+                top_text, bottom_text = _split_benefit_clause(
+                    c["copy"], store.get("type", "가게")
+                )
                 bottom_desc = (
                     f'하단에는 상호·주소와 혜택 강조 문구("{bottom_text}")가 '
                     "표기된다."
