@@ -31,6 +31,7 @@ from models.basic.nodes.image_gen import (
     _DEFAULT_PLATFORM,
     _PLATFORM_IMAGE_PROMPT,
     _english_caption,
+    _extract_business_details,
     _generate_xbanner,
     _pick_instagram_template,
     _pick_xbanner_template,
@@ -97,8 +98,8 @@ def judge_image_rubric(
         "증정 주장(예: 조건 설명 없이 '무료!'만 크게 강조)이나 '완벽한', "
         "'걱정 없이' 같은 절대적·기만적 표현이 있는지 확인하라.\n\n"
         "JSON으로만 답한다. 형식: "
-        f'{"rubric": {rubric_format}, "regulation_flagged": false, }'
-        '"regulation_reason": null}'
+        f'{{"rubric": {rubric_format}, "regulation_flagged": false, '
+        '"regulation_reason": null}}'
     )
 
     response = _get_vision_client().chat.completions.create(
@@ -263,13 +264,14 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
     copies = _pick_copies(copy_result.get("copy_candidates", []))
     if not copies:
         return {"id": item["id"], "passed": False, "reason": "copy_generation_failed"}
+    business_details = _extract_business_details(request["question"]) if platform == "xbanner" else None
 
     image_evals = []
     total_latency = 0.0
     for i, copy in enumerate(copies):
         start = time.monotonic()
         if platform == "xbanner":
-            image_b64 = _generate_xbanner(store, copy, i)
+            image_b64 = _generate_xbanner(store, copy, i, business_details)
             top_key, _ = _pick_xbanner_template(i)
             top_text, _ = _split_benefit_clause(copy)
             image_prompt = _PLATFORM_IMAGE_PROMPT[top_key].format(

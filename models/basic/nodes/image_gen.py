@@ -1,5 +1,7 @@
 import base64
+import hashlib
 import io
+import json
 import re
 
 import openai
@@ -92,6 +94,9 @@ _PLATFORM_IMAGE_PROMPT = {
         '캐릭터의 대사나 표정으로 다음 문구의 분위기를 전달한다: "{copy}" '
         "실제 사진이 아닌 귀여운 일러스트/웹툰 캐릭터 스타일. "
         "브랜드 컬러를 캐릭터 의상이나 소품에 살짝 반영한다."
+        "기존에 존재하는 캐릭터·마스코트·IP(애니메이션, 웹툰, 게임 캐릭터 등)를 "
+        "모방하거나 연상시키지 않는, 완전히 새로운 오리지널 디자인의 캐릭터로 "
+        "그린다. "
         "문구에 없는 할인율·이벤트명·상품명을 새로 만들어 넣지 않는다. "
         "이미지에는 해시태그를 포함시키지 않는다."
     )
@@ -105,6 +110,9 @@ _PLATFORM_IMAGE_PROMPT = {
         "정색체가 아닌 유머러스하고 과장된 톤."
         "말풍선·자막에 문구에 없는 할인율·이벤트명 등 구체적 수치를 새로 "
         "지어내지 않는다. "
+        "기존에 존재하는 캐릭터·마스코트·IP(애니메이션, 웹툰, 게임 캐릭터 등)를 "
+        "모방하거나 연상시키지 않는, 완전히 새로운 오리지널 디자인의 캐릭터로 "
+        "그린다. "
         "이미지에는 해시태그를 포함시키지 않는다."
     )
     + _COMMON_IMAGE_RULES,
@@ -227,11 +235,15 @@ def _pick_instagram_template(store: dict, index: int) -> str:
     return _PLATFORM_IMAGE_PROMPT[keys[index % len(keys)]]
 
 
-def _generate_xbanner(store: dict, copy: str, index: int) -> str:
+def _generate_xbanner(
+    store: dict, copy: str, index: int, business_details: str | None = None
+) -> str:
     """X배너를 상단(가게 자체 소개)/하단(가게 정보+혜택 강조) 두 장으로 나눠
     생성한 뒤 세로로 이어붙여 base64 PNG 하나로 반환한다. 할인·이벤트
     문장은 파이썬에서 미리 분리해 하단에만 넣고, 카피 후보 인덱스에 따라
-    사진/플랫 그래픽 포스터/타이포그래피 중심 스타일을 다르게 적용한다."""
+    사진/플랫 그래픽 포스터/타이포그래피 중심 스타일을 다르게 적용한다.
+    business_details가 있으면(질문에서 미리 추출된 전화번호·영업시간·행사
+    기간) 상호·주소 뒤에 덧붙인다."""
     size = _PLATFORM_IMAGE_SIZE["xbanner"]
     top_key, bottom_key = _pick_xbanner_template(index)
     top_text, bottom_text = _split_benefit_clause(copy)
@@ -243,6 +255,9 @@ def _generate_xbanner(store: dict, copy: str, index: int) -> str:
     top_img = Image.open(io.BytesIO(base64.b64decode(top_b64)))
 
     provided_info = f'상호 "{store.get("name")}", 주소 "{store.get("address")}"'
+    if business_details:
+        provided_info += f", {business_details}"
+
     if bottom_text:
         benefit_clause = (
             "다음 혜택 정보를 조건까지 포함해 하나의 배지·스티커 안에 통째로 "
@@ -289,6 +304,39 @@ def _english_caption(store_type: str, copy: str) -> str | None:
         return None
 
 
+def _extract_business_details(question: str) -> str | None:
+    """사용자 질문 원문에 전화번호·영업시간·행사(이벤트) 기간처럼 구체적인
+    가게 정보가 포함돼 있으면 추출해 provided_info에 덧붙일 문자열로
+    반환한다. 언급되지 않은 항목은 만들어내지 않고, 아무것도 없으면 None을
+    반환해 provided_info가 상호·주소만으로 유지되게 한다. 이미지 생성
+    모델에게 원문에서 알아서 뽑으라고 시키면 신뢰도가 낮다는 게 이번
+    세션에 실측으로 확인돼(혜택 문구 분리 사례), 텍스트 단계에서 미리
+    구조화해 넘긴다."""
+    try:
+        raw, _tokens = call_llm(
+            "사용자 질문에 가게의 전화번호·영업시간·행사(이벤트) 기간이 "
+            "구체적으로 언급돼 있으면 그대로 추출한다. 언급되지 않은 "
+            "항목은 반드시 null로 둔다 — 없는 정보를 추측하거나 지어내지 "
+            "않는다. JSON으로만 답한다. 형식: "
+            '{"phone": null, "hours": null, "event_period": null}',
+            question,
+            json_mode=True,
+        )
+        parsed = json.loads(raw)
+    # BLE001 억제 사유: 추출 실패해도 상호·주소만으로 배너 생성은 계속 진행
+    except Exception:  # noqa: BLE001
+        return None
+
+    parts = []
+    if parsed.get("phone"):
+        parts.append(f'전화번호 "{parsed["phone"]}"')
+    if parsed.get("hours"):
+        parts.append(f'영업시간 "{parsed["hours"]}"')
+    if parsed.get("event_period"):
+        parts.append(f'행사 기간 "{parsed["event_period"]}"')
+    return ", ".join(parts) if parts else None
+
+
 def image_gen_node(state: BasicState) -> dict:
     """랭킹된 카피마다 이미지를 생성해 붙인다. 카피가 없는 항목은 건너뛰고,
     생성 실패 항목은 사유와 함께 image_b64를 None으로 기록한다. xbanner
@@ -296,6 +344,11 @@ def image_gen_node(state: BasicState) -> dict:
     이어붙인 결과를 사용한다."""
     store = state["store"]
     platform = state.get("platform")
+    business_details = (
+        _extract_business_details(state["question"])
+        if platform == "xbanner"
+        else None
+    )
     updated = []
     images = []
     prompts = []
@@ -310,7 +363,7 @@ def image_gen_node(state: BasicState) -> dict:
 
         try:
             if platform == "xbanner":
-                image_b64 = _generate_xbanner(store, c["copy"], i)
+                image_b64 = _generate_xbanner(store, c["copy"], i, business_details)
                 top_key, _ = _pick_xbanner_template(i)
                 top_text, bottom_text = _split_benefit_clause(c["copy"])
                 bottom_desc = (
