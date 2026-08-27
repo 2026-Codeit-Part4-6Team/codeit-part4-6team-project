@@ -57,7 +57,7 @@
 
 - [x] summary·각 action·각 reason을 독립 검사하는 실패 테스트를 작성한다.
 - [x] warn의 masked_text가 원래 위치에 반영되는 실패 테스트를 작성한다.
-- [x] block이 `output_blocked` issue를 남기고 self_check를 건너뛰는 실패 테스트를 작성한다.
+- [x] block이 `sensitive_leak` issue를 남기고 self_check를 건너뛰는 실패 테스트를 작성한다.
 - [x] 테스트가 현재 구현에서 실패하는지 확인한다.
 - [x] 필드 추출·검사·마스킹과 조건부 엣지를 최소 구현한다.
 - [x] 노드·그래프 테스트를 통과시킨다.

@@ -56,9 +56,13 @@ def test_stores_result_under_validation_output(mock_check_output) -> None:
     result = security_output(_state())
 
     assert result["validation"] == {
-        "output": [
-            {"action": "warn", "message": "표현 주의", "masked_text": "전략 요약"}
-        ]
+        "output": {
+            "summary": {
+                "action": "warn",
+                "message": "표현 주의",
+                "masked_text": "전략 요약",
+            }
+        }
     }
 
 
@@ -123,7 +127,7 @@ def test_block_stops_pipeline_and_discards_result(mock_check_output) -> None:
         {
             "source": "output",
             "action": "block",
-            "reason": "output_blocked",
+            "reason": "sensitive_leak",
             "message": "내부 정보가 포함됐습니다.",
         }
     ]
@@ -131,11 +135,12 @@ def test_block_stops_pipeline_and_discards_result(mock_check_output) -> None:
 
 @patch("models.consult.nodes.security_output.check_output")
 def test_handles_missing_result_gracefully(mock_check_output) -> None:
-    """아직 전략 노드가 result를 채우지 않은 상태(그래프 조기 실행 등)에서도 빈 문자열로 안전하게 호출한다."""
+    """아직 전략 결과가 없으면 빈 텍스트를 검증기에 보내지 않는다."""
     mock_check_output.return_value = {"action": "pass", "message": "", "masked_text": ""}
     state = _state(summary=None)
     assert "result" not in state
 
-    security_output(state)
+    result = security_output(state)
 
-    mock_check_output.assert_called_once_with("")
+    mock_check_output.assert_not_called()
+    assert result["validation"]["output"] == {}

@@ -10,28 +10,29 @@ def security_output(state: ConsultState) -> dict:
     모두 검사한다. 조각별로 호출해야 warn의 masked_text를 원래 위치에 정확히
     되돌릴 수 있다(D-145·D-154).
 
-    result가 아직 채워지지 않은 상태(그래프 조기 실행 등)에서도 죽지 않도록
-    summary 빈 문자열 하나를 검사한다. warn은 마스킹본으로 교체하고, block은
-    사용자 응답을 폐기한 뒤 즉시 종료한다.
+    result가 아직 채워지지 않은 상태(그래프 조기 실행 등)에서는 빈 검증 기록을
+    남긴다. warn은 마스킹본으로 교체하고, block은 사용자 응답을 폐기한 뒤 즉시
+    종료한다.
     """
-    result = state.get("result", {})
-    parts = [("summary", result.get("summary", ""))]
+    result = state.get("result") or {}
+    summary = result.get("summary", "")
+    parts = [("summary", summary)] if summary else []
     parts.extend(
         (f"actions[{index}]", action.get("content", ""))
         for index, action in enumerate(result.get("actions", []))
-        if isinstance(action, dict)
+        if isinstance(action, dict) and action.get("content")
     )
     parts.extend(
         (f"reasons[{index}]", reason)
         for index, reason in enumerate(result.get("reasons", []))
-        if isinstance(reason, str)
+        if isinstance(reason, str) and reason
     )
 
     checked = [(path, text, check_output(text)) for path, text in parts]
     updates = {
         "validation": {
             **state.get("validation", {}),
-            "output": [verdict for _path, _text, verdict in checked],
+            "output": {path: verdict for path, _text, verdict in checked},
         }
     }
 
@@ -46,7 +47,7 @@ def security_output(state: ConsultState) -> dict:
             {
                 "source": "output",
                 "action": "block",
-                "reason": "output_blocked",
+                "reason": "sensitive_leak",
                 "message": blocked.get("message", ""),
             }
         ]

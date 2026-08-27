@@ -45,7 +45,7 @@ def self_check_node(state: ConsultState) -> dict:
     updates["issues"] = state.get("issues", []) + [
         {
             "source": "self_check",
-            "action": "block",
+            "action": "reject",
             "reason": "unknown",
             "message": verdict.get("message") or "생성 결과 검증에 실패했습니다.",
         }

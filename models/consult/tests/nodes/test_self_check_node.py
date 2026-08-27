@@ -94,7 +94,7 @@ def test_repeated_reject_returns_contract_safe_error(mock_self_check) -> None:
     assert result["issues"] == [
         {
             "source": "self_check",
-            "action": "block",
+            "action": "reject",
             "reason": "unknown",
             "message": "답변 근거가 부족합니다.",
         }
