@@ -15,7 +15,7 @@
 ## Data flow
 
 1. Transaction 0: UUID/header, request hash, existing idempotency row, Store/source_gen validation, ModelRequest assembly.
-2. Transaction 1: free-first reservation, Generation pending insert, unique race check, generating 전이, commit.
+2. Transaction 1: Generation pending insert/unique race check, free-first reservation, usage 반영, generating 전이, commit.
 3. Model call: async Mock client, configured timeout, ModelResult adapter validation.
 4. Transaction 2: success -> done + settle; blocked/error -> failed + exactly-once compensation; commit failure leaves durable generating for stale recovery.
 5. Same-key retry: hash mismatch 409; pending/generating/done/failed/published replay; stale generating is recovered without model recall.

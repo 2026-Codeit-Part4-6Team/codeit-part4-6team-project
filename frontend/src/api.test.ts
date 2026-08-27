@@ -106,6 +106,27 @@ describe("ApiClient", () => {
     );
   });
 
+  it("updates the authenticated store profile", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ id: 1, business_name: "새 가게" }), { status: 200 }),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.updateStoreProfile({
+      business_name: "새 가게",
+      business_type: "베이커리",
+      address_detail: "1층",
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/users/me/store");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      business_name: "새 가게",
+      business_type: "베이커리",
+      address_detail: "1층",
+    });
+  });
+
   it("sends an Idempotency-Key with generate", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
@@ -142,7 +163,7 @@ describe("ApiClient", () => {
     const api = new ApiClient("/api", fetcher);
 
     await expect(
-      api.estimate({ chatbot_type: "basic", question: "광고", platform: "banner" }),
+      api.estimate({ chatbot_type: "basic", question: "광고", platform: "xbanner" }),
     ).rejects.toEqual(new ApiError(402, { required: 50, current: 10 }));
   });
 
@@ -236,4 +257,5 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls[2]?.[0]).toBe("/api/generations/7");
     expect(fetcher.mock.calls.every((call) => call[1]?.method === "GET")).toBe(true);
   });
+
 });

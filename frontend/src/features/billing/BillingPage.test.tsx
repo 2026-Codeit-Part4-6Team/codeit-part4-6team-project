@@ -16,4 +16,5 @@ describe("BillingPage", () => {
     expect(html).not.toContain("48,500원");
     expect(html).not.toContain("충전하기 (시연용)");
   });
+
 });

@@ -8,14 +8,17 @@ from pydantic import (
     EmailStr,
     Field,
     SecretStr,
+    ValidationError,
     field_validator,
     model_validator,
 )
 
+from backend.logging_utils import payload_for_log
+
 logger = logging.getLogger(__name__)
 
 ChatbotType = Literal["basic", "consultant"]
-Platform = Literal["instagram", "banner"]
+Platform = Literal["instagram", "banner", "xbanner"]
 GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
 
 
@@ -82,6 +85,23 @@ class RegisterRequest(StrictModel):
         return value
 
 
+class StoreProfileUpdate(StrictModel):
+    """로그인 사용자가 수정할 수 있는 가게 프로필 필드입니다."""
+
+    business_name: str = Field(min_length=1, max_length=200)
+    business_type: str = Field(min_length=1, max_length=100)
+    address_detail: str | None = Field(default=None, max_length=500)
+
+    @field_validator("business_name", "business_type")
+    @classmethod
+    def reject_blank_required_fields(cls, value: str) -> str:
+        """공백만 있는 가게명·업종이 저장되지 않도록 정규화합니다."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("가게명과 업종은 공백일 수 없습니다.")
+        return stripped
+
+
 class LoginRequest(StrictModel):
     """서비스 로그인 요청."""
 
@@ -111,6 +131,7 @@ class UserResponse(StrictModel):
 
     id: int
     username: str
+    is_admin: bool
     name: str | None
     email: EmailStr | None
     business_name: str | None
@@ -329,8 +350,6 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
-
-
 class ConsultantSourceContext(StrictModel):
     """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
 
@@ -371,8 +390,21 @@ class ErrorResult(InboundModel):
     message: str = Field(min_length=1)
 
 
+class HistoryErrorResult(StrictModel):
+    """생성 이력에 표시할 안전한 실패 결과입니다.
+
+    저장된 ErrorResult의 원문 message는 외부 제공자 오류가 섞일 수 있으므로
+    이 공개 계약에는 서비스가 정한 사용자 안내 문구만 포함합니다.
+    """
+
+    status: Literal["error"]
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
+    message: str = Field(min_length=1)
+
+
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
 PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
+HistoryGenerationResult = PublicGenerationResult | HistoryErrorResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -398,15 +430,25 @@ class ModelResultAdapter:
             if isinstance(value, BaseModel)
             else value
         )
-        status = _ModelResultEnvelope.model_validate(payload).status
-
-        if status == "blocked":
-            return BlockedResult.model_validate(payload)
-        if status == "error":
-            return ErrorResult.model_validate(payload)
-        if chatbot_type == "basic":
-            return BasicModelResult.model_validate(payload)
-        return ConsultantModelResult.model_validate(payload)
+        status = None
+        try:
+            status = _ModelResultEnvelope.model_validate(payload).status
+            if status == "blocked":
+                return BlockedResult.model_validate(payload)
+            if status == "error":
+                return ErrorResult.model_validate(payload)
+            if chatbot_type == "basic":
+                return BasicModelResult.model_validate(payload)
+            return ConsultantModelResult.model_validate(payload)
+        except ValidationError as error:
+            logger.warning(
+                "모델 응답 검증 실패 — chatbot_type=%s status=%s errors=%s payload=%s",
+                chatbot_type,
+                status,
+                [(item["loc"], item["type"]) for item in error.errors()],
+                payload_for_log(payload),
+            )
+            raise
 
 
 MODEL_RESULT_ADAPTER = ModelResultAdapter()
@@ -482,8 +524,9 @@ class GenerationDetailResponse(GenerationListItem):
     """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
 
     source_gen_id: int | None = Field(default=None, gt=0)
-    result: PublicGenerationResult | None = None
+    result: HistoryGenerationResult | None = None
     copy_content: str | None = None
     image_b64: str | None = None
     selected_proposal_index: Literal[0, 1, 2] | None = None
     hitl_approved: bool
+

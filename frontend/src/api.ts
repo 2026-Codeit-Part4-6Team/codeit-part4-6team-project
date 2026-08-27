@@ -14,6 +14,7 @@ export class ApiError extends Error {
 export type UserResponse = {
   id: number;
   username: string;
+  is_admin: boolean;
   name: string | null;
   email: string | null;
   business_name: string | null;
@@ -55,6 +56,12 @@ export type PaymentResponse = {
   provider: "pending";
 };
 
+export type StoreProfileUpdate = {
+  business_name: string;
+  business_type: string;
+  address_detail: string | null;
+};
+
 export type GenerationResponse = {
   generation_id: number;
   status: string;
@@ -93,7 +100,7 @@ export type GenerationListItem = {
   chatbot_type: "basic" | "consultant";
   title: string | null;
   question: string;
-  platform: "instagram" | "banner" | null;
+  platform: "instagram" | "banner" | "xbanner" | null;
   plan: "free" | "paid";
   credits_used: number;
   tokens_used: number;
@@ -175,6 +182,13 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify({ package: packageId }),
       headers: { "Idempotency-Key": idempotencyKey },
+    });
+  }
+
+  updateStoreProfile(payload: StoreProfileUpdate): Promise<UserResponse> {
+    return this.request("/users/me/store", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     });
   }
 

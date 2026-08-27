@@ -36,6 +36,9 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    model_thread_pool_workers: int
+    stale_recovery_seconds: int
+    chatbot_mode: str
     max_approved_image_bytes: int
     session_secret_key: str
     session_max_age_seconds: int
@@ -69,14 +72,20 @@ def load_settings() -> Settings:
             raise ValueError("운영 환경에서는 SESSION_COOKIE_SECURE=true가 필요합니다.")
     else:
         secret_key = secret_key or "local-development-secret"
+    chatbot_mode = os.getenv("CHATBOT_MODE", "mock").strip().lower()
+    if chatbot_mode not in {"mock", "actual"}:
+        raise ValueError("CHATBOT_MODE는 mock 또는 actual이어야 합니다.")
     return Settings(
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         daily_free_limit=_read_int("DAILY_FREE_LIMIT", 10),
         basic_credit_cost=_read_int("BASIC_CREDIT_COST", 50),
         consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 10),
         model_request_timeout_seconds=_read_int(
-            "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
+            "MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60
         ),
+        model_thread_pool_workers=_read_int("MODEL_THREAD_POOL_WORKERS", 2, minimum=1),
+        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 120, minimum=1),
+        chatbot_mode=chatbot_mode,
         max_approved_image_bytes=_read_int(
             "MAX_APPROVED_IMAGE_BYTES", 5_242_880, minimum=1
         ),

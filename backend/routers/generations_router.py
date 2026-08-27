@@ -1,4 +1,3 @@
-import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -77,14 +76,12 @@ def publish(
 ) -> PublishResponse:
     """소유한 Basic 생성 결과의 한 제안을 게시 승인합니다."""
     try:
-        return asyncio.run(
-            publish_generation(
-                db,
-                user,
-                generation_id,
-                body,
-                max_image_bytes=settings.max_approved_image_bytes,
-            )
+        return publish_generation(
+            db,
+            user,
+            generation_id,
+            body,
+            max_image_bytes=settings.max_approved_image_bytes,
         )
     except PublishNotFound as error:
         raise HTTPException(

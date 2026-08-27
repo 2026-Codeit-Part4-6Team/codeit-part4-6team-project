@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
+import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import { createPendingGeneration } from "../../state";
 import {
   createGenerationRunner,
   isBillingConfirmationRequired,
   shouldShowFollowUpComposer,
   refreshGenerationEstimate,
+  GenerationLab,
+  FollowUpComposer,
+  syncUserAfterGeneration,
 } from "./GenerationLab";
 
 const pending = createPendingGeneration(
@@ -28,6 +32,43 @@ afterEach(() => {
 });
 
 describe("GenerationLab orchestration", () => {
+  it("uses the wide canvas and primary composer structure for chatbot screens", () => {
+    const html = renderToStaticMarkup(
+      <GenerationLab
+        api={{} as ApiClient}
+        chatbotType="basic"
+      />,
+    );
+
+    expect(html).toContain('class="generation-page generation-page--wide"');
+    expect(html).toContain('class="card generation-card chat-generation-card chat-generation-card--primary"');
+  });
+
+  it("uses the full generation canvas for the follow-up composer", () => {
+    const html = renderToStaticMarkup(
+      <FollowUpComposer messages={[]} onSubmit={vi.fn()} />,
+    );
+
+    expect(html).toContain('class="card follow-up-card follow-up-card--wide"');
+  });
+
+  it("refreshes the authenticated user after generation without masking success", async () => {
+    const user = { id: 1, daily_free_remaining: 9 } as UserResponse;
+    const api = { me: vi.fn().mockResolvedValue(user) } as unknown as ApiClient;
+    const onUserChanged = vi.fn();
+
+    await syncUserAfterGeneration(api, onUserChanged);
+
+    expect(api.me).toHaveBeenCalledTimes(1);
+    expect(onUserChanged).toHaveBeenCalledWith(user);
+  });
+
+  it("ignores a user refresh failure after generation succeeds", async () => {
+    const api = { me: vi.fn().mockRejectedValue(new Error("refresh failed")) } as unknown as ApiClient;
+
+    await expect(syncUserAfterGeneration(api, vi.fn())).resolves.toBeUndefined();
+  });
+
   it("deduplicates double confirmation with one Generate promise and key", async () => {
     const api = {
       generate: vi.fn().mockResolvedValue(response),
@@ -85,6 +126,49 @@ describe("GenerationLab orchestration", () => {
     await vi.advanceTimersByTimeAsync(3_000);
 
     expect(api.waitingCopy).toHaveBeenCalledTimes(callsAfterSettle);
+    runner.dispose();
+  });
+
+  it("keeps waiting-copy refreshes at a calm default cadence", async () => {
+    vi.useFakeTimers();
+    let resolveGenerate!: (value: GenerationResponse) => void;
+    const generatePromise = new Promise<GenerationResponse>((resolve) => {
+      resolveGenerate = resolve;
+    });
+    const api = {
+      generate: vi.fn().mockReturnValue(generatePromise),
+      waitingCopy: vi.fn().mockResolvedValue({
+        id: 3,
+        copy_text: "준비 중",
+        industry: "카페",
+      }),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    const task = runner.run(pending);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(2);
+
+    resolveGenerate(response);
+    await task;
+
+    runner.dispose();
+  });
+
+  it("does not fail generation when waiting-copy refresh is unavailable", async () => {
+    const api = {
+      generate: vi.fn().mockResolvedValue(response),
+      waitingCopy: vi.fn().mockRejectedValue(new Error("waiting copies unavailable")),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    await expect(runner.run(pending)).resolves.toEqual(response);
+    expect(api.generate).toHaveBeenCalledTimes(1);
     runner.dispose();
   });
 
