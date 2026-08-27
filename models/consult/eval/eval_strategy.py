@@ -303,6 +303,22 @@ def _evaluate_item(item: dict) -> dict:
     context_snapshot = final_state.get("context") or {}
     trend_path = check_trend_path(item, final_state) if final_state else None
 
+    # actions 0개 재생성·초과분 절단이 있었는지(D-139 후속, PM 승인).
+    # strategy() 노드가 실행되지 않으면(그래프 실행 자체가 예외로 죽음 — 예:
+    # 재시도 소진, 또는 그 이전 노드에서 차단돼 strategy까지 안 감) 이 키
+    # 자체가 state에 없다 — False(미발생)로 단정하면 "재시도했지만 실패"·
+    # "애초에 해당 없음"과 "재시도 안 함"을 구분 못 하므로 None(측정 불가)으로
+    # 남긴다. final_state 자체의 참/거짓이 아니라 이 키의 존재 여부로
+    # 판단해야, strategy()는 실행됐지만 final_state가 비어 있지는 않은
+    # 케이스(예: 차단으로 조기 종료)도 놓치지 않는다(자체 재점검).
+    # _build_report()가 None인 문항은 비율 분모에서 제외한다(Codex 리뷰).
+    if "actions_retried" in final_state:
+        actions_retried = bool(final_state.get("actions_retried"))
+        actions_truncated = bool(final_state.get("actions_truncated"))
+    else:
+        actions_retried = None
+        actions_truncated = None
+
     status_ok = response.get("status") == "ok"
     if not status_ok:
         return {
@@ -314,6 +330,8 @@ def _evaluate_item(item: dict) -> dict:
             "context_snapshot": context_snapshot,
             "trend_path": trend_path,
             "judge_error": None,
+            "actions_retried": actions_retried,
+            "actions_truncated": actions_truncated,
             "_status_ok": False,
             "_contract_ok": False,
             "_judge_ok": None,
@@ -343,6 +361,8 @@ def _evaluate_item(item: dict) -> dict:
         "context_snapshot": context_snapshot,
         "trend_path": trend_path,
         "judge_error": judge_error,
+        "actions_retried": actions_retried,
+        "actions_truncated": actions_truncated,
         "_status_ok": True,
         "_contract_ok": contract_ok,
         "_judge_ok": judge_ok,
@@ -392,6 +412,9 @@ def _build_report(
     scores = [score for result in results for score in result["scores"].values()]
     latencies = [result["_latency_s"] for result in results]
     judge_checks = [result["_judge_ok"] for result in results if result["_judge_ok"] is not None]
+    # 그래프 실행 자체가 예외로 죽은 문항은 actions_retried/truncated가 None이라
+    # "측정 불가"다 — 비율 분모에서 제외한다(§10.4 완료 상태만 대상, Codex 리뷰).
+    actions_observed = [result for result in results if result["actions_retried"] is not None]
 
     def rate(count: int) -> float:
         return count / item_count if item_count else 0.0
@@ -405,6 +428,8 @@ def _build_report(
         "judge_error",
         "response",
         "context_snapshot",
+        "actions_retried",
+        "actions_truncated",
     )
     header = build_report_header(
         area=area,
@@ -422,6 +447,25 @@ def _build_report(
                 sum(bool(result["unexpected_numbers"]) for result in results)
             ),
             "contract_compliance": rate(sum(result["_contract_ok"] for result in results)),
+            # contract_compliance가 100%여도 진짜 고쳐진 건지 복구가 가려버린 건지
+            # 구분하기 위한 지표(D-139 후속, PM 요청) — 둘 다 낮을수록 좋다.
+            # 관측 문항이 0개(전부 그래프 예외로 죽음)면 "복구 없음"(0.0)과
+            # "측정 불가"가 같은 값으로 섞이므로 None으로 남긴다 — 분모(관측
+            # 문항 수)도 함께 기록해 서로 다른 실행 간 비교 시 분모 차이를
+            # 알 수 있게 한다(Codex 리뷰).
+            "actions_observed_count": len(actions_observed),
+            "actions_retry_rate": (
+                sum(result["actions_retried"] for result in actions_observed)
+                / len(actions_observed)
+                if actions_observed
+                else None
+            ),
+            "actions_truncate_rate": (
+                sum(result["actions_truncated"] for result in actions_observed)
+                / len(actions_observed)
+                if actions_observed
+                else None
+            ),
             "trend_path_match_rate": trend_path_match_rate(results),
             "judge_failure_rate": (
                 sum(not judge_ok for judge_ok in judge_checks) / len(judge_checks)

@@ -51,6 +51,10 @@ RETRY_REASONS_HINT = (
     "말고 가게 정보나 질문 내용에 실제로 있는 사실만 근거로 쓰세요."
 )
 
+RETRY_ACTIONS_HINT = (
+    "이전 응답에는 actions가 하나도 없었습니다. 이번에는 실행 가능한 항목을 1개 이상 포함하세요."
+)
+
 
 def build_user_prompt(question: str, store: StoreInfo, market: dict | None, trend: dict | None = None) -> str:
     """가게 정보·상권 데이터·트렌드 데이터·질문을 조립해 사용자 프롬프트를 구성한다.
