@@ -155,12 +155,16 @@ def test_instagram_platform_uses_square_size_and_style(mock_generate_image):
     assert "제품/메뉴 1개를 화면 중앙" in prompt
 
 
+@patch("models.basic.nodes.image_gen._extract_business_details", return_value=None)
 @patch("models.basic.nodes.image_gen.generate_image")
-def test_xbanner_platform_generates_top_and_bottom_then_stacks(mock_generate_image):
+def test_xbanner_platform_generates_top_and_bottom_then_stacks(
+    mock_generate_image, mock_business_details
+):
     mock_generate_image.return_value = _fake_png_b64()
     state = {
         "store": _STORE,
         "platform": "xbanner",
+        "question": "여름 신메뉴 홍보 문구 만들어줘",
         "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
     }
 
@@ -178,12 +182,16 @@ def test_xbanner_platform_generates_top_and_bottom_then_stacks(mock_generate_ima
     assert result["ranked_copies"][0]["image_b64"] is not None
 
 
+@patch("models.basic.nodes.image_gen._extract_business_details", return_value=None)
 @patch("models.basic.nodes.image_gen.generate_image")
-def test_xbanner_generation_failure_records_error_without_crashing(mock_generate_image):
+def test_xbanner_generation_failure_records_error_without_crashing(
+    mock_generate_image, mock_business_details
+):
     mock_generate_image.side_effect = _rate_limit_error()
     state = {
         "store": _STORE,
         "platform": "xbanner",
+        "question": "여름 신메뉴 홍보 문구 만들어줘",
         "ranked_copies": [{"copy": "여름 신메뉴", "score": 4.5}],
     }
 
