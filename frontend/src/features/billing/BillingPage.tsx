@@ -6,6 +6,7 @@ import {
   type DemoPaymentPackage,
   type DemoPaymentResponse,
 } from "../../api";
+import { createIdempotencyKey } from "../../requestId";
 
 const closedCatalog: DemoPaymentCatalogResponse = {
   demo_enabled: false,
@@ -56,7 +57,7 @@ export function BillingPage({
     setBusyPackage(packageId);
     setError(null);
     try {
-      const response = await api.purchaseDemoPackage(packageId, crypto.randomUUID());
+      const response = await api.purchaseDemoPackage(packageId, createIdempotencyKey());
       setCompleted(response);
       onCreditsChanged(response.balance);
     } catch {

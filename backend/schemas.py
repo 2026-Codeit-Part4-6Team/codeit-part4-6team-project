@@ -85,6 +85,23 @@ class RegisterRequest(StrictModel):
         return value
 
 
+class StoreProfileUpdate(StrictModel):
+    """로그인 사용자가 수정할 수 있는 가게 프로필 필드입니다."""
+
+    business_name: str = Field(min_length=1, max_length=200)
+    business_type: str = Field(min_length=1, max_length=100)
+    address_detail: str | None = Field(default=None, max_length=500)
+
+    @field_validator("business_name", "business_type")
+    @classmethod
+    def reject_blank_required_fields(cls, value: str) -> str:
+        """공백만 있는 가게명·업종이 저장되지 않도록 정규화합니다."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("가게명과 업종은 공백일 수 없습니다.")
+        return stripped
+
+
 class LoginRequest(StrictModel):
     """서비스 로그인 요청."""
 
@@ -114,6 +131,7 @@ class UserResponse(StrictModel):
 
     id: int
     username: str
+    is_admin: bool
     name: str | None
     email: EmailStr | None
     business_name: str | None

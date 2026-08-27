@@ -7,6 +7,7 @@ import { ProtectedRouteView } from "./AppRoutes";
 const user: UserResponse = {
   id: 7,
   username: "owner",
+  is_admin: false,
   name: null,
   email: null,
   business_name: "카페 코드잇",
@@ -22,7 +23,7 @@ const user: UserResponse = {
   daily_free_remaining: 7,
 };
 
-function renderRoute(route: "dashboard" | "basic_chatbot" | "consultant_chatbot" | "mypage" | "billing" | "settings") {
+function renderRoute(route: "dashboard" | "basic_chatbot" | "consultant_chatbot" | "mypage" | "billing" | "settings" | "store_settings") {
   return renderToStaticMarkup(
     <ProtectedRouteView
       api={new ApiClient()}
@@ -62,9 +63,10 @@ describe("D5 protected routes", () => {
     expect(html).not.toContain("광고 형식");
   });
 
-  it("renders the connected account and settings surfaces", () => {
+  it("renders the connected account, store edit, and settings surfaces", () => {
     expect(renderRoute("mypage")).toContain("최근 생성 기록");
     expect(renderRoute("mypage")).toContain("활동 기록을 불러오는 중");
+    expect(renderRoute("store_settings")).toContain("가게 정보 수정");
     expect(renderRoute("settings")).toContain("사용할 AI 모델");
     expect(renderRoute("settings")).toContain("기본 제공 모델");
     expect(renderRoute("settings")).toContain("고급 제공 모델");

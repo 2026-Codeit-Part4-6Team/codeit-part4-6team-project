@@ -6,7 +6,8 @@ export type AppRoute =
   | "consultant_chatbot"
   | "mypage"
   | "billing"
-  | "settings";
+  | "settings"
+  | "store_settings";
 
 export type AppViewState = {
   user: UserResponse | null;

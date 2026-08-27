@@ -14,6 +14,7 @@ export class ApiError extends Error {
 export type UserResponse = {
   id: number;
   username: string;
+  is_admin: boolean;
   name: string | null;
   email: string | null;
   business_name: string | null;
@@ -27,6 +28,12 @@ export type UserResponse = {
   daily_free_used: number;
   daily_free_reset_at: string | null;
   daily_free_remaining: number;
+};
+
+export type StoreProfileUpdate = {
+  business_name: string;
+  business_type: string;
+  address_detail: string | null;
 };
 
 export type GenerationResponse = {
@@ -156,6 +163,13 @@ export class ApiClient {
 
   me(): Promise<UserResponse> {
     return this.request("/users/me", { method: "GET" });
+  }
+
+  updateStoreProfile(payload: StoreProfileUpdate): Promise<UserResponse> {
+    return this.request("/users/me/store", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
   }
 
   userSummary(): Promise<UserSummaryResponse> {

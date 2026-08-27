@@ -96,7 +96,6 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
           <div className="auth-login-stage">
             <figure className="auth-mascot auth-mascot--copyni">
               <img src="/assets/mascots/copyni.png" alt="광고 제작 파트너 카피니" />
-              <figcaption>카피니</figcaption>
             </figure>
             <section className="auth-card" aria-labelledby="login-title">
               <h1 id="login-title" className="sr-only">로그인</h1>
@@ -133,7 +132,6 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
             </section>
             <figure className="auth-mascot auth-mascot--bunseoki">
               <img src="/assets/mascots/bunseoki.png" alt="상권 분석 파트너 분석이" />
-              <figcaption>분석이</figcaption>
             </figure>
           </div>
           <p className="auth-switch-copy">
