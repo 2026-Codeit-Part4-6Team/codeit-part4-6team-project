@@ -18,7 +18,7 @@ from backend.logging_utils import payload_for_log
 logger = logging.getLogger(__name__)
 
 ChatbotType = Literal["basic", "consultant"]
-Platform = Literal["instagram", "xbanner"]
+Platform = Literal["instagram", "banner", "xbanner"]
 GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
 
 
