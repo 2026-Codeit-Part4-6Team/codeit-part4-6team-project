@@ -1,7 +1,7 @@
 import asyncio
 import importlib
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from backend.schemas import MODEL_RESULT_ADAPTER, ModelRequest, ModelResult
@@ -49,8 +49,9 @@ class ActualChatbotClient:
         basic_callable: SyncModelCallable,
         consultant_callable: SyncModelCallable,
         timeout_seconds: int,
+        *,
         max_workers: int = 2,
-        executor: ThreadPoolExecutor | None = None,
+        executor: Executor | None = None,
     ) -> None:
         self._basic = basic_callable
         self._consultant = consultant_callable
@@ -59,10 +60,13 @@ class ActualChatbotClient:
             max_workers=max_workers,
             thread_name_prefix="model-worker",
         )
+        self._owns_executor = executor is None
 
     def close(self) -> None:
-        """모델 전용 worker를 종료합니다(앱 shutdown 시 호출)."""
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        """모델 전용 워커를 종료합니다."""
+        if self._owns_executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._owns_executor = False
 
     async def generate(self, request: ModelRequest) -> ModelResult:
         payload = request.model_dump(mode="python", by_alias=True)
@@ -88,7 +92,7 @@ def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
     module = importlib.import_module(module_name)
     run = getattr(module, "run", None)
     if not callable(run):
-        raise RuntimeError(  # noqa: TRY004 - 런타임 모듈 계약 위반을 공통 오류로 노출합니다.
+        raise RuntimeError(  # noqa: TRY004 - missing runtime entrypoint must fail startup
             f"{module_name}.run callable을 찾을 수 없습니다."
         )
     return run

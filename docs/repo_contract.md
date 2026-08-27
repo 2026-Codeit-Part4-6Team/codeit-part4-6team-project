@@ -26,6 +26,10 @@ def get_market(
 | `nearest_distance_m` | int \| None | 최근접 동일업종(= `industry`) 매장까지의 거리(m). `industry` 없거나 동일 업종이 0개면 None |
 | `industry_breakdown` | dict[str, int] | 업종명 → 매장 수 (예: `{"카페": 12, "편의점": 5}`). 이 형식이 최종 계약이며, 외부 API 응답 형식이 다르면 `market_repo` 내부에서 이 형식으로 변환해 반환한다 |
 
+> ⚠️ **골든 문항에 이 예시 수치(12곳·43곳·55m)를 그대로 복사하지 않는다(D-231, D-218).**
+> 이 값이 프롬프트 few-shot 예시와 겹쳐서, 골든 문항의 `market_fixture`에 그대로 쓰면
+> LLM이 실제 데이터를 안 읽고 예시를 베껴도 환각 검증을 통과하게 된다.
+
 **예시 응답 — `industry` 지정 시** (`get_market(37.4980, 127.0276, industry="카페")`)
 
 ```json

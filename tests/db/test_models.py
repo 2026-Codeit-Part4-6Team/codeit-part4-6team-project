@@ -95,6 +95,27 @@ def test_generation_has_idempotency_and_result_fields(db_session):
     assert generation.selected_proposal_index is None
 
 
+@pytest.mark.parametrize("platform", ["banner", "xbanner"])
+def test_generation_platform_persists_transition_values(db_session, platform):
+    """전환기 생성 이력은 기존 banner와 신규 xbanner를 모두 저장합니다."""
+    user = make_user()
+    db_session.add(user)
+    db_session.flush()
+    generation = Generation(
+        user_id=user.id,
+        chatbot_type="basic",
+        idempotency_key="00000000-0000-0000-0000-000000000002",
+        request_hash="b" * 64,
+        question="X-배너 광고를 만들어줘",
+        platform=platform,
+        plan="free",
+    )
+    db_session.add(generation)
+    db_session.commit()
+
+    assert generation.platform == platform
+
+
 def test_user_idempotency_key_pair_is_unique(db_session):
     """같은 사용자의 Idempotency-Key는 한 번만 저장됩니다."""
     user = make_user()
@@ -106,7 +127,7 @@ def test_user_idempotency_key_pair_is_unique(db_session):
         "idempotency_key": "00000000-0000-0000-0000-000000000001",
         "request_hash": "a" * 64,
         "question": "광고를 만들어줘",
-        "platform": "banner",
+        "platform": "xbanner",
         "plan": "free",
     }
     db_session.add_all([Generation(**common), Generation(**common)])
@@ -129,6 +150,16 @@ def test_payment_and_waiting_copy_defaults(db_session):
     assert payment.method == "mock"
     assert payment.status == "pending"
     assert waiting_copy.created_at is not None
+
+
+def test_payment_temporary_enums_are_not_db_checks():
+    """D-067에 따라 Gate 전 package/status enum을 DB CHECK로 고정하지 않습니다."""
+    names = {constraint.name for constraint in Payment.__table__.constraints}
+
+    assert "ck_payments_package" not in names
+    assert "ck_payments_status" not in names
+    assert "ck_payments_amount" in names
+    assert "ck_payments_credits" in names
 
 
 def test_runtime_policy_defaults():

@@ -3,7 +3,13 @@
 # 프롬프트 내부 힌트로만 사용).
 import re
 
-from models.consult.prompts.strategy import RETRY_REASONS_HINT, SYSTEM_PROMPT, build_user_prompt
+from models.consult.prompts.strategy import (
+    FEWSHOT_NUMBERS,
+    FEWSHOT_TERMS,
+    RETRY_REASONS_HINT,
+    SYSTEM_PROMPT,
+    build_user_prompt,
+)
 
 _TIER_LABELS = ("높음", "보통", "낮음", "경쟁 없음", "판단 불가")
 
@@ -79,3 +85,27 @@ def test_system_prompt_examples_include_title() -> None:
     example_section = SYSTEM_PROMPT.split("예시:")[1]
 
     assert example_section.count('"title"') == 3
+
+
+def test_fewshot_constants_match_actual_example_content() -> None:
+    """FEWSHOT_NUMBERS/TERMS는 골든 문항 오염 검사(D-218)가 참조하는 상수다 — 실제
+    SYSTEM_PROMPT 예시 구간에 등장하는 값과 어긋나면 검사 자체가 무의미해진다."""
+    example_section = SYSTEM_PROMPT.split("예시:")[1]
+
+    assert FEWSHOT_NUMBERS == [12, 20]
+    for number in FEWSHOT_NUMBERS:
+        assert str(number) in example_section
+
+    assert FEWSHOT_TERMS == ["브런치 세트", "주말브런치", "브런치카페"]
+    for term in FEWSHOT_TERMS:
+        assert term in example_section
+
+
+def test_system_prompt_requires_explicit_zero_for_no_competitors() -> None:
+    """동일 업종 매장 수가 0곳이면 reasons에도 "없다"가 아니라 반드시 "0곳"이라고
+    숫자로 쓰라는 지시가 있어야 한다 — D8 60문항 실측에서 F1(경쟁 없음) fixture
+    4건(C-009·C-032·C-049·C-050)이 전부 이 이유로 must_contain_number를
+    못 채웠다."""
+    normalized = " ".join(SYSTEM_PROMPT.split())
+    assert '0곳이면 "경쟁이 없다"·"동일 업종이 없다"처럼 숫자 없이 쓰지 말고' in normalized
+    assert 'reasons에도 반드시 "0곳"이라고 숫자로 명시한다' in normalized

@@ -7,7 +7,10 @@ from transformers import CLIPModel, CLIPProcessor
 
 from ..graph.state import REASON_UNKNOWN, BasicState
 
-MIN_CLIP_SCORE = 0.25  # 참고용 임계값 — MVP에서는 미적용
+# 참고용 임계값 — MVP에서는 미적용
+# 실측 근거(영문 캡션 5쌍): 정답 평균 0.3468 통과 / 오답 평균 0.2185 차단.
+# 여유 각각 +0.0968 / -0.0315. 표본이 작아 지금은 적용하지 않고 근거로만 남긴다.
+MIN_CLIP_SCORE = 0.25
 
 _clip_model = None
 _clip_processor = None

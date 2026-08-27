@@ -18,7 +18,7 @@ from backend.logging_utils import payload_for_log
 logger = logging.getLogger(__name__)
 
 ChatbotType = Literal["basic", "consultant"]
-Platform = Literal["instagram", "banner"]
+Platform = Literal["instagram", "banner", "xbanner"]
 GenerationStatus = Literal["pending", "generating", "done", "failed", "published"]
 
 
@@ -340,8 +340,21 @@ class ErrorResult(InboundModel):
     message: str = Field(min_length=1)
 
 
+class HistoryErrorResult(StrictModel):
+    """생성 이력에 표시할 안전한 실패 결과입니다.
+
+    저장된 ErrorResult의 원문 message는 외부 제공자 오류가 섞일 수 있으므로
+    이 공개 계약에는 서비스가 정한 사용자 안내 문구만 포함합니다.
+    """
+
+    status: Literal["error"]
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
+    message: str = Field(min_length=1)
+
+
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
 PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
+HistoryGenerationResult = PublicGenerationResult | HistoryErrorResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -399,3 +412,103 @@ class GenerationResponse(StrictModel):
     chatbot_type: ChatbotType
     result: PublicGenerationResult | None = None
     usage: GenerationUsage
+
+
+class PublishRequest(StrictModel):
+    """Basic 생성 결과 중 게시 승인할 제안과 선택 이미지를 받습니다."""
+
+    proposal_index: Literal[0, 1, 2]
+    image_b64: str | None = None
+
+
+class PublishResponse(StrictModel):
+    """원자적으로 반영된 게시 승인 결과입니다."""
+
+    generation_id: int = Field(gt=0)
+    status: Literal["published"]
+    hitl_approved: Literal[True]
+    proposal_index: Literal[0, 1, 2]
+
+
+class WaitingCopyResponse(StrictModel):
+    """생성 대기 화면에 표시할 서버 관리 문구입니다."""
+
+    id: int = Field(gt=0)
+    copy_text: str = Field(min_length=1)
+    industry: str | None = None
+
+
+class UserSummaryResponse(StrictModel):
+    """서버가 계산한 현재 사용자 계정 요약입니다."""
+
+    credits: int = Field(ge=0)
+    daily_free_remaining: int = Field(ge=0)
+    total_generations: int = Field(ge=0)
+    published_generations: int = Field(ge=0)
+
+
+class GenerationListItem(StrictModel):
+    """마이페이지에 노출할 생성 이력 최소 항목입니다."""
+
+    id: int = Field(gt=0)
+    chatbot_type: ChatbotType
+    title: str | None
+    question: str = Field(min_length=1)
+    platform: Platform | None
+    plan: Literal["free", "paid"]
+    credits_used: int = Field(ge=0)
+    tokens_used: int = Field(ge=0)
+    status: GenerationStatus
+    created_at: datetime
+
+    @field_validator("created_at")
+    @classmethod
+    def normalize_created_at_to_utc(cls, value: datetime) -> datetime:
+        """SQLite가 잃은 UTC offset을 API 경계에서 복원합니다."""
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+
+class GenerationDetailResponse(GenerationListItem):
+    """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
+
+    source_gen_id: int | None = Field(default=None, gt=0)
+    result: HistoryGenerationResult | None = None
+    copy_content: str | None = None
+    image_b64: str | None = None
+    selected_proposal_index: Literal[0, 1, 2] | None = None
+    hitl_approved: bool
+
+
+class DemoPaymentPackage(StrictModel):
+    """시연 환경에서만 노출하는 임시 Credit 패키지입니다."""
+
+    id: Literal["starter", "standard", "pro"]
+    amount: int = Field(gt=0)
+    credits: int = Field(gt=0)
+
+
+class DemoPaymentCatalogResponse(StrictModel):
+    """데모 결제 활성화 여부와 서버 소유 카탈로그입니다."""
+
+    demo_enabled: bool
+    packages: list[DemoPaymentPackage]
+
+
+class DemoPaymentRequest(StrictModel):
+    """시연용으로 선택한 패키지 식별자입니다."""
+
+    package: Literal["starter", "standard", "pro"]
+
+
+class DemoPaymentResponse(StrictModel):
+    """원자적으로 완료된 시연용 Credit 충전 결과입니다."""
+
+    payment_id: int = Field(gt=0)
+    package: Literal["starter", "standard", "pro"]
+    amount: int = Field(gt=0)
+    credits: int = Field(gt=0)
+    balance: int = Field(ge=0)
+    status: Literal["completed"]
+    demo: Literal[True]

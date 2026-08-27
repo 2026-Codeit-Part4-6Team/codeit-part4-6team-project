@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { apiErrorMessage, createFollowUpMessage, createPendingGeneration, generationPayload, mockFollowUpReply } from "./state";
+import {
+  apiErrorMessage,
+  createFollowUpMessage,
+  createPendingGeneration,
+  generationPayload,
+  mockFollowUpReply,
+  nextGenerationAction,
+} from "./state";
 
 describe("generation state", () => {
   it("reuses its key and accepts estimated paid credits", () => {
@@ -17,6 +24,30 @@ describe("generation state", () => {
       platform: "instagram",
       max_accepted_credits: 50,
     });
+  });
+
+  it("starts free generation immediately and pauses paid generation for consent", () => {
+    const payload = {
+      chatbot_type: "basic" as const,
+      question: "광고",
+      platform: "instagram" as const,
+    };
+
+    const free = nextGenerationAction(
+      { requires_confirmation: false, estimated_credits: 50 },
+      payload,
+      "key-free",
+    );
+    const paid = nextGenerationAction(
+      { requires_confirmation: true, estimated_credits: 50 },
+      payload,
+      "key-paid",
+    );
+
+    expect(free.kind).toBe("generate");
+    expect(generationPayload(free.pending).max_accepted_credits).toBe(0);
+    expect(paid.kind).toBe("confirm");
+    expect(generationPayload(paid.pending).max_accepted_credits).toBe(50);
   });
 
   it("distinguishes auth, credit, validation, and server errors", () => {

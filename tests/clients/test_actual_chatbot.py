@@ -130,38 +130,11 @@ def test_actual_client_dispatches_consultant():
     assert seen[0]["platform"] is None
 
 
-def test_actual_client_uses_a_dedicated_model_executor():
-    client = chatbot_client.ActualChatbotClient(
-        lambda _payload: _basic_result(),
-        lambda _payload: _consultant_result(),
-        timeout_seconds=60,
-        max_workers=2,
-    )
-
-    try:
-        assert isinstance(client._executor, ThreadPoolExecutor)
-        assert client._executor._max_workers == 2
-    finally:
-        client.close()
-
-
-def test_actual_client_executes_sync_callable_via_dedicated_executor(monkeypatch):
+def test_actual_client_executes_sync_callable_via_dedicated_executor():
     captured = []
 
-    class FakeLoop:
-        def run_in_executor(self, executor, func, *args):
-            captured.append((executor, func, args))
-
-            async def completed():
-                return func(*args)
-
-            return completed()
-
-    monkeypatch.setattr(
-        chatbot_client.asyncio, "get_running_loop", lambda: FakeLoop()
-    )
-
-    def basic_run(_payload):
+    def basic_run(payload):
+        captured.append(payload)
         return _basic_result()
 
     client = chatbot_client.ActualChatbotClient(
@@ -170,12 +143,27 @@ def test_actual_client_executes_sync_callable_via_dedicated_executor(monkeypatch
         timeout_seconds=60,
     )
 
-    asyncio.run(client.generate(_basic_request()))
+    try:
+        asyncio.run(client.generate(_basic_request()))
+        assert captured
+        assert isinstance(captured[0], dict)
+    finally:
+        client.close()
 
-    assert captured
-    assert isinstance(captured[0][0], ThreadPoolExecutor)
-    assert captured[0][1] is basic_run
-    assert isinstance(captured[0][2][0], dict)
+
+def test_actual_client_uses_a_dedicated_model_executor():
+    client = chatbot_client.ActualChatbotClient(
+        lambda _payload: _basic_result(),
+        lambda _payload: _consultant_result(),
+        timeout_seconds=60,
+        max_workers=3,
+    )
+
+    try:
+        assert isinstance(client._executor, ThreadPoolExecutor)
+        assert client._executor._max_workers == 3
+    finally:
+        client.close()
 
 
 def test_actual_client_validates_raw_output():

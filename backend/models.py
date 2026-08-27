@@ -67,17 +67,18 @@ class Payment(Base):
 
     __tablename__ = "payments"
     __table_args__ = (
-        CheckConstraint("package IN ('starter', 'standard', 'pro')", name="ck_payments_package"),
+        UniqueConstraint(
+            "user_id", "idempotency_key", name="uq_payment_user_key"
+        ),
         CheckConstraint("amount >= 0", name="ck_payments_amount"),
         CheckConstraint("credits >= 0", name="ck_payments_credits"),
-        CheckConstraint(
-            "status IN ('pending', 'completed', 'failed', 'refunded')",
-            name="ck_payments_status",
-        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(36), nullable=True
+    )
     package: Mapped[str] = mapped_column(String(20), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     credits: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -98,7 +99,7 @@ class Generation(Base):
             "chatbot_type IN ('basic', 'consultant')", name="ck_generations_chatbot_type"
         ),
         CheckConstraint(
-            "platform IS NULL OR platform IN ('instagram', 'banner')",
+            "platform IS NULL OR platform IN ('instagram', 'banner', 'xbanner')",
             name="ck_generations_platform",
         ),
         CheckConstraint("length(request_hash) = 64", name="ck_generations_request_hash"),

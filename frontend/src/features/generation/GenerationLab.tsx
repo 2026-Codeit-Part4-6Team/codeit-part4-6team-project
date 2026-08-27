@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
 import {
@@ -11,32 +11,98 @@ import {
 import {
   apiErrorMessage,
   createFollowUpMessage,
-  createPendingGeneration,
   generationPayload,
   mockFollowUpReply,
+  nextGenerationAction,
+  type GenerationAction,
   type FollowUpMessage,
   type PendingGeneration,
 } from "../../state";
-import { ResultCards } from "./ResultCards";
+import { CreditDialog } from "./CreditDialog";
+import { isSuccessfulGeneration, ResultView } from "./ResultView";
+import type { ProposalIndex } from "./ResultCards";
+import { WaitingScreen } from "./WaitingScreen";
 
 function messageFrom(error: unknown): string {
   if (error instanceof ApiError) return apiErrorMessage(error.statusCode, error.detail);
   return "Backend에 연결할 수 없습니다.";
 }
 
-function EstimateCard({ estimate, busy, onGenerate }: { estimate: EstimateResponse; busy: boolean; onGenerate: () => void }) {
+type GenerationRunner = {
+  run: (pending: PendingGeneration) => Promise<GenerationResponse>;
+  dispose: () => void;
+};
+
+export function createGenerationRunner(
+  api: Pick<ApiClient, "generate" | "waitingCopy">,
+  onWaitingCopy: (copyText: string) => void,
+  intervalMs = 4_000,
+): GenerationRunner {
+  let inFlight: Promise<GenerationResponse> | null = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  let active = false;
+
+  const stopWaiting = () => {
+    active = false;
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+
+  const refreshWaitingCopy = async () => {
+    try {
+      const copy = await api.waitingCopy();
+      if (active) onWaitingCopy(copy.copy_text);
+    } catch {
+      // 대기 문구 실패는 실제 Generate 결과를 실패시키지 않습니다.
+    }
+  };
+
+  return {
+    run(pending) {
+      if (inFlight !== null) return inFlight;
+
+      active = true;
+      void refreshWaitingCopy();
+      timer = setInterval(() => void refreshWaitingCopy(), intervalMs);
+      inFlight = api
+        .generate(generationPayload(pending), pending.idempotencyKey)
+        .finally(() => {
+          stopWaiting();
+          inFlight = null;
+        });
+      return inFlight;
+    },
+    dispose() {
+      stopWaiting();
+    },
+  };
+}
+
+export function isBillingConfirmationRequired(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.statusCode !== 409) return false;
   return (
-    <section className="card estimate-card">
-      <div>
-        <p className="kicker">ESTIMATE</p>
-        <h3>{estimate.requires_confirmation ? `${estimate.estimated_credits} Credit 사용` : "무료 생성 가능"}</h3>
-        <p>현재 {estimate.current_credits ?? 0} → 생성 후 {estimate.credits_after ?? 0} Credit</p>
-      </div>
-      <button type="button" className="primary" onClick={onGenerate} disabled={busy}>
-        {busy ? "생성 중…" : "이 조건으로 생성"}
-      </button>
-    </section>
+    typeof error.detail === "object" &&
+    error.detail !== null &&
+    "reason" in error.detail &&
+    error.detail.reason === "billing_confirmation_required"
   );
+}
+
+export async function refreshGenerationEstimate(
+  api: Pick<ApiClient, "estimate">,
+  pending: PendingGeneration,
+  keyFactory: () => string = () => crypto.randomUUID(),
+): Promise<GenerationAction> {
+  const estimate = await api.estimate(pending.estimatePayload);
+  return nextGenerationAction(estimate, pending.estimatePayload, keyFactory());
+}
+
+export function shouldShowFollowUpComposer(
+  response: GenerationResponse | null,
+): boolean {
+  return response !== null && isSuccessfulGeneration(response);
 }
 
 function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
@@ -59,6 +125,9 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
 }
 
 export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; chatbotType?: ChatbotType }) {
+  const mascot = chatbotType === "basic"
+    ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
+    : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [question, setQuestion] = useState("");
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
@@ -67,6 +136,15 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const [waitingCopy, setWaitingCopy] = useState("맞춤 결과를 준비하고 있어요.");
+  const [publishedProposalIndex, setPublishedProposalIndex] =
+    useState<ProposalIndex | null>(null);
+  const runner = useMemo(
+    () => createGenerationRunner(api, setWaitingCopy),
+    [api],
+  );
+  useEffect(() => () => runner.dispose(), [runner]);
   const quickPrompts = chatbotType === "basic"
     ? ["여름 신메뉴를 홍보하고 싶어", "20대 고객에게 친근한 광고를 만들어줘", "주말 이벤트 문구가 필요해"]
     : ["우리 가게 매출을 늘리려면?", "주변 경쟁 가게와 차별화하려면?", "이번 달 프로모션 아이디어가 필요해"];
@@ -76,32 +154,71 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function estimate(event: FormEvent) {
-    event.preventDefault();
+  async function requestEstimate() {
     if (busy) return;
     setBusy(true);
     setError(null);
     setPending(null);
+    setGeneration(null);
+    setPublishedProposalIndex(null);
     setMessages([]);
+    let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
       const payload = buildEstimatePayload(chatbotType, question, platform, extra);
       const response = await api.estimate(payload);
-      setPending(createPendingGeneration(payload, response, crypto.randomUUID()));
-      setGeneration(null);
+      const action = nextGenerationAction(response, payload, crypto.randomUUID());
+      setPending(action.pending);
+      if (action.kind === "generate") immediate = action.pending;
     } catch (caught) {
       setError(messageFrom(caught));
     } finally {
       setBusy(false);
     }
+    if (immediate !== null) await generate(immediate);
   }
 
-  async function generate() {
-    if (!pending || busy) return;
+  async function estimate(event: FormEvent) {
+    event.preventDefault();
+    await requestEstimate();
+  }
+
+  async function generate(candidate: PendingGeneration) {
+    setBusy(true);
+    setWaiting(true);
+    setError(null);
+    let immediateRetry: PendingGeneration | null = null;
+    try {
+      setGeneration(await runner.run(candidate));
+    } catch (caught) {
+      if (isBillingConfirmationRequired(caught)) {
+        try {
+          const action = await refreshGenerationEstimate(api, candidate);
+          setPending(action.pending);
+          if (action.kind === "generate") immediateRetry = action.pending;
+        } catch (estimateError) {
+          setError(messageFrom(estimateError));
+        }
+      } else {
+        setError(messageFrom(caught));
+      }
+    } finally {
+      setWaiting(false);
+      setBusy(false);
+    }
+    if (immediateRetry !== null) await generate(immediateRetry);
+  }
+
+  async function publish(index: ProposalIndex, imageB64: string | null) {
+    if (generation === null || busy) return;
     setBusy(true);
     setError(null);
     try {
-      setGeneration(await api.generate(generationPayload(pending), pending.idempotencyKey));
+      const published = await api.publishGeneration(generation.generation_id, {
+        proposal_index: index,
+        image_b64: imageB64,
+      });
+      setPublishedProposalIndex(published.proposal_index);
     } catch (caught) {
       setError(messageFrom(caught));
     } finally {
@@ -111,14 +228,18 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
 
   return (
     <section className="generation-page" aria-labelledby="generation-title">
-      <div className="generation-heading">
-        <p className="kicker">{chatbotType === "basic" ? "BASIC CHATBOT" : "CONSULTANT CHATBOT"}</p>
-        <h1 id="generation-title">{chatbotType === "basic" ? "게시물 생성" : "상권 컨설팅"}</h1>
-        <p>{chatbotType === "basic" ? "구조화된 정보를 입력한 뒤 결과를 대화로 계속 다듬을 수 있습니다." : "가게와 상권에 대한 질문을 입력하고 다음 액션을 제안받아보세요."}</p>
+      <div className="generation-heading generation-heading-with-mascot">
+        <div>
+          <p className="kicker">{chatbotType === "basic" ? "BASIC CHATBOT" : "CONSULTANT CHATBOT"}</p>
+          <h1 id="generation-title">{chatbotType === "basic" ? "게시물 생성" : "상권 컨설팅"}</h1>
+          <strong className="mascot-role">{mascot.name} · {mascot.role}</strong>
+          <p>{chatbotType === "basic" ? "구조화된 정보를 입력한 뒤 결과를 대화로 계속 다듬을 수 있습니다." : "가게와 상권에 대한 질문을 입력하고 다음 액션을 제안받아보세요."}</p>
+        </div>
+        <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
       <form className="card generation-card chat-generation-card" onSubmit={estimate}>
-        <div className="chat-context-header"><span className="chat-avatar">AI</span><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
+        <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <label>광고 형식
           <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
             <option value="instagram">Instagram</option>
@@ -149,9 +270,26 @@ export function GenerationLab({ api, chatbotType = "basic" }: { api: ApiClient; 
       </form>
 
       {error && <div className="error-banner wide" role="alert">{error}</div>}
-      {pending && <EstimateCard estimate={pending.estimate} busy={busy} onGenerate={generate} />}
-      {generation && <ResultCards response={generation} onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }} />}
-      {generation && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {pending && !generation && !waiting && pending.estimate.requires_confirmation && (
+        <CreditDialog
+          estimate={pending.estimate}
+          disabled={busy}
+          onConfirm={() => void generate(pending)}
+          onCancel={() => setPending(null)}
+        />
+      )}
+      {waiting && <WaitingScreen copyText={waitingCopy} />}
+      {generation && (
+        <ResultView
+          response={generation}
+          publishing={busy}
+          publishedProposalIndex={publishedProposalIndex}
+          onPublish={publish}
+          onRegenerate={() => void requestEstimate()}
+          onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+        />
+      )}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
     </section>
   );
 }

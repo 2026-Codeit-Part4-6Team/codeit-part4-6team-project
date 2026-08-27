@@ -1,5 +1,5 @@
-import json
 import inspect
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -197,6 +197,18 @@ def test_build_model_request_uses_server_store_and_source_context(tmp_path):
         assert model_request.source_context is not None
         assert model_request.source_context.generation_id == source.id
         assert model_request.source_context.strategy.summary == "점심 직장인 타깃"
+
+
+@pytest.mark.parametrize("platform", ["banner", "xbanner"])
+def test_build_model_request_passes_transition_platform_through(tmp_path, platform):
+    """Service는 전환기 platform 값을 임의 변환하지 않고 ModelRequest로 전달합니다."""
+    engine = make_engine(tmp_path)
+    with Session(engine) as db:
+        user = add_user(db)
+
+        model_request = build_model_request(db, user, basic_request(platform=platform))
+
+        assert model_request.platform == platform
 
 
 def test_build_model_request_rejects_invalid_store_before_reservation(tmp_path):

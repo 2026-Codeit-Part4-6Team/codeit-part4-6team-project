@@ -15,7 +15,9 @@ class ConsultState(CommonState):
     변환하는 단계 없이 이 구조를 그대로 최종 응답 payload로 조립하면 된다.
     """
 
-    retry_count: NotRequired[int]  # 근거 부족 재생성 루프 카운터 (SDP §6.5, 최대 2회)
+    retry_count: NotRequired[int]  # 전략 재시도 누적값(reasons §6.5+actions 0개 재생성 합산 최대 2회)
+    actions_retried: NotRequired[bool]  # 이 문항에서 actions 0개 재생성이 있었는지(D-139 후속)
+    actions_truncated: NotRequired[bool]  # 이 문항에서 actions 초과분 절단이 있었는지(D-139 후속)
     suggested_chips: NotRequired[list[str]]  # 추천 질문 칩 3종 (SDP §2.1, D1 회의에서 응답 계약 추가 합의)
     # 칩 생성이 형식 오류로 고정 폴백 문구를 썼는지 여부 (PM 리뷰, PR #105) — 폴백이 조용히
     # 발생하면 평가에서 "칩 3개=100%"가 실제로는 폴백일 수 있어 흔적을 남긴다.

@@ -18,4 +18,14 @@ describe("AuthScreen", () => {
     expect(html).not.toContain("FIRST GENERATION POC");
     expect(html).not.toContain("가게를 등록하고");
   });
+
+  it("uses the sales booster logo and both mascots on the login screen", () => {
+    const html = renderToStaticMarkup(
+      <AuthScreen api={new ApiClient()} onAuthenticated={() => undefined} />,
+    );
+
+    expect(html).toContain("/assets/brand/salesbooster-logo.png");
+    expect(html).toContain("/assets/mascots/copyni.png");
+    expect(html).toContain("/assets/mascots/bunseoki.png");
+  });
 });
