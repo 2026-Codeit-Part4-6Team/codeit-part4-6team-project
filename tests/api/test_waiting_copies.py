@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import get_current_user
 from backend.models import User, WaitingCopy
+from backend.routers import waiting_router
 
 
 def add_user(db: Session, *, business_type="카페") -> User:
@@ -48,6 +49,32 @@ def test_waiting_copy_prefers_the_users_business_type(
     assert response.status_code == 200
     assert response.json()["copy_text"] == "카페 문구"
     assert response.json()["industry"] == "카페"
+
+
+def test_waiting_copy_uses_bounded_primary_key_offset(monkeypatch, client, db_session):
+    user = add_user(db_session, business_type="카페")
+    db_session.add_all(
+        [
+            WaitingCopy(copy_text="카페 문구 1", industry="카페"),
+            WaitingCopy(copy_text="카페 문구 2", industry="카페"),
+            WaitingCopy(copy_text="전체 문구", industry="식당"),
+        ]
+    )
+    db_session.commit()
+    auth_as(client, user)
+    bounds = []
+
+    def choose_last(upper_bound):
+        bounds.append(upper_bound)
+        return upper_bound - 1
+
+    monkeypatch.setattr(waiting_router, "randrange", choose_last)
+
+    response = client.get("/waiting-copies")
+
+    assert response.status_code == 200
+    assert response.json()["copy_text"] == "카페 문구 2"
+    assert bounds == [2]
 
 
 def test_waiting_copy_falls_back_to_global_copy(

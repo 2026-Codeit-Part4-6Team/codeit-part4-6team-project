@@ -121,7 +121,11 @@ def canonicalize_approved_image(
     *,
     max_image_bytes: int,
 ) -> str | None:
-    """허용된 이미지 바이트를 검증해 canonical data URI로 변환합니다."""
+    """허용된 이미지 바이트를 검증해 canonical data URI로 변환합니다.
+
+    ``max_image_bytes``는 base64 문자열 길이가 아니라 디코딩된 원본 이미지
+    바이트에 적용합니다. 따라서 인코딩 오버헤드로 우회할 수 없습니다.
+    """
     if image_b64 is None:
         return None
 
@@ -169,7 +173,7 @@ def _published_response(
     )
 
 
-async def publish_generation(
+def publish_generation(
     db: Session,
     user: User,
     generation_id: int,
