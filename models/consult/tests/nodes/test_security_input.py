@@ -39,6 +39,40 @@ def test_stores_result_under_validation_input(mock_check_input) -> None:
     assert result["validation"] == {"input": {"action": "block", "message": "위험한 입력입니다."}}
 
 
+@patch("models.consult.nodes.security_input.check_input")
+def test_block_stops_pipeline_with_policy_issue(mock_check_input) -> None:
+    mock_check_input.return_value = {"action": "block", "message": "위험한 입력입니다."}
+
+    result = security_input(_state())
+
+    assert result["status"] == "blocked"
+    assert result["issues"] == [
+        {
+            "source": "input",
+            "action": "block",
+            "reason": "illegal_or_injection",
+            "message": "위험한 입력입니다.",
+        }
+    ]
+
+
+@patch("models.consult.nodes.security_input.check_input")
+def test_warn_stops_pipeline_with_reask_issue(mock_check_input) -> None:
+    mock_check_input.return_value = {"action": "warn", "message": "질문을 구체적으로 알려주세요."}
+
+    result = security_input(_state())
+
+    assert result["status"] == "blocked"
+    assert result["issues"] == [
+        {
+            "source": "input",
+            "action": "reask",
+            "reason": "need_clarification",
+            "message": "질문을 구체적으로 알려주세요.",
+        }
+    ]
+
+
 @patch("models.consult.nodes.security_input.time.monotonic", return_value=1000.0)
 @patch("models.consult.nodes.security_input.check_input")
 def test_sets_deadline_using_llm_deadline_seconds(mock_check_input, mock_monotonic) -> None:

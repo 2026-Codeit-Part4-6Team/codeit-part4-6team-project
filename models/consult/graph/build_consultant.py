@@ -14,6 +14,24 @@ from models.consult.nodes.suggested_chips import suggested_chips
 from models.consult.nodes.trend_for_consult import trend_for_consult
 
 
+def route_after_security_input(state: ConsultState) -> str:
+    """입력 검증이 warn·block이면 종료하고, pass면 질문 분석으로 진행한다."""
+    return "end" if state.get("status") == "blocked" else "question_analysis"
+
+
+def route_after_security_output(state: ConsultState) -> str:
+    """출력 검증이 block이면 종료하고, 나머지는 self_check로 진행한다."""
+    return "end" if state.get("status") == "blocked" else "self_check_node"
+
+
+def route_after_self_check(state: ConsultState) -> str:
+    """reject는 전략을 1회 재생성하고, pass·warn·재실패는 종료한다."""
+    if state.get("status") in ("blocked", "error"):
+        return "end"
+    verdict = (state.get("validation") or {}).get("self_check") or {}
+    return "strategy" if verdict.get("action") == "reject" else "end"
+
+
 def build_consultant() -> CompiledStateGraph:
     """빈 노드로 START→END까지 연결된 컨설턴트 챗봇 그래프를 조립한다.
 
@@ -40,7 +58,11 @@ def build_consultant() -> CompiledStateGraph:
     graph.add_node("self_check_node", self_check_node)
 
     graph.add_edge(START, "security_input")
-    graph.add_edge("security_input", "question_analysis")
+    graph.add_conditional_edges(
+        "security_input",
+        route_after_security_input,
+        {"question_analysis": "question_analysis", "end": END},
+    )
     graph.add_edge("question_analysis", "suggested_chips")
     graph.add_edge("suggested_chips", "market_for_consult")
     graph.add_edge("suggested_chips", "trend_for_consult")
@@ -51,7 +73,15 @@ def build_consultant() -> CompiledStateGraph:
     graph.add_edge(["market_for_consult", "trend_for_consult"], "strategy")
     graph.add_edge("strategy", "strategy_check")
     graph.add_edge("strategy_check", "security_output")
-    graph.add_edge("security_output", "self_check_node")
-    graph.add_edge("self_check_node", END)
+    graph.add_conditional_edges(
+        "security_output",
+        route_after_security_output,
+        {"self_check_node": "self_check_node", "end": END},
+    )
+    graph.add_conditional_edges(
+        "self_check_node",
+        route_after_self_check,
+        {"strategy": "strategy", "end": END},
+    )
 
     return graph.compile()

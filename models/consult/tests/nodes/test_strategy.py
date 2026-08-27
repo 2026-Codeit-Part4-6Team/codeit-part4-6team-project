@@ -143,6 +143,20 @@ def test_accumulates_retry_count_onto_existing_state_value(mock_call_llm) -> Non
 
 
 @patch("models.consult.nodes.strategy.call_llm")
+def test_preserves_action_recovery_flags_across_self_check_retry(mock_call_llm) -> None:
+    """self_check가 strategy를 다시 실행해도 첫 실행의 복구 이력이 사라지면 안 된다."""
+    mock_call_llm.return_value = _response(_payload())
+    state = _state()
+    state["actions_retried"] = True
+    state["actions_truncated"] = True
+
+    result = strategy(state)
+
+    assert result["actions_retried"] is True
+    assert result["actions_truncated"] is True
+
+
+@patch("models.consult.nodes.strategy.call_llm")
 def test_requests_json_mode(mock_call_llm) -> None:
     mock_call_llm.return_value = _response(_payload())
 

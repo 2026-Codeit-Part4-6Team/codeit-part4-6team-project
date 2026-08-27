@@ -4,27 +4,82 @@ from validation.security import check_output
 
 
 def security_output(state: ConsultState) -> dict:
-    """생성된 전략 텍스트(summary+actions+reasons)를 check_output()으로 검증하고
-    판정 결과를 저장한다.
+    """사용자에게 노출되는 전략 조각을 각각 검증해 판정을 실제 결과에 반영한다.
 
     summary만이 아니라 actions[].content·reasons[]도 사용자에게 그대로 노출되므로
-    셋을 합쳐서 검증한다 — summary만 넘기면 actions/reasons에 섞여든 문제 표현이
-    검증을 거치지 않고 그대로 응답에 나갈 수 있다(PM 리뷰, PR #93).
+    모두 검사한다. 조각별로 호출해야 warn의 masked_text를 원래 위치에 정확히
+    되돌릴 수 있다(D-145·D-154).
 
     result가 아직 채워지지 않은 상태(그래프 조기 실행 등)에서도 죽지 않도록
-    빈 문자열로 안전하게 폴백한다. check_output()은 아직 pass 스텁이라 항상 통과한다.
-
-    이번 섹션에서는 판정 결과를 저장하는 것까지만 구현하기로 합의했다 —
-    block/warn 판정을 실제로 반영하는 로직은 PM 실구현 연동 시점에 함께 추가한다.
-
-    TODO(PM 실구현 후): block/warn 판정을 이후 노드나 최종 응답에 실제로
-    반영하는 로직을 추가할 것.
+    summary 빈 문자열 하나를 검사한다. warn은 마스킹본으로 교체하고, block은
+    사용자 응답을 폐기한 뒤 즉시 종료한다.
     """
     result = state.get("result", {})
-    summary = result.get("summary", "")
-    action_texts = [a.get("content", "") for a in result.get("actions", []) if isinstance(a, dict)]
-    reasons = result.get("reasons", [])
-    validated_text = "\n".join(part for part in [summary, *action_texts, *reasons] if part)
+    parts = [("summary", result.get("summary", ""))]
+    parts.extend(
+        (f"actions[{index}]", action.get("content", ""))
+        for index, action in enumerate(result.get("actions", []))
+        if isinstance(action, dict)
+    )
+    parts.extend(
+        (f"reasons[{index}]", reason)
+        for index, reason in enumerate(result.get("reasons", []))
+        if isinstance(reason, str)
+    )
 
-    validation_result = check_output(validated_text)
-    return {"validation": {"output": validation_result}}
+    checked = [(path, text, check_output(text)) for path, text in parts]
+    updates = {
+        "validation": {
+            **state.get("validation", {}),
+            "output": [verdict for _path, _text, verdict in checked],
+        }
+    }
+
+    blocked = next(
+        (verdict for _path, _text, verdict in checked if verdict.get("action") == "block"),
+        None,
+    )
+    if blocked:
+        updates["status"] = "blocked"
+        updates["result"] = None
+        updates["issues"] = state.get("issues", []) + [
+            {
+                "source": "output",
+                "action": "block",
+                "reason": "output_blocked",
+                "message": blocked.get("message", ""),
+            }
+        ]
+        return updates
+
+    replacements = {
+        path: verdict.get("masked_text", text)
+        for path, text, verdict in checked
+        if verdict.get("action") == "warn"
+    }
+    if replacements:
+        actions = [
+            (
+                {
+                    **action,
+                    "content": replacements.get(
+                        f"actions[{index}]", action.get("content", "")
+                    ),
+                }
+                if isinstance(action, dict)
+                else action
+            )
+            for index, action in enumerate(result.get("actions", []))
+        ]
+        reasons = [
+            replacements.get(f"reasons[{index}]", reason)
+            for index, reason in enumerate(result.get("reasons", []))
+        ]
+        updates["result"] = {
+            **result,
+            "summary": replacements.get("summary", result.get("summary", "")),
+            "actions": actions,
+            "reasons": reasons,
+        }
+
+    return updates
