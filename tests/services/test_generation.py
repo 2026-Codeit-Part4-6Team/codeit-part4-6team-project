@@ -1,4 +1,5 @@
 import json
+import inspect
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -16,6 +17,7 @@ from backend.services.generation_service import (
     SourceGenerationNotFound,
     StoreContextValidationError,
     build_model_request,
+    generate,
     hash_generate_request,
     replay_existing_generation,
 )
@@ -25,6 +27,12 @@ def make_engine(tmp_path, name="generation.db"):
     engine = create_database_engine(f"sqlite:///{tmp_path / name}")
     create_tables(engine)
     return engine
+
+
+def test_generate_default_stale_recovery_window_leaves_grace_after_model_timeout():
+    default = inspect.signature(generate).parameters["stale_recovery_seconds"].default
+
+    assert default == 240
 
 
 def add_user(

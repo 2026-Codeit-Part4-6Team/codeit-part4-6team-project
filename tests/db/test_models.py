@@ -137,7 +137,7 @@ def test_runtime_policy_defaults():
     assert settings.basic_credit_cost == 50
     assert settings.consultant_credit_cost == 10
     assert settings.model_request_timeout_seconds == 180
-    assert settings.stale_recovery_seconds == 120
+    assert settings.stale_recovery_seconds == 240
 
 
 def test_datetime_columns_accept_utc_values(db_session):

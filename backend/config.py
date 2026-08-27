@@ -85,7 +85,7 @@ def load_settings() -> Settings:
         model_thread_pool_workers=_read_int(
             "MODEL_THREAD_POOL_WORKERS", 2, minimum=1
         ),
-        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 120, minimum=1),
+        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 240, minimum=1),
         chatbot_mode=chatbot_mode,
         session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),

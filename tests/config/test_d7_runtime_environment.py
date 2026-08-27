@@ -46,14 +46,20 @@ def test_d7_actual_timeout_defaults_to_verified_180_seconds():
     assert "MODEL_REQUEST_TIMEOUT_SECONDS=180" in env_example
 
 
-def test_stale_recovery_timeout_is_independent_and_defaults_to_120_seconds():
+def test_stale_recovery_timeout_is_independent_and_defaults_to_240_seconds():
     config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
 
-    assert '"STALE_RECOVERY_SECONDS", 120, minimum=1' in config
-    assert "STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-120}" in compose
-    assert "STALE_RECOVERY_SECONDS=120" in env_example
+    assert '"STALE_RECOVERY_SECONDS", 240, minimum=1' in config
+    assert "STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-240}" in compose
+    assert "STALE_RECOVERY_SECONDS=240" in env_example
+
+
+def test_env_example_documents_actual_mode_for_deployment_vm():
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    assert "# 배포 VM에서는 CHATBOT_MODE=actual로 설정" in env_example
 
 
 def test_actual_runtime_exposes_validation_top_k_guard_and_model_pool_size():
