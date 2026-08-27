@@ -8,9 +8,12 @@ from pydantic import (
     EmailStr,
     Field,
     SecretStr,
+    ValidationError,
     field_validator,
     model_validator,
 )
+
+from backend.logging_utils import payload_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -315,8 +318,6 @@ class ConsultantStrategy(StrictModel):
     actions: list[ConsultantAction] = Field(min_length=1, max_length=3)
 
 
-
-
 class ConsultantSourceContext(StrictModel):
     """Consultant 성공 결과에서 서버가 구성하는 Basic 연계 Context."""
 
@@ -357,8 +358,21 @@ class ErrorResult(InboundModel):
     message: str = Field(min_length=1)
 
 
+class HistoryErrorResult(StrictModel):
+    """생성 이력에 표시할 안전한 실패 결과입니다.
+
+    저장된 ErrorResult의 원문 message는 외부 제공자 오류가 섞일 수 있으므로
+    이 공개 계약에는 서비스가 정한 사용자 안내 문구만 포함합니다.
+    """
+
+    status: Literal["error"]
+    reason: Literal["timeout", "rate_limit", "provider_error", "unknown"]
+    message: str = Field(min_length=1)
+
+
 ModelResult = BasicModelResult | ConsultantModelResult | BlockedResult | ErrorResult
 PublicGenerationResult = BasicModelResult | ConsultantModelResult | BlockedResult
+HistoryGenerationResult = PublicGenerationResult | HistoryErrorResult
 
 
 class _ModelResultEnvelope(BaseModel):
@@ -384,15 +398,25 @@ class ModelResultAdapter:
             if isinstance(value, BaseModel)
             else value
         )
-        status = _ModelResultEnvelope.model_validate(payload).status
-
-        if status == "blocked":
-            return BlockedResult.model_validate(payload)
-        if status == "error":
-            return ErrorResult.model_validate(payload)
-        if chatbot_type == "basic":
-            return BasicModelResult.model_validate(payload)
-        return ConsultantModelResult.model_validate(payload)
+        status = None
+        try:
+            status = _ModelResultEnvelope.model_validate(payload).status
+            if status == "blocked":
+                return BlockedResult.model_validate(payload)
+            if status == "error":
+                return ErrorResult.model_validate(payload)
+            if chatbot_type == "basic":
+                return BasicModelResult.model_validate(payload)
+            return ConsultantModelResult.model_validate(payload)
+        except ValidationError as error:
+            logger.warning(
+                "모델 응답 검증 실패 — chatbot_type=%s status=%s errors=%s payload=%s",
+                chatbot_type,
+                status,
+                [(item["loc"], item["type"]) for item in error.errors()],
+                payload_for_log(payload),
+            )
+            raise
 
 
 MODEL_RESULT_ADAPTER = ModelResultAdapter()
@@ -468,7 +492,7 @@ class GenerationDetailResponse(GenerationListItem):
     """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
 
     source_gen_id: int | None = Field(default=None, gt=0)
-    result: PublicGenerationResult | None = None
+    result: HistoryGenerationResult | None = None
     copy_content: str | None = None
     image_b64: str | None = None
     selected_proposal_index: Literal[0, 1, 2] | None = None

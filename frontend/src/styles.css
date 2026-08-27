@@ -811,6 +811,7 @@ select:focus-visible {
 .history-final-result p { margin: 8px 0 0; font-size: 1.1rem; font-weight: 750; }
 .history-proposals, .history-evidence ul { display: grid; gap: 8px; }
 .history-blocked { padding: 14px; border-radius: 12px; background: rgba(143, 47, 47, 0.08); }
+.history-detail-error { display: block; color: var(--danger); font-size: .82rem; }
 @media (max-width: 720px) { .history-final-result { grid-template-columns: 1fr; } }
 .history-list { gap: 12px; margin-top: 16px; }
 .history-item { overflow: hidden; border: 1px solid #e5e0f0; border-radius: 18px; background: var(--surface); box-shadow: 0 5px 18px rgba(37, 33, 67, .04); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }

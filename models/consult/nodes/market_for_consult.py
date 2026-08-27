@@ -8,6 +8,9 @@ def market_for_consult(state: ConsultState) -> dict:
 
     get_market()이 실패(None)하면 그대로 context["market"] = None을 반환한다 —
     상권 데이터 없이도 다른 데이터로 상담을 이어갈 수 있게 하는 부분 성공 허용 원칙.
+    성공했을 때만 sources에 "상권분석"을 추가한다(SDP §6.2 응답 예시) — state["sources"]는
+    operator.add reducer라 다른 노드가 채운 값과 합쳐진다. 실패 시 sources 키 자체를
+    반환하지 않아, 실제로 쓰이지 않은 데이터를 근거 출처로 잘못 표기하지 않는다.
     """
     store = state["store"]
     market = get_market(store["lat"], store["lng"], industry=store["type"])
@@ -18,7 +21,8 @@ def market_for_consult(state: ConsultState) -> dict:
     return {
         "context": {
             "market": {**market, "density_tier": _density_tier(market["same_industry_count"])}
-        }
+        },
+        "sources": ["상권분석"],
     }
 
 

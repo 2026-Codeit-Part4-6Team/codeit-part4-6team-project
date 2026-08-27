@@ -81,6 +81,8 @@ function renderView(
       loading={false}
       detailLoading={false}
       error={null}
+      detailError={null}
+      detailErrorId={null}
       onSelect={vi.fn()}
       onBack={vi.fn()}
       {...overrides}
@@ -186,5 +188,37 @@ describe("MyPage presentation", () => {
     expect(html).toContain("점심 고객에게 집중 홍보");
     expect(html).toContain("오피스 상권");
     expect(html).toContain("상권 API");
+  });
+
+  it("renders a safe failure message in history detail", () => {
+    const detail: GenerationDetailResponse = {
+      ...history[1],
+      status: "failed",
+      source_gen_id: null,
+      result: {
+        status: "error",
+        reason: "provider_error",
+        message: "생성 서비스에 일시적인 문제가 발생했습니다.",
+      },
+      copy_content: null,
+      image_b64: null,
+      selected_proposal_index: null,
+      hitl_approved: false,
+    };
+    const html = renderView({ detail });
+
+    expect(html).toContain("생성 실패");
+    expect(html).toContain("생성 서비스에 일시적인 문제가 발생했습니다.");
+  });
+
+  it("keeps the history list visible and marks a detail error row", () => {
+    const html = renderView({
+      detailError: new ApiError(500, { detail: "internal" }),
+      detailErrorId: 2,
+    });
+
+    expect(html).toContain("상권 전략");
+    expect(html).toContain("상세 확인 필요");
+    expect(html).toContain("서비스 연결이 불안정합니다");
   });
 });

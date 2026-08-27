@@ -5,7 +5,7 @@ import types
 from fastapi import APIRouter
 
 
-def test_create_app_wires_one_chatbot_client_instance(monkeypatch):
+def test_create_app_wires_one_chatbot_client_from_factory(monkeypatch):
     fake_bcrypt = types.SimpleNamespace(
         hashpw=lambda value, _salt: value,
         gensalt=lambda: b"salt",
@@ -17,11 +17,24 @@ def test_create_app_wires_one_chatbot_client_instance(monkeypatch):
         "backend.routers.generate_router",
         types.SimpleNamespace(router=APIRouter()),
     )
+
+    from backend.clients import chatbot_client
+
+    sentinel = object()
+    calls = []
+
+    def fake_factory(settings):
+        calls.append(settings)
+        return sentinel
+
+    monkeypatch.setattr(chatbot_client, "create_chatbot_client", fake_factory)
     sys.modules.pop("backend.main", None)
 
     main = importlib.import_module("backend.main")
+    calls.clear()
+
     app = main.create_app()
 
-    assert hasattr(app.state, "chatbot_client")
-    client = app.state.chatbot_client
-    assert client is app.state.chatbot_client
+    assert calls == [main.settings]
+    assert app.state.chatbot_client is sentinel
+    assert app.state.chatbot_client is sentinel

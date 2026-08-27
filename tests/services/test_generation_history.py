@@ -192,7 +192,7 @@ def test_published_detail_exposes_final_fields(tmp_path):
         assert detail.hitl_approved is True
 
 
-def test_failed_history_exposes_blocked_but_hides_technical_error(tmp_path):
+def test_failed_history_exposes_safe_reason_without_technical_error(tmp_path):
     engine = make_engine(tmp_path)
     with Session(engine) as db:
         owner = add_user(db)
@@ -225,7 +225,12 @@ def test_failed_history_exposes_blocked_but_hides_technical_error(tmp_path):
 
         assert blocked_detail.result is not None
         assert blocked_detail.result.status == "blocked"
-        assert error_detail.result is None
+        assert error_detail.result is not None
+        assert error_detail.result.status == "error"
+        assert error_detail.result.reason == "provider_error"
+        assert error_detail.result.message == (
+            "생성 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
+        )
         assert "provider stack detail" not in error_detail.model_dump_json()
 
 

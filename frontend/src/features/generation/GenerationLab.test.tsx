@@ -156,6 +156,19 @@ describe("GenerationLab orchestration", () => {
 
     resolveGenerate(response);
     await task;
+
+    runner.dispose();
+  });
+
+  it("does not fail generation when waiting-copy refresh is unavailable", async () => {
+    const api = {
+      generate: vi.fn().mockResolvedValue(response),
+      waitingCopy: vi.fn().mockRejectedValue(new Error("waiting copies unavailable")),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    await expect(runner.run(pending)).resolves.toEqual(response);
+    expect(api.generate).toHaveBeenCalledTimes(1);
     runner.dispose();
   });
 

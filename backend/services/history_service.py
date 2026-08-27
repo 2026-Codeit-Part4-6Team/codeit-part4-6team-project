@@ -13,6 +13,7 @@ from backend.schemas import (
     ErrorResult,
     GenerationDetailResponse,
     GenerationListItem,
+    HistoryErrorResult,
     PublicGenerationResult,
 )
 from backend.services.generation_service import GenerationDataInvariantError
@@ -20,6 +21,14 @@ from backend.services.generation_service import GenerationDataInvariantError
 
 class GenerationHistoryNotFound(Exception):
     """요청 사용자가 소유한 생성 이력을 찾을 수 없습니다."""
+
+
+HISTORY_ERROR_MESSAGES = {
+    "timeout": "생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+    "rate_limit": "요청이 많아 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "provider_error": "생성 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    "unknown": "생성 중 알 수 없는 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+}
 
 
 def _list_item(generation: Generation) -> GenerationListItem:
@@ -60,7 +69,7 @@ def list_generations(db: Session, user: User) -> list[GenerationListItem]:
 
 def _public_history_result(
     generation: Generation,
-) -> PublicGenerationResult | None:
+) -> PublicGenerationResult | HistoryErrorResult | None:
     if generation.result_json is None:
         return None
     if generation.status not in {"done", "published", "failed"}:
@@ -83,8 +92,12 @@ def _public_history_result(
         if payload.get("status") == "blocked":
             return BlockedResult.model_validate(payload)
         if payload.get("status") == "error":
-            ErrorResult.model_validate(payload)
-            return None
+            error_result = ErrorResult.model_validate(payload)
+            return HistoryErrorResult(
+                status="error",
+                reason=error_result.reason,
+                message=HISTORY_ERROR_MESSAGES[error_result.reason],
+            )
         raise ValueError("failed generation must store blocked or error metadata")
     except (json.JSONDecodeError, TypeError, ValueError, ValidationError) as error:
         raise GenerationDataInvariantError(

@@ -1,7 +1,9 @@
 import json
 
+from models.shared.llm import call_llm
+from models.shared.llm_errors import classify_llm_error
+
 from ..graph.state import BasicState
-from ..llm import call_llm, classify_llm_error
 
 SYSTEM_PROMPT = """너는 광고 카피 심사위원(LLM Judge)이다.
 아래 후보 카피들을 요청 반영도·구체성·규제 안전성 기준으로 1~5점씩 평가하고,
@@ -30,9 +32,10 @@ def ranking_node(state: BasicState) -> dict:
 
     try:
         raw, tokens = call_llm(
-            system=SYSTEM_PROMPT,
-            user=json.dumps(context, ensure_ascii=False),
+            SYSTEM_PROMPT,
+            json.dumps(context, ensure_ascii=False),
             json_mode=True,
+            deadline=state.get("deadline"),
         )
     # BLE001 억제 사유: call_llm의 모든 실패를 잡아 status=error로 안전하게 전환
     except Exception as exc:  # noqa: BLE001

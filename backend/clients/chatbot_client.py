@@ -1,6 +1,15 @@
-from typing import Protocol, runtime_checkable
+import asyncio
+import importlib
+from collections.abc import Callable
+from concurrent.futures import Executor, ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from backend.schemas import ModelRequest, ModelResult
+from backend.schemas import MODEL_RESULT_ADAPTER, ModelRequest, ModelResult
+
+if TYPE_CHECKING:
+    from backend.config import Settings
+
+SyncModelCallable = Callable[[dict[str, Any]], object]
 
 
 @runtime_checkable
@@ -30,3 +39,74 @@ class MockChatbotClient:
         if request.chatbot_type == "consultant":
             return await self._consultant.generate(request)
         raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
+
+
+class ActualChatbotClient:
+    """실제 Basic/Consultant 동기 entrypoint를 Service 경계에 연결합니다."""
+
+    def __init__(
+        self,
+        basic_callable: SyncModelCallable,
+        consultant_callable: SyncModelCallable,
+        timeout_seconds: int,
+        *,
+        max_workers: int = 2,
+        executor: Executor | None = None,
+    ) -> None:
+        self._basic = basic_callable
+        self._consultant = consultant_callable
+        self._timeout_seconds = timeout_seconds
+        self._executor = executor or ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="model-worker",
+        )
+        self._owns_executor = executor is None
+
+    def close(self) -> None:
+        """모델 전용 워커를 종료합니다."""
+        if self._owns_executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            self._owns_executor = False
+
+    async def generate(self, request: ModelRequest) -> ModelResult:
+        payload = request.model_dump(mode="python", by_alias=True)
+        if request.chatbot_type == "basic":
+            model_callable = self._basic
+        elif request.chatbot_type == "consultant":
+            model_callable = self._consultant
+        else:
+            raise ValueError("chatbot_type은 basic 또는 consultant여야 합니다.")
+
+        loop = asyncio.get_running_loop()
+        raw_result = await asyncio.wait_for(
+            loop.run_in_executor(self._executor, model_callable, payload),
+            timeout=self._timeout_seconds,
+        )
+        return MODEL_RESULT_ADAPTER.validate_python(
+            raw_result,
+            chatbot_type=request.chatbot_type,
+        )
+
+
+def _load_model_entrypoint(module_name: str) -> SyncModelCallable:
+    module = importlib.import_module(module_name)
+    run = getattr(module, "run", None)
+    if not callable(run):
+        raise RuntimeError(  # noqa: TRY004 - missing runtime entrypoint must fail startup
+            f"{module_name}.run callable을 찾을 수 없습니다."
+        )
+    return run
+
+
+def create_chatbot_client(settings: "Settings") -> ChatbotClient:
+    """런타임 설정에 따라 Mock 또는 Actual 모델 Client를 조립합니다."""
+    if settings.chatbot_mode == "mock":
+        return MockChatbotClient()
+    if settings.chatbot_mode == "actual":
+        return ActualChatbotClient(
+            _load_model_entrypoint("models.basic.main"),
+            _load_model_entrypoint("models.consult.main"),
+            timeout_seconds=settings.model_request_timeout_seconds,
+            max_workers=settings.model_thread_pool_workers,
+        )
+    raise ValueError("chatbot_mode는 mock 또는 actual이어야 합니다.")
