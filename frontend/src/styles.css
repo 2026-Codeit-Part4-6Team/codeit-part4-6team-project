@@ -222,7 +222,6 @@ select:focus-visible {
 .store-card-label { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; color: var(--accent); font-size: 17px; }
 .store-card-label img { width: 24px; height: 24px; }
 .store-card strong { display: block; margin-bottom: 13px; font-size: clamp(23px, 2vw, 30px); font-weight: 600; }
-.admin-badge { display: inline-block; margin: -3px 0 13px; border-radius: 999px; padding: 5px 9px; background: rgba(240, 164, 48, .18); color: var(--accent); font-size: 12px; font-weight: 800; }
 .store-address { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); line-height: 1.45; }
 .store-address img { width: 18px; height: 21px; margin-top: 1px; }
 .store-card-action { display: block; margin-top: 16px; color: var(--accent); font-size: 13px; font-weight: 700; }

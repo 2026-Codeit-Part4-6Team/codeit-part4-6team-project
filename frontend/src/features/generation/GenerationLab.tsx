@@ -34,6 +34,8 @@ type GenerationRunner = {
   dispose: () => void;
 };
 
+const WAITING_COPY_REFRESH_INTERVAL_MS = 15_000;
+
 export async function syncUserAfterGeneration(
   api: Pick<ApiClient, "me">,
   onUserChanged?: (user: UserResponse) => void,
@@ -49,7 +51,7 @@ export async function syncUserAfterGeneration(
 export function createGenerationRunner(
   api: Pick<ApiClient, "generate" | "waitingCopy">,
   onWaitingCopy: (copyText: string) => void,
-  intervalMs = 4_000,
+  intervalMs = WAITING_COPY_REFRESH_INTERVAL_MS,
 ): GenerationRunner {
   let inFlight: Promise<GenerationResponse> | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;

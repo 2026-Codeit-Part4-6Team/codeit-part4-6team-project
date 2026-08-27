@@ -129,6 +129,36 @@ describe("GenerationLab orchestration", () => {
     runner.dispose();
   });
 
+  it("keeps waiting-copy refreshes at a calm default cadence", async () => {
+    vi.useFakeTimers();
+    let resolveGenerate!: (value: GenerationResponse) => void;
+    const generatePromise = new Promise<GenerationResponse>((resolve) => {
+      resolveGenerate = resolve;
+    });
+    const api = {
+      generate: vi.fn().mockReturnValue(generatePromise),
+      waitingCopy: vi.fn().mockResolvedValue({
+        id: 3,
+        copy_text: "준비 중",
+        industry: "카페",
+      }),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    const task = runner.run(pending);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(2);
+
+    resolveGenerate(response);
+    await task;
+    runner.dispose();
+  });
+
   it("creates a fresh estimate action and key after billing confirmation changes", async () => {
     const api = {
       estimate: vi.fn().mockResolvedValue({
