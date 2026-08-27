@@ -2,7 +2,7 @@
 
 - **작성자**: 전민재 PM
 - **작성일**: 2026-08-27
-- **파일 위치**: `docs/validation_report.md.md` (단일 소스)
+- **파일 위치**: `docs/validation_report.md` (단일 소스)
 - **구현 위치**: `validation/` (전민재 PM 관리 — 두 챗봇 담당자는 **import만**)
 - **연관 문서**: `docs/golden_dataset.md` · `docs/decisions.md` · 서비스 API/DB Contract v0.4
 
