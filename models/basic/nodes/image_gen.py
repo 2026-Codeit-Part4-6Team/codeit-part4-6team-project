@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import io
 import json
 import re
@@ -77,7 +76,9 @@ def _intro_without_benefit(copy: str, store_type: str) -> str:
         return f"{store_type}에서 만나보세요"
 
 
-def _split_benefit_clause(copy: str, store_type: str = "가게") -> tuple[str, str | None]:
+def _split_benefit_clause(
+    copy: str, store_type: str = "가게"
+) -> tuple[str, str | None]:
     """카피를 문장 단위로 나눠, 할인·무료·이벤트 등 혜택 키워드가 포함된
     문장은 하단 배너용으로, 나머지(가게 자체 소개)는 상단 배너용으로
     분리한다. 혜택 문장이 없으면 전체를 상단에 쓰고 하단은 None을
@@ -192,13 +193,12 @@ _PLATFORM_IMAGE_PROMPT = {
         "다른 브랜드명, 로고, 회사명, 업종(예: 병원·상담센터·기타 서비스업)을 "
         "절대 등장시키지 않는다. "
         "화면 위쪽(상단)에 배치한다: {benefit_clause} "
-        "그 아래(화면 하단)에 다음 정보만 깔끔한 타이포그래피로 정리해서 "
-        "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
-        "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
-        "않은 항목은 화면에 아예 넣지 않는다. "
-        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
-        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
-        "개수만큼만 표시한다. "
+        "그 아래(화면 하단)에 다음 정보를 정확히 {item_count}개 항목으로, "
+        "항목마다 아이콘 하나씩 붙여 깔끔한 타이포그래피로 정리해서 "
+        "표시한다: {provided_info}. 반드시 이 {item_count}개 항목만 "
+        "표시하고, 항목을 추가하거나 빼지 않는다 — 위에 나열되지 않은 "
+        "정보(영업시간, 전화번호, 행사 일정 등)나 화면 상단의 혜택 배지 "
+        "문구를 별도 항목으로 다시 넣지 않는다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -215,13 +215,12 @@ _PLATFORM_IMAGE_PROMPT = {
         "다른 브랜드명, 로고, 회사명, 업종(예: 병원·상담센터·기타 서비스업)을 "
         "절대 등장시키지 않는다. "
         "화면 위쪽(상단)에 배치한다: {benefit_clause} "
-        "그 아래(화면 하단)에 다음 정보만 깔끔한 타이포그래피로 정리해서 "
-        "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
-        "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
-        "않은 항목은 화면에 아예 넣지 않는다. "
-        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
-        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
-        "개수만큼만 표시한다. "
+        "그 아래(화면 하단)에 다음 정보를 정확히 {item_count}개 항목으로, "
+        "항목마다 아이콘 하나씩 붙여 깔끔한 타이포그래피로 정리해서 "
+        "표시한다: {provided_info}. 반드시 이 {item_count}개 항목만 "
+        "표시하고, 항목을 추가하거나 빼지 않는다 — 위에 나열되지 않은 "
+        "정보(영업시간, 전화번호, 행사 일정 등)나 화면 상단의 혜택 배지 "
+        "문구를 별도 항목으로 다시 넣지 않는다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -237,13 +236,12 @@ _PLATFORM_IMAGE_PROMPT = {
         "다른 브랜드명, 로고, 회사명, 업종(예: 병원·상담센터·기타 서비스업)을 "
         "절대 등장시키지 않는다. "
         "화면 위쪽(상단)에 배치한다: {benefit_clause} "
-        "그 아래(화면 하단)에 다음 정보만 깔끔한 타이포그래피로 정리해서 "
-        "표시한다: {provided_info}. 위에 나열되지 않은 정보(영업시간, 전화번호, "
-        "행사 일정 등)는 절대로 임의로 지어내서 표시하지 않는다 — 주어지지 "
-        "않은 항목은 화면에 아예 넣지 않는다. "
-        "화면 상단의 혜택 배지에 이미 표시한 문구를 이 정보란에 별도 아이콘 "
-        "항목으로 다시 넣지 않는다 — 정보란에는 위에 나열된 항목만, 그 "
-        "개수만큼만 표시한다. "
+        "그 아래(화면 하단)에 다음 정보를 정확히 {item_count}개 항목으로, "
+        "항목마다 아이콘 하나씩 붙여 깔끔한 타이포그래피로 정리해서 "
+        "표시한다: {provided_info}. 반드시 이 {item_count}개 항목만 "
+        "표시하고, 항목을 추가하거나 빼지 않는다 — 위에 나열되지 않은 "
+        "정보(영업시간, 전화번호, 행사 일정 등)나 화면 상단의 혜택 배지 "
+        "문구를 별도 항목으로 다시 넣지 않는다. "
         "화면 하단에 여백이 넓게 남지 않도록, 도형·패턴 같은 장식 "
         "요소로 균형 있게 채운다. "
         "위쪽 상단 이미지와 어울리는 색 포인트를 일부 사용하되, "
@@ -276,7 +274,7 @@ def _pick_instagram_template(store: dict, index: int) -> str:
 
 
 def _generate_xbanner(
-    store: dict, copy: str, index: int, business_details: str | None = None
+    store: dict, copy: str, index: int, business_details: list[str] | None = None
 ) -> str:
     """X배너를 상단(가게 자체 소개)/하단(가게 정보+혜택 강조) 두 장으로 나눠
     생성한 뒤 세로로 이어붙여 base64 PNG 하나로 반환한다. 할인·이벤트
@@ -294,9 +292,14 @@ def _generate_xbanner(
     top_b64 = generate_image(top_prompt, size=size)
     top_img = Image.open(io.BytesIO(base64.b64decode(top_b64)))
 
-    provided_info = f'상호 "{store.get("name")}", 주소 "{store.get("address")}"'
+    info_items = [
+        f'상호 "{store.get("name")}"',
+        f'주소 "{store.get("address")}"',
+    ]
     if business_details:
-        provided_info += f", {business_details}"
+        info_items.extend(business_details)
+    provided_info = ", ".join(info_items)
+    item_count = len(info_items)
 
     if bottom_text:
         benefit_clause = (
@@ -313,6 +316,7 @@ def _generate_xbanner(
     bottom_prompt = _PLATFORM_IMAGE_PROMPT[bottom_key].format(
         store_name=store.get("name"),
         provided_info=provided_info,
+        item_count=item_count,
         benefit_clause=benefit_clause,
     )
     bottom_b64 = generate_image(bottom_prompt, size=size)
@@ -344,14 +348,14 @@ def _english_caption(store_type: str, copy: str) -> str | None:
         return None
 
 
-def _extract_business_details(question: str) -> str | None:
+def _extract_business_details(question: str) -> list[str]:
     """사용자 질문 원문에 전화번호·영업시간·행사(이벤트) 기간처럼 구체적인
-    가게 정보가 포함돼 있으면 추출해 provided_info에 덧붙일 문자열로
-    반환한다. 언급되지 않은 항목은 만들어내지 않고, 아무것도 없으면 None을
-    반환해 provided_info가 상호·주소만으로 유지되게 한다. 이미지 생성
-    모델에게 원문에서 알아서 뽑으라고 시키면 신뢰도가 낮다는 게 이번
-    세션에 실측으로 확인돼(혜택 문구 분리 사례), 텍스트 단계에서 미리
-    구조화해 넘긴다."""
+    가게 정보가 포함돼 있으면 추출해 provided_info에 이어붙일 항목
+    리스트로 반환한다. 언급되지 않은 항목은 만들어내지 않고, 아무것도
+    없으면 빈 리스트를 반환해 provided_info가 상호·주소만으로 유지되게
+    한다. 문자열이 아니라 리스트로 반환하는 이유는, 하단 배너 프롬프트에
+    "정확히 N개 항목만 표시한다"처럼 개수를 숫자로 못박기 위해서다 —
+    문자열로 합쳐버리면 개수 정보가 사라진다."""
     try:
         raw, _tokens = call_llm(
             "사용자 질문에 가게의 전화번호·영업시간·행사(이벤트) 기간이 "
@@ -365,7 +369,7 @@ def _extract_business_details(question: str) -> str | None:
         parsed = json.loads(raw)
     # BLE001 억제 사유: 추출 실패해도 상호·주소만으로 배너 생성은 계속 진행
     except Exception:  # noqa: BLE001
-        return None
+        return []
 
     parts = []
     if parsed.get("phone"):
@@ -374,7 +378,7 @@ def _extract_business_details(question: str) -> str | None:
         parts.append(f'영업시간 "{parsed["hours"]}"')
     if parsed.get("event_period"):
         parts.append(f'행사 기간 "{parsed["event_period"]}"')
-    return ", ".join(parts) if parts else None
+    return parts
 
 
 def image_gen_node(state: BasicState) -> dict:
@@ -385,9 +389,7 @@ def image_gen_node(state: BasicState) -> dict:
     store = state["store"]
     platform = state.get("platform")
     business_details = (
-        _extract_business_details(state["question"])
-        if platform == "xbanner"
-        else None
+        _extract_business_details(state["question"]) if platform == "xbanner" else None
     )
     updated = []
     images = []
