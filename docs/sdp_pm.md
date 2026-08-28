@@ -337,7 +337,11 @@ def check_output(text: str) -> dict:
 
 ## 6. 시스템 설계
 
-### 6.1 파이프라인 (전민재 PM 관점)
+### 6.1 파이프라인
+#### 6.1.1 전체 구조 파이프라인
+![파이프라인](images/pipeline_sdp_overview.png)
+
+#### 6.1.2 검증 함수 4종ㆍ데이터 자산ㆍ조율 파이프라인 (전민재 PM 관점)
 ![파이프라인](images/pipeline_sdp_pm.png)
 
 ```
@@ -1224,5 +1228,6 @@ models/consult/main.py    → models/shared/llm.py 사용
 - **컨설턴트 챗봇 모델 개발 담당 SDP** (`sdp_consult.md`) — 검증 함수 3종 수요처
 - 팀 통합 파이프라인 (`pipeline_v10.png`) · ERD (`erd_v10.png`)
 - 파이프라인 다이어그램 (`pipeline_sdp_pm.png`)
+- 통합 파이프라인 다이어그램 (`pipeline_sdp_overview.png`)
 - 검증 함수 계약서 (`docs/validation_contract.md` — D1 작성 예정)
 - 의사결정 로그 (`docs/decisions.md` — 매일 갱신)
