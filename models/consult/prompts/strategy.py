@@ -18,19 +18,28 @@ SYSTEM_PROMPT = """너는 소상공인 마케팅 컨설턴트다.
 title은 이 전략을 한눈에 요약하는 짧은 제목이다(이력 목록에 노출되는 라벨).
 actions는 1~3개만 포함한다. type은 반드시 menu/promotion/target/other 중 하나다.
 reasons는 1개 이상 포함하며, 각 항목은 반드시 아래에 주어진 정보(가게 정보, 있다면
-상권·트렌드 데이터)에서 실제로 확인 가능한 사실만 근거로 사용한다. 상권·트렌드
-데이터가 주어지지 않았으면 수치를 지어내지 말고, 가게 정보나 질문 내용에 실제로
-있는 사실만 근거로 쓴다. "고객들이 좋아할 것입니다"·"즉각적인 효과가 있습니다"처럼 확인할 수 없는
+상권·트렌드 데이터, 계절성 참고의 원시 날짜 정보)에서 실제로 확인 가능한 사실만
+근거로 사용한다. 주어진 정보에 없는 수치나 사실은 지어내지 않는다. "고객들이 좋아할 것입니다"·"즉각적인 효과가 있습니다"처럼 확인할 수 없는
 막연한 주장은 근거로 인정하지 않는다. 상권 데이터의 "동일 업종 밀도 등급"은 참고용
 내부 정보다 — 답변에서 등급 표현("높음"/"보통" 등)을 그대로 인용하지 말고, 그 근거가
 된 실제 수치(매장 수·거리 등)로 풀어서 설명한다. 동일 업종 매장 수가 0곳이면 "경쟁이
 없다"·"동일 업종이 없다"처럼 숫자 없이 쓰지 말고, reasons에도 반드시 "0곳"이라고
 숫자로 명시한다.
 
-트렌드 데이터가 주어지면 최근 검색 추이(상승/하락/유지)로 시의성을 반영한다 — 다만
-실제 날짜·계절 정보는 주어지지 않으므로 "몇 월이라 좋다"처럼 구체적인 시기를 지어내지
-말고, 추이 자체(예: 검색량이 늘고 있다)만 근거로 쓴다. 연관 검색어가 있다면 actions에
-그 키워드를 활용한 구체적인 아이디어(메뉴명·프로모션 문구 등)로 반영한다.
+트렌드 데이터가 주어지면 최근 검색 추이(상승/하락/유지)로 시의성을 반영한다. 날짜·
+계절 정보는 아래 계절성 참고에 별도로 주어지므로, 트렌드 데이터만으로 "몇 월이라
+좋다"처럼 구체적인 시기를 지어내지 말고 추이 자체(예: 검색량이 늘고 있다)만 근거로
+쓴다. 연관 검색어가 있다면 actions에 그 키워드를 활용한 구체적인 아이디어(메뉴명·
+프로모션 문구 등)로 반영한다.
+
+계절성 참고가 주어지면 전략 힌트(예: "여름")를 summary·actions에서 방향을 잡는
+데 활용할 수 있다. 다만 reasons에는 이 판단 라벨을 그대로 근거로 쓰지 않는다 — 날짜를
+근거로 써야 한다면 계절성 참고에 주어진 "달력 시점(요청 기준일)"만 그대로 인용해
+원시 날짜 정보만 사용한다. summary·actions·reasons 어디에서든 "여름이므로 수요가
+늘어난다"처럼 날짜만으로 실제 수요·관심·효과를 단정하지 않는다 — 검색 수요 증감은
+트렌드 데이터가 실제로 주어졌을 때만 주장한다. 사용자가 질문에서 "연말"·"겨울철"·
+"명절"처럼 명시적인 시점을 직접 제시했다면, 계절성 참고보다 그 사용자가 제시한 시점을
+우선한다.
 
 예시:
 - 나쁜 답변: {"title": "마케팅 전략", "summary": "SNS 마케팅을 강화하세요.", "actions": [{"type": "other", "content": "SNS를 하세요"}],
@@ -47,9 +56,9 @@ reasons는 1개 이상 포함하며, 각 항목은 반드시 아래에 주어진
 
 RETRY_REASONS_HINT = (
     "이전 응답에는 근거(reasons)가 없거나 불충분했습니다. "
-    "이번에는 위에 주어진 정보(가게 정보, 있다면 상권·트렌드 데이터)에서 실제로 확인 "
-    "가능한 근거를 1개 이상 포함하세요. 상권·트렌드 데이터가 없다면 수치를 지어내지 "
-    "말고 가게 정보나 질문 내용에 실제로 있는 사실만 근거로 쓰세요."
+    "이번에는 위에 주어진 정보(가게 정보, 있다면 상권·트렌드 데이터, 계절성 참고의 "
+    "원시 날짜 정보)에서 실제로 확인 가능한 근거를 1개 이상 포함하세요. 주어진 정보에 "
+    "없는 수치나 사실은 지어내지 마세요."
 )
 
 RETRY_ACTIONS_HINT = (
@@ -57,11 +66,18 @@ RETRY_ACTIONS_HINT = (
 )
 
 
-def build_user_prompt(question: str, store: StoreInfo, market: dict | None, trend: dict | None = None) -> str:
-    """가게 정보·상권 데이터·트렌드 데이터·질문을 조립해 사용자 프롬프트를 구성한다.
+def build_user_prompt(
+    question: str,
+    store: StoreInfo,
+    market: dict | None,
+    trend: dict | None = None,
+    seasonality: dict | None = None,
+) -> str:
+    """가게 정보·상권 데이터·트렌드 데이터·계절성 데이터·질문을 조립해 사용자
+    프롬프트를 구성한다.
 
-    데이터 섹션(상권·트렌드)을 리스트로 조립하는 구조라, 나중에 데이터가 더 늘어나면
-    _market_section()과 같은 헬퍼 하나만 더 추가하면 된다.
+    데이터 섹션(상권·트렌드·계절성)을 리스트로 조립하는 구조라, 나중에 데이터가 더
+    늘어나면 _market_section()과 같은 헬퍼 하나만 더 추가하면 된다.
     """
     sections = [_store_section(store)]
 
@@ -72,6 +88,10 @@ def build_user_prompt(question: str, store: StoreInfo, market: dict | None, tren
     trend_section = _trend_section(trend)
     if trend_section:
         sections.append(trend_section)
+
+    seasonality_section = _seasonality_section(seasonality)
+    if seasonality_section:
+        sections.append(seasonality_section)
 
     sections.append(f'질문: "{question}"')
     return "\n\n".join(sections)
@@ -117,7 +137,7 @@ def _market_section(market: dict | None) -> str:
 
 def _trend_section(trend: dict | None) -> str:
     """트렌드 데이터가 없으면(keyword 없음, 조회 실패 등) 빈 문자열을 반환해 프롬프트에서
-    통째로 빠지게 한다(상권과 동일 원칙). weather는 아직 항상 None이라 포함하지 않는다."""
+    통째로 빠지게 한다(상권과 동일 원칙)."""
     if trend is None:
         return ""
 
@@ -134,4 +154,22 @@ def _trend_section(trend: dict | None) -> str:
         f"- 조회 검색어: {keyword_text}\n"
         f"- 최근 검색 추이: {direction}\n"
         f"- 연관 검색어: {related_text}"
+    )
+
+
+def _seasonality_section(seasonality: dict | None) -> str:
+    """계절성 데이터가 없으면(노드 조기 실행 등) 빈 문자열을 반환해 프롬프트에서
+    통째로 빠지게 한다(상권·트렌드와 동일 원칙)."""
+    if seasonality is None:
+        return ""
+
+    reference_date = seasonality.get("reference_date")
+    calendar_period = seasonality.get("calendar_period")
+    season_hint = seasonality.get("season_hint")
+
+    return (
+        "계절성 참고:\n"
+        f"- 요청 기준일: {reference_date}\n"
+        f"- 달력 시점: {calendar_period}\n"
+        f"- 전략 힌트: {season_hint}"
     )

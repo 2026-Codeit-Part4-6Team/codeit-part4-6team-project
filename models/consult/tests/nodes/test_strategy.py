@@ -40,7 +40,12 @@ _TREND = {
     "keyword": "아이스아메리카노",
     "direction": "상승",
     "related": ["냉커피", "여름음료"],
-    "weather": None,
+}
+
+_SEASONALITY = {
+    "reference_date": "2026-08-24",
+    "calendar_period": "8월 하순",
+    "season_hint": "여름",
 }
 
 
@@ -48,6 +53,7 @@ def _state(
     question: str = "우리 카페 어떻게 홍보하면 좋을까요?",
     market: dict | None = None,
     trend: dict | None = None,
+    seasonality: dict | None = None,
     tokens_used: int = 0,
     sources: list[str] | None = None,
 ) -> dict:
@@ -56,7 +62,7 @@ def _state(
         "user_id": 1,
         "question": question,
         "store": _STORE,
-        "context": {"market": market, "trend": trend},
+        "context": {"market": market, "trend": trend, "seasonality": seasonality},
         "tokens_used": tokens_used,
     }
     if sources is not None:
@@ -315,6 +321,30 @@ def test_omits_trend_section_when_context_missing_entirely(mock_call_llm) -> Non
 
     _, user_prompt = mock_call_llm.call_args.args
     assert "트렌드 데이터" not in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_includes_seasonality_data_when_available(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(seasonality=_SEASONALITY))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "계절성 참고" in user_prompt
+    assert "2026-08-24" in user_prompt
+    assert "8월 하순" in user_prompt
+    assert "여름" in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_omits_seasonality_section_when_context_missing_entirely(mock_call_llm) -> None:
+    """seasonality_for_consult가 아직 안 돈 상태(그래프 조기 실행 등)에서도 죽지 않는다."""
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state_without_context())
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "계절성 참고" not in user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")

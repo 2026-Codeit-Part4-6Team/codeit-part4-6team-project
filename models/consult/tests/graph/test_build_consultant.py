@@ -37,7 +37,12 @@ def test_graph_runs_start_to_end_without_error(
     START→END까지 끊김 없이 실행된다. market_for_consult·trend_for_consult는
     "둘 다 실패"를 환경변수 부재에 기대지 않고 명시적으로 mock해 재현한다 —
     실제 MARKET_API_KEY·NAVER_CLIENT_ID가 설정된 환경이나 해당 좌표가 이미
-    캐싱된 환경에서는 조용히 성공해버려 이 테스트의 전제가 깨질 수 있다."""
+    캐싱된 환경에서는 조용히 성공해버려 이 테스트의 전제가 깨질 수 있다.
+
+    suggested_chips·chips_fallback·tokens_used도 확인한다(Codex 리뷰) — 3-way
+    병렬화(v3 섹션F)의 핵심 위험이 이 세 plain 필드(reducer 없음)의 병합이었는데,
+    이전엔 병렬 시작 여부만 확인했지 병합 후 값이 실제로 보존되는지는 아무도
+    검증하지 않았다."""
     mock_get_market.return_value = None
     mock_get_trend.return_value = None
     mock_question_call_llm.return_value = (
@@ -52,7 +57,7 @@ def test_graph_runs_start_to_end_without_error(
         100,
     )
     mock_chips_call_llm.return_value = (
-        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}),
         50,
     )
     mock_strategy_call_llm.return_value = (
@@ -76,6 +81,18 @@ def test_graph_runs_start_to_end_without_error(
     # market_for_consult·trend_for_consult가 둘 다 실패(None)해도 서비스 계약
     # (sources min_length=1)을 지키려면 strategy가 기본 출처로 채워야 한다.
     assert result["sources"] == ["가게정보"]
+    # suggested_chips·chips_fallback은 suggested_chips 노드만 쓰는 필드라 market/trend와
+    # 병렬로 묶여도 덮어써질 수 없다 — 실제로 병합 후에도 남아있는지 확인한다.
+    assert result["suggested_chips"] == ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]
+    assert result["chips_fallback"] is False
+    # question_analysis(100) + suggested_chips(50) + strategy(100) = 250.
+    # market_for_consult·trend_for_consult·seasonality_for_consult는 LLM을 호출하지
+    # 않아 tokens_used를 건드리지 않으므로, 4-way 병렬 묶음 안에서 tokens_used를
+    # 쓰는 노드는 suggested_chips 하나뿐이라 합계가 그대로 보존돼야 한다.
+    assert result["tokens_used"] == 250
+    # seasonality_for_consult는 외부 I/O 없이 항상 성공하므로 매 실행마다 context에
+    # 남아있어야 한다 — 정확한 값(날짜 의존)은 여기서 검사하지 않고 구조만 확인한다.
+    assert set(result["context"]["seasonality"]) == {"reference_date", "calendar_period", "season_hint"}
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -105,7 +122,6 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피"],
-        "weather": None,
     }
     mock_question_call_llm.return_value = (
         json.dumps(
@@ -119,7 +135,7 @@ def test_graph_accumulates_sources_when_market_and_trend_both_succeed(
         100,
     )
     mock_chips_call_llm.return_value = (
-        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}),
         50,
     )
     mock_strategy_call_llm.return_value = (
@@ -162,7 +178,6 @@ def test_graph_uses_trend_result_when_only_market_fails(
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피"],
-        "weather": None,
     }
     mock_question_call_llm.return_value = (
         json.dumps(
@@ -175,7 +190,7 @@ def test_graph_uses_trend_result_when_only_market_fails(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -220,7 +235,7 @@ def test_graph_uses_market_result_when_only_trend_fails(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
+    mock_chips_call_llm.return_value = (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -234,27 +249,30 @@ def test_graph_uses_market_result_when_only_trend_fails(
     assert result["context"]["trend"] is None
 
 
+@patch("models.consult.nodes.seasonality_for_consult.compute_seasonality")
 @patch("models.consult.nodes.strategy.call_llm")
 @patch("models.consult.nodes.suggested_chips.call_llm")
 @patch("models.consult.nodes.question_analysis.call_llm")
 @patch("models.consult.nodes.trend_for_consult.get_trend")
 @patch("models.consult.nodes.market_for_consult.get_market")
-def test_market_and_trend_run_in_parallel_not_sequential(
+def test_suggested_chips_market_trend_seasonality_run_in_parallel_not_sequential(
     mock_get_market,
     mock_get_trend,
     mock_question_call_llm,
     mock_chips_call_llm,
     mock_strategy_call_llm,
+    mock_compute_seasonality,
 ) -> None:
-    """market_for_consult·trend_for_consult가 실제로 동시에 실행되는지 확인한다.
-    두 mock이 threading.Barrier(2)에서 서로를 기다리게 한다 — 순차 실행이면 먼저
-    도착한 쪽이 둘째를 영원히 못 만나 타임아웃 예외를 던지고, 병렬 실행이면 둘 다
-    거의 동시에 도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아 느린 CI에서
-    정상적인 병렬 실행까지 실패로 오판하지 않는다(Codex 리뷰 — 기존 sleep+임계값
-    비교는 느린 환경에서 flaky할 수 있다는 지적)."""
+    """suggested_chips·market_for_consult·trend_for_consult·seasonality_for_consult
+    네 노드가 question_analysis 직후 동시에 실행되는지 확인한다(v3 섹션F·C, 4-way
+    병렬화). 네 mock이 threading.Barrier(4)에서 서로를 기다리게 한다 — 넷 중
+    하나라도 순차 실행이면 나머지를 영원히 못 만나 타임아웃 예외를 던지고, 넷 다
+    병렬이면 거의 동시에 도착해 정상 통과한다. 절대 시간 임계값에 의존하지 않아
+    느린 CI에서도 안정적이다(v2 섹션F Codex 리뷰 — 기존 sleep+임계값 비교는 느린
+    환경에서 flaky할 수 있다는 지적과 동일 패턴)."""
     import threading
 
-    barrier = threading.Barrier(2, timeout=2.0)
+    barrier = threading.Barrier(4, timeout=2.0)
 
     def rendezvous_market(*args, **kwargs):
         barrier.wait()
@@ -262,8 +280,18 @@ def test_market_and_trend_run_in_parallel_not_sequential(
     def rendezvous_trend(*args, **kwargs):
         barrier.wait()
 
+    def rendezvous_chips(*args, **kwargs):
+        barrier.wait()
+        return (json.dumps({"chips": ["메뉴를 추천해 주세요", "가격은 어떻게 정하면 좋을까요?", "홍보 시기를 알려주세요"]}), 50)
+
+    def rendezvous_seasonality(*args, **kwargs):
+        barrier.wait()
+        return {"reference_date": "2026-08-24", "calendar_period": "8월 하순", "season_hint": "여름"}
+
     mock_get_market.side_effect = rendezvous_market
     mock_get_trend.side_effect = rendezvous_trend
+    mock_chips_call_llm.side_effect = rendezvous_chips
+    mock_compute_seasonality.side_effect = rendezvous_seasonality
     mock_question_call_llm.return_value = (
         json.dumps(
             {
@@ -275,7 +303,6 @@ def test_market_and_trend_run_in_parallel_not_sequential(
         ),
         100,
     )
-    mock_chips_call_llm.return_value = (json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}), 50)
     mock_strategy_call_llm.return_value = (
         json.dumps({"summary": "요약", "actions": [{"type": "menu", "content": "액션"}], "reasons": ["근거"]}),
         100,
@@ -287,6 +314,8 @@ def test_market_and_trend_run_in_parallel_not_sequential(
 
     mock_get_market.assert_called_once()
     mock_get_trend.assert_called_once()
+    mock_chips_call_llm.assert_called_once()
+    mock_compute_seasonality.assert_called_once()
 
 
 @patch("models.consult.nodes.question_analysis.call_llm")
@@ -454,9 +483,10 @@ def test_validation_routers_follow_contract_actions() -> None:
 
 
 def test_default_path_has_expected_topology() -> None:
-    """SDP §6.1 순서대로 연결돼 있어야 한다. market_for_consult·trend_for_consult는
-    서로의 결과를 쓰지 않아(v2 섹션F) suggested_chips에서 갈라졌다가 strategy 앞에서
-    합류하는 병렬 구간이고, 나머지는 순차 연결이다."""
+    """SDP §6.1 순서대로 연결돼 있어야 한다. suggested_chips·market_for_consult·
+    trend_for_consult·seasonality_for_consult는 서로의 결과를 쓰지 않아(v3 섹션F·C)
+    question_analysis 직후 넷 다 갈라졌다가 strategy 앞에서 합류하는 병렬 구간이고,
+    나머지는 순차 연결이다."""
     drawable = build_consultant().get_graph()
 
     assert set(drawable.nodes.keys()) == {
@@ -467,6 +497,7 @@ def test_default_path_has_expected_topology() -> None:
         "suggested_chips",
         "market_for_consult",
         "trend_for_consult",
+        "seasonality_for_consult",
         "strategy",
         "strategy_check",
         "security_output",
@@ -479,10 +510,13 @@ def test_default_path_has_expected_topology() -> None:
         ("security_input", "question_analysis"),
         ("security_input", "__end__"),
         ("question_analysis", "suggested_chips"),
-        ("suggested_chips", "market_for_consult"),
-        ("suggested_chips", "trend_for_consult"),
+        ("question_analysis", "market_for_consult"),
+        ("question_analysis", "trend_for_consult"),
+        ("question_analysis", "seasonality_for_consult"),
+        ("suggested_chips", "strategy"),
         ("market_for_consult", "strategy"),
         ("trend_for_consult", "strategy"),
+        ("seasonality_for_consult", "strategy"),
         ("strategy", "strategy_check"),
         ("strategy_check", "security_output"),
         ("security_output", "self_check_node"),

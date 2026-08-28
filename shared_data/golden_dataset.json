@@ -5,6 +5,7 @@
     "type": "market",
     "question": "주변 경쟁사는 얼마나 되나요?",
     "input": {
+      "reference_date": "2026-04-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -59,6 +60,7 @@
     "type": "market",
     "question": "이 동네에 저 말고 미용실 하는 사람이 또 있어요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -120,6 +122,7 @@
     "type": "market",
     "question": "우리 상권에 카페가 많은 편인가요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -181,6 +184,7 @@
     "type": "market",
     "question": "치킨집 차리려는데 근처에 비슷한 가게 많을까?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -242,6 +246,7 @@
     "type": "market",
     "question": "주변 전체 가게 수와 같은 업종 수를 비교하면 경쟁이 어느 정도인가요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -305,6 +310,7 @@
     "type": "market",
     "question": "근처 상권 분위기가 어떤지 알려줘",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -366,6 +372,7 @@
     "type": "market",
     "question": "미용실 열기 전에 이 근처 경쟁 상황 좀 봐줄래요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -427,6 +434,7 @@
     "type": "market",
     "question": "가까운 경쟁 치킨집까지 거리가 얼마나 돼요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -490,6 +498,7 @@
     "type": "strategy",
     "question": "손님이 뜸한 동네인데 어떻게 홍보하면 좋을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -551,6 +560,7 @@
     "type": "strategy",
     "question": "우리 카페 어떻게 홍보하면 좋을까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -612,6 +622,7 @@
     "type": "strategy",
     "question": "돈 많이 안 들이고 손님 늘릴 방법 있어요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -673,6 +684,7 @@
     "type": "strategy",
     "question": "치킨집인데 뭘로 차별화하면 좋을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -734,6 +746,7 @@
     "type": "strategy",
     "question": "할인 행사랑 세트 상품 중에 뭐가 더 나을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -797,6 +810,7 @@
     "type": "strategy",
     "question": "우리 가게는 뭘 다르게 해야 돼요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -858,6 +872,7 @@
     "type": "strategy",
     "question": "재방문 손님을 늘리려면 어떻게 해야 할까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -919,6 +934,7 @@
     "type": "strategy",
     "question": "젊은 직장인 손님을 더 끌려면 어떤 전략이 좋을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -980,6 +996,7 @@
     "type": "strategy",
     "question": "경쟁이 치열한데 우리만의 강점을 어떻게 내세우죠?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -1043,6 +1060,7 @@
     "type": "strategy",
     "question": "테이크아웃 손님을 좀 더 끌어보고 싶은데 뭐부터 해보면 좋을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -1097,6 +1115,7 @@
     "type": "season",
     "question": "손님 뜸한 비수기에 마케팅 쪽으로 뭘 해볼 수 있을까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -1158,6 +1177,7 @@
     "type": "season",
     "question": "비 오는 날은 손님이 줄던데 뭘 하면 좋을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -1221,6 +1241,7 @@
     "type": "season",
     "question": "명절 대목엔 뭘 준비하면 좋을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -1282,6 +1303,7 @@
     "type": "season",
     "question": "어떤 이벤트가 효과적일까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -1345,6 +1367,7 @@
     "type": "season",
     "question": "여름 방학 시즌에 신메뉴 홍보하려는데 뭐가 좋을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -1399,6 +1422,7 @@
     "type": "market",
     "question": "근처에 같은 업종 가게가 없으면 장사하기 좋은 자리인가요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -1460,6 +1484,7 @@
     "type": "market",
     "question": "이 동네에는 가게가 전체적으로 얼마나 모여 있나요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -1521,6 +1546,7 @@
     "type": "market",
     "question": "이 상권의 전체 규모와 치킨집 경쟁 상황을 같이 설명해 주세요.",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -1582,6 +1608,7 @@
     "type": "market",
     "question": "경쟁 매장 수와 가장 가까운 매장 거리를 장사 전략에 어떻게 활용할까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -1645,6 +1672,7 @@
     "type": "market",
     "question": "이 자리에서 슈퍼마켓을 운영할 때 눈여겨볼 상권 특징이 뭐예요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -1706,6 +1734,7 @@
     "type": "market",
     "question": "강남에서 미용실 경쟁 상황을 쉽게 설명해 주세요.",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -1767,6 +1796,7 @@
     "type": "market",
     "question": "이 상권에서 우리 치킨집이 눈에 띌 여지가 있을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -1830,6 +1860,7 @@
     "type": "strategy",
     "question": "경쟁 카페가 많은데 우리 가게는 어떻게 홍보해야 할까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -1884,6 +1915,7 @@
     "type": "strategy",
     "question": "근처 숙박업소 손님을 미용실로 끌어오려면 뭘 해보면 좋을까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -1945,6 +1977,7 @@
     "type": "strategy",
     "question": "동네 손님을 단골로 만들려면 뭘 해보는 게 좋을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -2006,6 +2039,7 @@
     "type": "strategy",
     "question": "치킨집 신규 손님을 늘릴 현실적인 방법이 있을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -2067,6 +2101,7 @@
     "type": "strategy",
     "question": "주변 미용실 고객에게 구례 슈퍼마켓을 알릴 방법이 있을까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2130,6 +2165,7 @@
     "type": "strategy",
     "question": "주변 가게들 틈에서 우리 슈퍼마켓만의 존재감을 어떻게 드러내면 좋을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2191,6 +2227,7 @@
     "type": "strategy",
     "question": "미용실 재방문 고객을 늘릴 수 있는 방법을 알려주세요.",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -2252,6 +2289,7 @@
     "type": "strategy",
     "question": "가평 치킨집에서 관광객을 겨냥한 홍보를 어떻게 시작할까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -2315,6 +2353,7 @@
     "type": "strategy",
     "question": "경쟁이 치열한 카페 상권에서 메뉴를 어떻게 차별화할까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -2369,6 +2408,7 @@
     "type": "strategy",
     "question": "구례 슈퍼마켓에서 저녁 장보기 시간대 손님을 끌려면 어떤 전략이 좋을까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2432,6 +2472,7 @@
     "type": "season",
     "question": "겨울철에 대관령 미용실 손님을 끌 이벤트가 있을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -2493,6 +2534,7 @@
     "type": "season",
     "question": "지역 축제 기간에 치킨집 손님을 끌 행사를 추천해 주세요.",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -2554,6 +2596,7 @@
     "type": "season",
     "question": "새 학기 시작 전에 동네 슈퍼마켓에서 할 만한 행사가 있을까요?",
     "input": {
+      "reference_date": "2027-02-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2615,6 +2658,7 @@
     "type": "season",
     "question": "주말에 가평 치킨집 방문을 늘릴 이벤트를 알려주세요.",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -2678,6 +2722,7 @@
     "type": "season",
     "question": "연말에 강남 카페가 할 만한 이벤트는 뭐가 있을까요?",
     "input": {
+      "reference_date": "2026-12-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -2732,6 +2777,7 @@
     "type": "strategy",
     "question": "요즘 탕후루가 유행이라던데, 저희 카페 메뉴에 넣으면 반응이 좋을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -2752,7 +2798,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "탕후루",
         "direction": "상승",
@@ -2762,8 +2808,7 @@
           "마블스크림",
           "탕후루프랜차이즈",
           "탕후루체인점"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2807,6 +2852,7 @@
     "type": "season",
     "question": "환절기에 디지털펌 손님을 늘리려면 어떤 이벤트가 좋을까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -2827,7 +2873,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "디지털펌",
         "direction": "유지",
@@ -2837,8 +2883,7 @@
           "와칸염색",
           "긴머리히피펌",
           "허쉬펌"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2882,6 +2927,7 @@
     "type": "strategy",
     "question": "순살치킨 메뉴를 강조하면 신규 손님을 끌 수 있을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -2902,7 +2948,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "순살치킨",
         "direction": "유지",
@@ -2912,8 +2958,7 @@
           "닭가슴살치킨",
           "가라아게",
           "냉동치킨"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -2957,6 +3002,7 @@
     "type": "market",
     "question": "다운펌을 새로 선보이려는데 이 근처엔 경쟁할 만한 미용실이 없는 거 맞죠?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -2978,7 +3024,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "다운펌",
         "direction": "유지",
@@ -2988,8 +3034,7 @@
           "다운펌기계",
           "남자옆머리누르기",
           "다운펌약"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3032,6 +3077,7 @@
     "type": "strategy",
     "question": "애쉬브라운으로 갈아타는 게 나을까요, 지금 하는 염색 메뉴를 유지하는 게 나을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -3053,12 +3099,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "애쉬브라운",
         "direction": "하락",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3101,6 +3146,7 @@
     "type": "season",
     "question": "요즘 흑임자라떼가 뜬다던데 계절 메뉴로 넣으면 좋을까요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -3121,7 +3167,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "흑임자라떼",
         "direction": "상승",
@@ -3131,8 +3177,7 @@
           "서리태가루",
           "흑임자",
           "검은콩가루"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3176,6 +3221,7 @@
     "type": "market",
     "question": "반반치킨을 밀면 주변 가게들이랑 차별화가 될까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -3196,12 +3242,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "반반치킨",
         "direction": "유지",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3245,6 +3290,7 @@
     "type": "market",
     "question": "즉석밥을 매대에 늘리려는데 요즘도 잘 나가는 상품인가요?",
     "input": {
+      "reference_date": "2026-07-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -3267,7 +3313,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "즉석밥",
         "direction": "유지",
@@ -3277,8 +3323,7 @@
           "햇반",
           "현미밥",
           "곤약현미밥"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3322,6 +3367,7 @@
     "type": "strategy",
     "question": "물티슈를 대용량으로 안 늘려도 괜찮을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -3344,7 +3390,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "물티슈",
         "direction": "유지",
@@ -3354,8 +3400,7 @@
           "휴지도매",
           "판촉물제작",
           "화장지도매"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3399,6 +3444,7 @@
     "type": "market",
     "question": "밀키트 코너를 늘리면 주변 상권에서 눈에 띌까요?",
     "input": {
+      "reference_date": "2026-10-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -3419,7 +3465,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "밀키트",
         "direction": "유지",
@@ -3429,8 +3475,7 @@
           "식자재마트",
           "생일상배달",
           "식자재유통"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3474,6 +3519,7 @@
     "type": "strategy",
     "question": "제로슈거 음료 코너를 크게 만들면 손님이 늘까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -3494,7 +3540,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "제로슈거",
         "direction": "하락",
@@ -3504,8 +3550,7 @@
           "수분섭취",
           "수분보충제",
           "물많이마시기"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3549,6 +3594,7 @@
     "type": "strategy",
     "question": "볼륨매직 시술을 더 홍보하려면 어떻게 해야 할까요?",
     "input": {
+      "reference_date": "2026-04-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -3569,7 +3615,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "볼륨매직",
         "direction": "하락",
@@ -3579,8 +3625,7 @@
           "곱슬머리샴푸",
           "토소웅매직샴푸",
           "스트레이트파마약"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3624,6 +3669,7 @@
     "type": "market",
     "question": "닭강정을 대표 메뉴로 밀어도 경쟁력이 있을까요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -3646,7 +3692,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "닭강정",
         "direction": "유지",
@@ -3656,8 +3702,7 @@
           "닭강정맛집",
           "멕시카나닭강정",
           "속초중앙닭강정"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {
@@ -3701,6 +3746,7 @@
     "type": "season",
     "question": "예산 크게 안 들이고 마늘치킨을 연말 특선으로 밀 수 있을까요?",
     "input": {
+      "reference_date": "2026-12-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -3723,12 +3769,11 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "마늘치킨",
         "direction": "하락",
-        "related": [],
-        "weather": null
+        "related": []
       }
     },
     "expected": {
@@ -3772,6 +3817,7 @@
     "type": "strategy",
     "question": "흑당버블티 어때요, 메뉴에 넣을 만해요?",
     "input": {
+      "reference_date": "2026-01-15",
       "store": {
         "name": "카페 코드잇",
         "type": "카페",
@@ -3792,7 +3838,7 @@
         }
       },
       "trend_fixture": {
-        "fixture_version": "v1-naver-apihub",
+        "fixture_version": "v2-no-weather",
         "captured_at": "2026-08-19",
         "keyword": "흑당버블티",
         "direction": "유지",
@@ -3802,8 +3848,7 @@
           "흑당시럽",
           "흑당밀크티",
           "버블티펄"
-        ],
-        "weather": null
+        ]
       }
     },
     "expected": {

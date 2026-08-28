@@ -1,6 +1,7 @@
 # 컨설턴트 골든 데이터셋 평가기의 규칙 검사와 실행 흐름을 검증하는 테스트
 import json
-from datetime import datetime
+from collections import Counter
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
@@ -8,9 +9,11 @@ import httpx
 import openai
 import pytest
 
+from models.consult.eval import eval_strategy
 from models.consult.eval.eval_strategy import (
     DEFAULT_DATASET_PATH,
     DEFAULT_STORE,
+    JUDGE_SYSTEM_PROMPT,
     _build_model_request,
     _build_report,
     _check_contract,
@@ -34,6 +37,7 @@ from models.shared.config import (
     OPENAI_MODEL,
 )
 from models.shared.eval.token_usage import EvalPreflightError
+from models.shared.seasonality import compute_seasonality
 
 _OK_RESPONSE = {
     "status": "ok",
@@ -47,6 +51,57 @@ _OK_RESPONSE = {
     "tokens_used": 100,
     "suggested_chips": ["메뉴는요?", "홍보는요?", "단골은요?"],
 }
+
+
+def test_golden_dataset_balances_explicit_reference_dates_across_four_seasons() -> None:
+    dataset = json.loads(DEFAULT_DATASET_PATH.read_text(encoding="utf-8"))
+    consult_items = [item for item in dataset if item.get("area") == "consult"]
+    by_season: dict[str, list[dict]] = {}
+    for item in consult_items:
+        raw = (item.get("input") or {}).get("reference_date")
+        assert isinstance(raw, str) and raw
+        season = compute_seasonality(date.fromisoformat(raw))["season_hint"]
+        by_season.setdefault(season, []).append(item)
+
+    assert Counter({season: len(items) for season, items in by_season.items()}) == {
+        "봄": 15,
+        "여름": 15,
+        "가을": 15,
+        "겨울": 15,
+    }
+    dimensions = {
+        "type": lambda item: item["type"],
+        "industry": lambda item: (
+            (item["input"].get("store") or {}).get("type") or DEFAULT_STORE["type"]
+        ),
+        "trend": lambda item: bool(item["input"].get("trend_fixture")),
+    }
+    for value_for in dimensions.values():
+        values = {value_for(item) for item in consult_items}
+        for value in values:
+            counts = [
+                sum(value_for(item) == value for item in by_season[season])
+                for season in ("봄", "여름", "가을", "겨울")
+            ]
+            assert max(counts) - min(counts) <= 1
+    for items in by_season.values():
+        assert {item["type"] for item in items} == {"market", "season", "strategy"}
+        assert {bool(item["input"].get("trend_fixture")) for item in items} == {
+            False,
+            True,
+        }
+        assert {
+            ((item["input"].get("store") or {}).get("type") or DEFAULT_STORE["type"])
+            for item in items
+        } == {"카페", "치킨", "미용실", "슈퍼마켓"}
+
+    by_id = {item["id"]: item for item in consult_items}
+    assert by_id["C-023"]["input"]["reference_date"] == "2026-07-15"
+    assert by_id["C-041"]["input"]["reference_date"] == "2026-01-15"
+    assert by_id["C-043"]["input"]["reference_date"] == "2027-02-15"
+    assert by_id["C-045"]["input"]["reference_date"] == "2026-12-15"
+    assert by_id["C-047"]["input"]["reference_date"] == "2026-10-15"
+    assert by_id["C-059"]["input"]["reference_date"] == "2026-12-15"
 
 
 def _item(item_id: str = "C-001") -> dict:
@@ -200,6 +255,78 @@ def test_check_number_rules_rejects_missing_required_number() -> None:
     assert unexpected == []
 
 
+def test_check_number_rules_excludes_exact_seasonality_citation() -> None:
+    """프롬프트가 reasons에 계절성 참고의 원시 날짜(요청 기준일) 인용을 명시적으로
+    허용하는데, strict 검사가 그 날짜를 쪼갠 숫자(2026·8·24)까지 환각으로 잡으면
+    정상 응답이 실패 처리된다 — 실제로 (False, [8, 2026, 24])로 재현됨(Codex 리뷰)."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [177],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름",
+    }
+    response = {
+        "reasons": [
+            "반경 내 동일 업종이 177곳입니다.",
+            "8월 하순(요청 기준일 2026-08-24) 기준 여름 성수기입니다.",
+        ]
+    }
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is True
+    assert unexpected == []
+
+
+def test_check_number_rules_still_flags_a_different_date_than_the_given_one() -> None:
+    """실제로 주어진 기준일과 다른 날짜를 인용하면(진짜 환각) 계절성 예외가
+    적용되지 않고 그대로 잡혀야 한다 — 정확히 일치하는 인용만 예외 대상이다."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름",
+    }
+    response = {"reasons": ["2026-09-01 기준으로 보면 성수기입니다."]}
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is False
+    assert set(unexpected) == {2026, 9, 1}
+
+
+def test_check_number_rules_still_flags_unrelated_numbers_matching_seasonality_digits() -> None:
+    """계절성 예외는 정확한 문자열 인용에만 적용된다 — 같은 숫자(8·2026)가 전혀
+    다른 문맥(할인율·가격)에 등장하면 전역 허용 목록처럼 동작해서는 안 된다."""
+    expected = {
+        "number_scope": "reasons",
+        "allowed_numbers": [],
+        "must_contain_number": True,
+        "hallucination_check": "strict",
+    }
+    seasonality = {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름",
+    }
+    response = {"reasons": ["8% 할인과 2026원 적립 혜택을 제공합니다."]}
+
+    passed, unexpected = _check_number_rules(response, expected, seasonality)
+
+    assert passed is False
+    assert set(unexpected) == {8, 2026}
+
+
 def test_check_number_rules_does_not_treat_bool_as_allowed_number() -> None:
     expected = {
         "number_scope": "reasons",
@@ -225,14 +352,12 @@ def test_sanitize_trend_fixture_removes_metadata_and_keeps_api_payload() -> None
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
 
     assert _sanitize_trend_fixture(item) == {
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
 
 
@@ -249,10 +374,33 @@ def test_trend_fixture_version_uses_non_null_fixture_version() -> None:
         "keyword": "탕후루",
         "direction": "상승",
         "related": [],
-        "weather": None,
     }
 
     assert _trend_fixture_version([null_item, trend_item]) == "v1-naver-apihub"
+
+
+def test_item_reference_date_parses_optional_iso_date() -> None:
+    parser = getattr(eval_strategy, "_item_reference_date", None)
+    assert parser is not None
+    item = _item()
+    item["input"]["reference_date"] = "2026-10-15"
+
+    assert parser(item) == date(2026, 10, 15)
+    assert parser(_item()) is None
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ["2026/10/15", "", "20261015", "2026-W42-4", 20261015, True],
+)
+def test_item_reference_date_rejects_invalid_value(invalid) -> None:
+    parser = getattr(eval_strategy, "_item_reference_date", None)
+    assert parser is not None
+    item = _item()
+    item["input"]["reference_date"] = invalid
+
+    with pytest.raises((TypeError, ValueError), match="reference_date"):
+        parser(item)
 
 
 @patch("models.consult.eval.eval_strategy.assemble_response")
@@ -356,6 +504,12 @@ def test_judge_market_fixture_strips_industry_breakdown_but_keeps_density_tier()
     assert filtered["total_count"] == 6691
 
 
+def test_judge_system_prompt_rubric_covers_seasonality() -> None:
+    """근거_충실도 축이 "상권 정보"만 언급하면, 계절성 원시 날짜를 정상 인용한
+    reasons를 Judge가 검증할 기준 자체가 없다(Codex 리뷰)."""
+    assert "계절성" in JUDGE_SYSTEM_PROMPT
+
+
 def test_judge_market_fixture_passes_through_none_and_empty() -> None:
     assert _judge_market_fixture(None) is None
     assert _judge_market_fixture({}) == {}
@@ -370,7 +524,6 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
     mock_call_llm.return_value = (
         json.dumps(
@@ -391,7 +544,11 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
+        },
+        "seasonality": {
+            "reference_date": "2026-08-24",
+            "calendar_period": "8월 하순",
+            "season_hint": "여름",
         },
     }
 
@@ -411,7 +568,13 @@ def test_judge_response_scores_all_rubric_keys_in_one_call(mock_call_llm) -> Non
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
+    }
+    # 생성 모델이 실제로 본 계절성 데이터를 Judge도 똑같이 봐야, 날짜를 정상
+    # 인용한 응답을 근거 없이 낮게 채점하지 않는다(Codex 리뷰).
+    assert judge_input["seasonality"] == {
+        "reference_date": "2026-08-24",
+        "calendar_period": "8월 하순",
+        "season_hint": "여름",
     }
     assert mock_call_llm.call_args.kwargs == {
         "json_mode": True,
@@ -440,13 +603,13 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
     mock_call_llm,
 ) -> None:
     item = _item()
+    item["input"]["reference_date"] = "2026-04-15"
     item["input"]["trend_fixture"] = {
         "fixture_version": "v1-naver-apihub",
         "captured_at": "2026-08-19",
         "keyword": "탕후루",
         "direction": "상승",
         "related": ["구슬아이스크림"],
-        "weather": None,
     }
     item["expected"]["trend_used"] = True
     response = {**_OK_RESPONSE, "sources": ["상권분석", "트렌드"]}
@@ -462,12 +625,20 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
+        },
+        "seasonality": {
+            "reference_date": "2026-04-15",
+            "calendar_period": "4월 중순",
+            "season_hint": "봄",
         },
     }
 
     def fake_run_graph(_request: dict) -> tuple[dict, dict]:
-        from models.consult.nodes import market_for_consult, trend_for_consult
+        from models.consult.nodes import (
+            market_for_consult,
+            seasonality_for_consult,
+            trend_for_consult,
+        )
 
         assert market_for_consult.get_market(0, 0) == {
             "total_count": 6691,
@@ -478,7 +649,11 @@ def test_evaluate_item_patches_data_calls_and_removes_fixture_metadata(
             "keyword": "탕후루",
             "direction": "상승",
             "related": ["구슬아이스크림"],
-            "weather": None,
+        }
+        assert seasonality_for_consult.compute_seasonality() == {
+            "reference_date": "2026-04-15",
+            "calendar_period": "4월 중순",
+            "season_hint": "봄",
         }
         return {"context": context_snapshot}, response
 
@@ -533,7 +708,6 @@ def test_evaluate_item_never_reaches_live_market_or_trend_api(
         "keyword": "탕후루",
         "direction": "상승",
         "related": [],
-        "weather": None,
     }
     item["expected"]["trend_used"] = True
 
@@ -783,7 +957,7 @@ def test_build_report_uses_required_schema_and_aggregates_metrics(
         "total_tokens": 0,
         "unattributed_tokens": 0,
     }
-    assert report["dataset_version"] == "v1.3"
+    assert report["dataset_version"] == "v1.3-seasonality-4season"
     assert report["trend_fixture_version"] == "v1-naver-apihub"
     assert report["item_count"] == 3
     assert report["metrics"] == {
@@ -1032,6 +1206,162 @@ def test_evaluate_dataset_limits_count_sleeps_between_items_and_writes_report(
     assert json.loads(report_path.read_text(encoding="utf-8"))["item_count"] == 2
     assert report_path.name.endswith("_consult_limit-2.json")
     mock_sleep.assert_called_once_with(1.0)
+
+
+def _minimal_result(item_id: str) -> dict:
+    return {
+        "id": item_id,
+        "passed": True,
+        "scores": {"자연스러움": 4},
+        "unexpected_numbers": [],
+        "response": _OK_RESPONSE,
+        "context_snapshot": {"same_industry_count": 177},
+        "trend_path": {
+            "expected": False, "actual": False, "matched": True,
+            "keyword": None, "trend_in_context": False,
+        },
+        "judge_error": None,
+        "actions_retried": False,
+        "actions_truncated": False,
+        "_status_ok": True,
+        "_contract_ok": True,
+        "_judge_ok": True,
+        "_latency_s": 1.0,
+    }
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_warns_when_reference_date_is_not_pinned(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch, caplog
+) -> None:
+    """VALIDATION_REFERENCE_DATE를 안 고정하면 실행일마다 계절성 입력이 달라져
+    두 리포트를 같은 조건으로 비교할 수 없다 — 최소한 경고 로그로 알린다
+    (Codex 리뷰. 결과 리포트 스키마에 기준일을 새 필드로 넣는 건 PM 설계 문서가
+    별도 승인이 필요하다고 명시해 이번 범위에서는 하지 않는다)."""
+    monkeypatch.delenv("VALIDATION_REFERENCE_DATE", raising=False)
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.side_effect = lambda item: _minimal_result(item["id"])
+
+    with caplog.at_level("WARNING"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    assert "VALIDATION_REFERENCE_DATE" in caplog.text
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_raises_when_full_run_has_no_reference_date(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """전체 평가(limit=None)는 비교 재현성이 핵심이라, 경고만 하고 계속 진행하면
+    원래 막으려던 문제(실행일마다 다른 계절성 입력)를 못 막는다 — 즉시 차단한다
+    (Codex 리뷰)."""
+    monkeypatch.delenv("VALIDATION_REFERENCE_DATE", raising=False)
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(EvalPreflightError, match="VALIDATION_REFERENCE_DATE"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=None, report_dir=tmp_path / "reports"
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_allows_full_run_when_every_item_has_reference_date(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """모든 문항에 기준일이 있으면 실행 단위 환경변수에 의존하지 않는다."""
+    monkeypatch.delenv("VALIDATION_REFERENCE_DATE", raising=False)
+    item = _item("C-001")
+    item["input"]["reference_date"] = "2026-04-15"
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps([item], ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.side_effect = lambda selected: _minimal_result(selected["id"])
+
+    report, _ = evaluate_dataset(
+        dataset_path=dataset_path,
+        area="consult",
+        limit=None,
+        report_dir=tmp_path / "reports",
+    )
+
+    assert report["item_count"] == 1
+    mock_evaluate_item.assert_called_once()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_raises_before_any_item_when_reference_date_malformed(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """형식이 잘못되면 문항의 그래프 내부(seasonality_for_consult)에서야 예외가
+    잡혀 전체 문항이 실패 처리되고, 이미 병렬로 나간 다른 노드의 LLM·API 호출
+    비용까지 낭비할 위험이 있다 — 문항 반복 전에 미리 걸러낸다(Codex 리뷰)."""
+    monkeypatch.setenv("VALIDATION_REFERENCE_DATE", "잘못된값")
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="VALIDATION_REFERENCE_DATE"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_validates_item_reference_dates_before_any_item(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch
+) -> None:
+    """문항별 기준일도 첫 LLM 호출 전에 전부 검증해 앞선 문항의 비용을 보존한다."""
+    monkeypatch.setenv("VALIDATION_REFERENCE_DATE", "2026-07-15")
+    first = _item("C-001")
+    second = _item("C-002")
+    second["input"]["reference_date"] = "잘못된값"
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(
+        json.dumps([first, second], ensure_ascii=False), encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="reference_date"):
+        evaluate_dataset(
+            dataset_path=dataset_path,
+            area="consult",
+            limit=2,
+            report_dir=tmp_path / "reports",
+        )
+
+    mock_evaluate_item.assert_not_called()
+
+
+@patch("models.consult.eval.eval_strategy.preflight")
+@patch("models.consult.eval.eval_strategy._evaluate_item")
+def test_evaluate_dataset_does_not_warn_when_reference_date_is_pinned(
+    mock_evaluate_item, _mock_preflight, tmp_path, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("VALIDATION_REFERENCE_DATE", "2026-07-15")
+    dataset = [_item("C-001")]
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(json.dumps(dataset, ensure_ascii=False), encoding="utf-8")
+    mock_evaluate_item.side_effect = lambda item: _minimal_result(item["id"])
+
+    with caplog.at_level("WARNING"):
+        evaluate_dataset(
+            dataset_path=dataset_path, area="consult", limit=1, report_dir=tmp_path / "reports"
+        )
+
+    assert "VALIDATION_REFERENCE_DATE" not in caplog.text
 
 
 @patch("models.consult.eval.eval_strategy.preflight")
