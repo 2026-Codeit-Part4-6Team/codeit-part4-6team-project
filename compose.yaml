@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      target: ${BACKEND_BUILD_TARGET:-actual}
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/app.db}
@@ -18,17 +19,40 @@ services:
       DAILY_FREE_LIMIT: ${DAILY_FREE_LIMIT:-10}
       BASIC_CREDIT_COST: ${BASIC_CREDIT_COST:-50}
       CONSULTANT_CREDIT_COST: ${CONSULTANT_CREDIT_COST:-10}
-      MODEL_REQUEST_TIMEOUT_SECONDS: ${MODEL_REQUEST_TIMEOUT_SECONDS:-60}
+      MODEL_REQUEST_TIMEOUT_SECONDS: ${MODEL_REQUEST_TIMEOUT_SECONDS:-180}
+      MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}
+      STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-240}
+      VALIDATION_DYNAMIC_TOP_K: ${VALIDATION_DYNAMIC_TOP_K:-0}
+      VALIDATION_TOP_K: ${VALIDATION_TOP_K:-3}
+      VALIDATION_MAX_TOP_K: ${VALIDATION_MAX_TOP_K:-3}
+      VALIDATION_RAG_ENABLED: ${VALIDATION_RAG_ENABLED:-1}
+      VALIDATION_REQUIRE_LEGAL_KB: ${VALIDATION_REQUIRE_LEGAL_KB:-1}
+      VALIDATION_MIN_KB_CHUNKS: ${VALIDATION_MIN_KB_CHUNKS:-30}
+      CHATBOT_MODE: ${CHATBOT_MODE:-mock}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
+      MAX_APPROVED_IMAGE_BYTES: ${MAX_APPROVED_IMAGE_BYTES:-5242880}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.3}
+      MARKET_API_KEY: ${MARKET_API_KEY:-}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      NAVER_AD_API_KEY: ${NAVER_AD_API_KEY:-}
+      NAVER_AD_SECRET_KEY: ${NAVER_AD_SECRET_KEY:-}
+      NAVER_AD_CUSTOMER_ID: ${NAVER_AD_CUSTOMER_ID:-}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
     volumes:
       - "./data:/app/data"
+      - "${HF_HOME_HOST_PATH:-./.cache/huggingface}:/app/.cache/huggingface"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s
+      start_period: 90s
 
   frontend:
     build:

@@ -64,6 +64,7 @@ def build_user_response(
     return UserResponse(
         id=user.id,
         username=user.username,
+        is_admin=bool(user.is_admin),
         name=user.name,
         email=user.email,
         business_name=user.business_name,

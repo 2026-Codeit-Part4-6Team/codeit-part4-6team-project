@@ -11,9 +11,10 @@ import time
 
 import httpx
 
+from models.consult.config import MAX_RELATED_KEYWORDS
+
 _BASE_URL = "https://api.searchad.naver.com"
 _URI = "/keywordstool"
-_MAX_RELATED_KEYWORDS = 5  # SDP에 개수 제한 명시 없음 — 과도하게 긴 리스트를 막기 위한 자체 상한
 
 
 def _sign(secret_key: str, timestamp: str, method: str, uri: str) -> str:
@@ -31,7 +32,7 @@ def fetch_related_keywords(keyword: str) -> list[str] | None:
     """연관 검색어를 조회한다. 실패(자격증명 없음·HTTP 오류·JSON 아님) 시 None을 반환한다.
 
     입력 키워드 자체는 결과에서 제외하고, 중복을 제거하며, 최대
-    _MAX_RELATED_KEYWORDS개로 제한한다. API는 성공했지만 연관 검색어가 없으면
+    MAX_RELATED_KEYWORDS개로 제한한다. API는 성공했지만 연관 검색어가 없으면
     빈 리스트를 반환한다(None과 구분 — "실패"와 "결과 없음"은 다르다).
 
     요청·비교에 쓰는 키워드는 공백을 전부 제거한다 — 이 API는 공백이 포함된
@@ -83,7 +84,7 @@ def fetch_related_keywords(keyword: str) -> list[str] | None:
         if not normalized or normalized == request_keyword or normalized in related:
             continue
         related.append(normalized)
-        if len(related) >= _MAX_RELATED_KEYWORDS:
+        if len(related) >= MAX_RELATED_KEYWORDS:
             break
 
     return related

@@ -41,6 +41,12 @@ export function App() {
     setAuthChecked(true);
   }
 
+  function updateCredits(credits: number) {
+    setView((current) => current.user
+      ? { ...current, user: { ...current.user, credits } }
+      : current);
+  }
+
   function onNavigate(route: AppRoute) {
     setView((current) => navigate(current, route));
   }
@@ -52,6 +58,10 @@ export function App() {
       setView(loggedOutState());
       setAuthChecked(true);
     }
+  }
+
+  function onUserChanged(user: UserResponse) {
+    setView((current) => ({ ...current, user }));
   }
 
   if (restoreError) {
@@ -71,6 +81,8 @@ export function App() {
       route={view.route}
       onNavigate={onNavigate}
       onLogout={() => void logout()}
+      onCreditsChanged={updateCredits}
+      onUserChanged={onUserChanged}
     />
   );
 }
