@@ -1,0 +1,221 @@
+name: Deploy Demo (시연용 CD)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "시연할 원격 브랜치 또는 커밋 SHA"
+        required: true
+        type: string
+        default: "integration/e2e-demo-20260826"
+      confirm_deploy:
+        description: "GCP 시연 환경에 배포합니다."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+  IMAGE_BASE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  VM_HOST: ${{ vars.DEMO_VM_HOST }}
+  VM_SSH_USER: ${{ vars.DEMO_VM_SSH_USER }}
+  VM_DEPLOY_PATH: ${{ vars.DEMO_VM_DEPLOY_PATH }}
+  COMPOSE_PROJECT_NAME: ${{ vars.DEMO_COMPOSE_PROJECT_NAME }}
+  PUBLIC_HEALTHCHECK_URL: ${{ vars.DEMO_PUBLIC_HEALTHCHECK_URL }}
+
+jobs:
+  resolve-source:
+    name: Resolve demo source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Record source commit
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  preflight:
+    name: Demo deployment preflight
+    needs: resolve-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CONFIRM_DEPLOY: ${{ inputs.confirm_deploy }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+      IMAGE_TAG: ${{ needs.resolve-source.outputs.source_sha }}
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Validate demo deployment request
+        run: |
+          if [[ "$CONFIRM_DEPLOY" != "true" ]]; then
+            echo "시연용 배포 확인이 선택되지 않았습니다." >&2
+            exit 1
+          fi
+          case "$SOURCE_REF" in
+            main|refs/heads/main)
+              echo "시연용 CD에는 main을 직접 배포하지 않습니다. 시연 브랜치를 선택하세요." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Validate deployment configuration
+        run: |
+          : "${GCP_PROJECT_ID:?Repository variable GCP_PROJECT_ID is required}"
+          : "${GCP_REGION:?Repository variable GCP_REGION is required}"
+          : "${ARTIFACT_REGISTRY_REPOSITORY:?Repository variable ARTIFACT_REGISTRY_REPOSITORY is required}"
+          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Repository variable GCP_WORKLOAD_IDENTITY_PROVIDER is required}"
+          : "${GCP_SERVICE_ACCOUNT:?Repository variable GCP_SERVICE_ACCOUNT is required}"
+          : "${VM_HOST:?Repository variable DEMO_VM_HOST is required}"
+          : "${VM_SSH_USER:?Repository variable DEMO_VM_SSH_USER is required}"
+          : "${VM_DEPLOY_PATH:?Repository variable DEMO_VM_DEPLOY_PATH is required}"
+          : "${COMPOSE_PROJECT_NAME:?Repository variable DEMO_COMPOSE_PROJECT_NAME is required}"
+          : "${PUBLIC_HEALTHCHECK_URL:?Repository variable DEMO_PUBLIC_HEALTHCHECK_URL is required}"
+          python scripts/validate_deploy_config.py
+          cp .env.demo.example .env
+          docker compose --env-file .env -f compose.demo.yaml config --quiet
+          bash -n scripts/deploy_demo.sh
+
+  build-and-push:
+    name: Build and push demo ${{ matrix.service }}
+    needs:
+      - resolve-source
+      - preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - backend
+          - frontend
+
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          create_credentials_file: false
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_BASE }}/${{ matrix.service }}:${{ needs.resolve-source.outputs.source_sha }}
+          build-args: |
+            VITE_NAVER_MAPS_CLIENT_ID=${{ vars.NAVER_MAPS_CLIENT_ID }}
+          cache-from: type=gha,scope=demo-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=demo-${{ matrix.service }}
+
+  deploy:
+    name: Deploy demo to GCP VM
+    needs:
+      - resolve-source
+      - preflight
+      - build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: demo
+    env:
+      IMAGE_TAG: ${{ needs.resolve-source.outputs.source_sha }}
+
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Revalidate deployment configuration
+        run: python scripts/validate_deploy_config.py
+
+      - name: Configure SSH
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          : "${VM_SSH_PRIVATE_KEY:?Demo environment secret VM_SSH_PRIVATE_KEY is required}"
+          : "${VM_SSH_KNOWN_HOSTS:?Demo environment secret VM_SSH_KNOWN_HOSTS is required}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VM_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VM_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload demo deployment files
+        run: |
+          ssh "$VM_SSH_USER@$VM_HOST" "mkdir -p '$VM_DEPLOY_PATH/scripts'"
+          scp compose.demo.yaml .env.demo.example "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/"
+          scp scripts/deploy_demo.sh "$VM_SSH_USER@$VM_HOST:$VM_DEPLOY_PATH/scripts/"
+
+      - name: Deploy demo application containers
+        run: |
+          ssh "$VM_SSH_USER@$VM_HOST" \
+            "cd '$VM_DEPLOY_PATH' && \
+            IMAGE_BASE='$IMAGE_BASE' \
+            IMAGE_TAG='$IMAGE_TAG' \
+            COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' \
+            COMPOSE_FILE=compose.demo.yaml \
+            bash scripts/deploy_demo.sh"
+
+      - name: Verify public demo frontend health
+        run: |
+          curl --fail --show-error --silent \
+            --retry 10 --retry-delay 3 --retry-all-errors \
+            "$PUBLIC_HEALTHCHECK_URL"
+
+      - name: Print demo service state
+        if: always()
+        run: |
+          ssh "$VM_SSH_USER@$VM_HOST" \
+            "cd '$VM_DEPLOY_PATH' && \
+            IMAGE_BASE='$IMAGE_BASE' \
+            IMAGE_TAG='$IMAGE_TAG' \
+            COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' \
+            COMPOSE_FILE=compose.demo.yaml \
+            docker compose -p '$COMPOSE_PROJECT_NAME' --env-file .env -f compose.demo.yaml ps"

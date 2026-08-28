@@ -56,8 +56,18 @@ jobs:
           IMAGE_TAG: ci
         run: docker compose -f compose.deploy.yaml config --quiet
 
+      - name: Validate demo deployment Compose configuration
+        env:
+          IMAGE_BASE: example.invalid/team6
+          IMAGE_TAG: ci
+        run: |
+          cp .env.demo.example .env
+          docker compose --env-file .env -f compose.demo.yaml config --quiet
+
       - name: Validate deployment script syntax
-        run: bash -n scripts/deploy.sh
+        run: |
+          bash -n scripts/deploy.sh
+          bash -n scripts/deploy_demo.sh
 
   compose-smoke-test:
     name: Compose smoke test
