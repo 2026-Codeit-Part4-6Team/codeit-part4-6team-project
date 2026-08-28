@@ -25,10 +25,6 @@ gh workflow run deploy.yml --ref main -f confirm_deploy=true
 gh run watch
 ```
 
-시연용 배포는 production CD와 분리된 `deploy-demo.yml`을 수동 실행합니다. 워크플로의
-`source_ref`에 통합 브랜치 또는 커밋을 지정하며, `main`은 시연용 배포 대상으로 허용하지
-않습니다.
-
 CD는 애플리케이션 테스트를 다시 수행하지 않습니다. PR CI를 통과한 코드만 `main`에 병합되도록
 Branch ruleset을 구성하고, CD에서는 배포 대상·설정·인증·헬스체크만 검증합니다.
 
@@ -179,44 +175,6 @@ JupyterHub, DB, Triton, 모델 가중치는 시작·종료·교체하지 않습�
 내부 생성 요청은 현재 Python 기반 Streamlit 스켈레톤에 맞춘 검사입니다. React 이미지로 교체할
 때는 프론트엔드 런타임과 API 진입점에 맞게 검사 명령도 함께 변경합니다.
 
-## 시연용 CD
-
-시연용 CD는 동일한 Artifact Registry와 GCP VM을 사용하되 production 배포와 별도의 Compose
-프로젝트·디렉터리를 사용합니다. 포트는 E2E 시나리오와 맞추기 위해 frontend 8501, backend
-18000을 사용하므로 두 스택을 동시에 실행하지 않습니다.
-
-```text
-Workflow: .github/workflows/deploy-demo.yml
-VM path: /srv/team6/demo
-Compose project: team6-demo
-Compose file: compose.demo.yaml
-```
-
-시연용 VM에는 실제 비밀값을 포함한 `/srv/team6/demo/.env`를 미리 만들고,
-`.env.demo.example`을 참고해 다음 값을 사용합니다.
-
-```dotenv
-APP_ENV=demo
-CHATBOT_MODE=actual
-DEMO_ACCOUNTS_ENABLED=true
-DEMO_PAYMENT_ENABLED=true
-FRONTEND_PORT=8501
-BACKEND_PORT=18000
-```
-
-Demo CD는 `VM_SSH_PRIVATE_KEY`와 `VM_SSH_KNOWN_HOSTS`를 GitHub `demo` Environment에서
-읽습니다. production Environment의 비밀값과 분리하고, VM의 실제 `.env`는 업로드하거나
-덮어쓰지 않습니다. 결제는 PG 연동이 없는 시연용 Credit 충전이며 실제 금전 거래를 수행하지
-않습니다.
-
-시연 종료 후에는 demo 스택만 내립니다.
-
-```bash
-docker compose -p team6-demo \
-  --env-file /srv/team6/demo/.env \
-  -f /srv/team6/demo/compose.demo.yaml down
-```
-
 ## Main Branch 병합 정책
 
 - Require a pull request before merging
@@ -239,16 +197,6 @@ docker compose -p team6-demo \
 | `COMPOSE_PROJECT_NAME` | `team6-app` | 고정 Compose 프로젝트 이름 |
 | `PUBLIC_HEALTHCHECK_URL` | `http://203.0.113.10:8501/_stcore/health` | 외부 프론트엔드 점검 주소 |
 
-시연용 CD는 아래 Demo 전용 Repository Variables를 사용합니다.
-
-| 이름 | 예시 | 설명 |
-| --- | --- | --- |
-| DEMO_VM_HOST | 203.0.113.10 | 시연 배포 대상 VM 주소 |
-| DEMO_VM_SSH_USER | deploy | 시연 배포용 Linux 계정 |
-| DEMO_VM_DEPLOY_PATH | /srv/team6/demo | 시연 Compose와 서버 환경 파일 위치 |
-| DEMO_COMPOSE_PROJECT_NAME | team6-demo | 시연 Compose 프로젝트 이름 |
-| DEMO_PUBLIC_HEALTHCHECK_URL | http://203.0.113.10:8501/ | 시연 프론트엔드 점검 주소 |
-
 ## GitHub Production Secrets
 
 GitHub의 `production` Environment에 다음 Secret을 등록합니다.
@@ -260,10 +208,6 @@ GitHub의 `production` Environment에 다음 Secret을 등록합니다.
 
 애플리케이션 API 키는 GitHub에 등록하지 않습니다. 실제 `.env`는 VM의
 `/srv/team6/app/.env`에서만 관리하고 CD가 덮어쓰지 않습니다.
-
-시연용 CD는 GitHub `demo` Environment에 같은 이름의 `VM_SSH_PRIVATE_KEY`,
-`VM_SSH_KNOWN_HOSTS`를 등록하거나, 별도 키를 사용합니다. 실제 애플리케이션 API 키와 Demo
-계정 비밀번호는 `/srv/team6/demo/.env`에만 둡니다.
 
 ## GCP 권한
 
