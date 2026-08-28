@@ -5,7 +5,8 @@ services:
     env_file:
       - .env
     environment:
-      APP_ENV: production
+      # 시연/운영 모드는 VM의 .env에서 선택합니다.
+      APP_ENV: ${APP_ENV:-demo}
       HF_TOKEN: ${HF_TOKEN:-}
       HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
       MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}
