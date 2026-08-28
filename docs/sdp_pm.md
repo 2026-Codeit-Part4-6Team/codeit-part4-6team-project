@@ -1196,6 +1196,11 @@ models/consult/main.py    → models/shared/llm.py 사용
 
 - 주요상권현황 — [다운로드](https://raw.githubusercontent.com/2026-Codeit-Part4-6Team/codeit-part4-poc-chatbot/main/docs/%EC%86%8C%EC%83%81%EA%B3%B5%EC%9D%B8%EC%8B%9C%EC%9E%A5%EC%A7%84%ED%9D%A5%EA%B3%B5%EB%8B%A8_%EC%A3%BC%EC%9A%94%EC%83%81%EA%B6%8C%ED%98%84%ED%99%A9_20240101.csv)
 
+### 검증함수 4종
+- 프롬프트 인젝션 — [바로가기](https://openai.com/ko-KR/index/prompt-injections/)
+
+- 데이터 유효성 검사 — [바로가기](https://ko.wikipedia.org/wiki/%EB%8D%B0%EC%9D%B4%ED%84%B0_%EC%9C%A0%ED%9A%A8%EC%84%B1_%EA%B2%80%EC%82%AC)
+
 ---
 
 ## 부록 A. 발표에서 쓸 문장 (전민재 PM 파트)
