@@ -75,6 +75,58 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls[1]?.[1]?.credentials).toBe("include");
   });
 
+  it("requests the server-owned payment catalog and sends an idempotent purchase", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        currency: "KRW",
+        vat_included: false,
+        unit_price: 10,
+        packages: [{ id: "starter", credits: 5000, amount: 48500, discount_percent: 3 }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        payment_id: 1,
+        package: "starter",
+        credits: 5000,
+        amount: 48500,
+        discount_percent: 3,
+        vat_included: false,
+        balance: 5000,
+        status: "completed",
+        provider: "pending",
+      }), { status: 201 }));
+    const api = new ApiClient("/api", fetcher);
+
+    await api.paymentCatalog();
+    await api.purchasePackage("starter", "00000000-0000-0000-0000-000000000901");
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/payments/catalog");
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/payments");
+    expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).get("Idempotency-Key")).toBe(
+      "00000000-0000-0000-0000-000000000901",
+    );
+  });
+
+  it("updates the authenticated store profile", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ id: 1, business_name: "새 가게" }), { status: 200 }),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.updateStoreProfile({
+      business_name: "새 가게",
+      business_type: "베이커리",
+      address_detail: "1층",
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/users/me/store");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      business_name: "새 가게",
+      business_type: "베이커리",
+      address_detail: "1층",
+    });
+  });
+
   it("sends an Idempotency-Key with generate", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
@@ -114,4 +166,96 @@ describe("ApiClient", () => {
       api.estimate({ chatbot_type: "basic", question: "광고", platform: "xbanner" }),
     ).rejects.toEqual(new ApiError(402, { required: 50, current: 10 }));
   });
+
+  it("serializes the selected proposal for publish", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          generation_id: 7,
+          status: "published",
+          hitl_approved: true,
+          proposal_index: 1,
+        }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.publishGeneration(7, { proposal_index: 1, image_b64: null });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/generations/7/publish");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ proposal_index: 1, image_b64: null }),
+    );
+  });
+
+  it("requests the latest waiting copy", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: 4, copy_text: "곧 완성됩니다.", industry: null }),
+        { status: 200 },
+      ),
+    );
+    const api = new ApiClient("/api", fetcher);
+
+    await expect(api.waitingCopy()).resolves.toEqual({
+      id: 4,
+      copy_text: "곧 완성됩니다.",
+      industry: null,
+    });
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/waiting-copies");
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
+  });
+
+  it("requests account summary, history, and selected detail paths", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            credits: 100,
+            daily_free_remaining: 9,
+            total_generations: 2,
+            published_generations: 1,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 7,
+            chatbot_type: "basic",
+            title: null,
+            question: "광고",
+            platform: "instagram",
+            plan: "free",
+            credits_used: 0,
+            tokens_used: 1,
+            status: "done",
+            created_at: "2026-08-21T00:00:00Z",
+            source_gen_id: null,
+            result: null,
+            copy_content: null,
+            image_b64: null,
+            selected_proposal_index: null,
+            hitl_approved: false,
+          }),
+          { status: 200 },
+        ),
+      );
+    const api = new ApiClient("/api", fetcher);
+
+    await api.userSummary();
+    await api.generationHistory();
+    await api.generationDetail(7);
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/users/me/summary");
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/generations");
+    expect(fetcher.mock.calls[2]?.[0]).toBe("/api/generations/7");
+    expect(fetcher.mock.calls.every((call) => call[1]?.method === "GET")).toBe(true);
+  });
+
 });

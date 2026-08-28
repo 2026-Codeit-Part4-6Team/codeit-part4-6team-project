@@ -22,6 +22,7 @@ def test_consult_state_has_consult_specific_fields() -> None:
     )
     assert consult_only == {
         "retry_count",
+        "self_check_retry_count",
         "actions_retried",
         "actions_truncated",
         "suggested_chips",
@@ -36,6 +37,7 @@ def test_consult_specific_fields_are_not_required() -> None:
     """재생성 루프 카운터 등은 파이프라인이 나중에 채우므로 최초 상태 생성 시 필수가 아니어야 한다."""
     consult_only = {
         "retry_count",
+        "self_check_retry_count",
         "actions_retried",
         "actions_truncated",
         "suggested_chips",

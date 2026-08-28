@@ -16,6 +16,7 @@ class ConsultState(CommonState):
     """
 
     retry_count: NotRequired[int]  # 전략 재시도 누적값(reasons §6.5+actions 0개 재생성 합산 최대 2회)
+    self_check_retry_count: NotRequired[int]  # self_check reject 후 전략 재생성 횟수(D-156)
     actions_retried: NotRequired[bool]  # 이 문항에서 actions 0개 재생성이 있었는지(D-139 후속)
     actions_truncated: NotRequired[bool]  # 이 문항에서 actions 초과분 절단이 있었는지(D-139 후속)
     suggested_chips: NotRequired[list[str]]  # 추천 질문 칩 3종 (SDP §2.1, D1 회의에서 응답 계약 추가 합의)

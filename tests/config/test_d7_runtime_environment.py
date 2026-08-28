@@ -1,19 +1,52 @@
 import tomllib
 from pathlib import Path
 
+from backend.config import load_settings
+
 ROOT = Path(__file__).parents[2]
 
 
-def test_compose_passes_chatbot_mode_to_backend():
+def test_d7_timeout_and_executor_defaults_are_documented(monkeypatch):
+    for name in (
+        "MODEL_REQUEST_TIMEOUT_SECONDS",
+        "MODEL_THREAD_POOL_WORKERS",
+        "STALE_RECOVERY_SECONDS",
+        "CHATBOT_MODE",
+        "MAX_APPROVED_IMAGE_BYTES",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    settings = load_settings()
+
+    assert settings.model_request_timeout_seconds == 180
+    assert settings.model_thread_pool_workers == 2
+    assert settings.stale_recovery_seconds == 240
+    assert settings.chatbot_mode == "mock"
+    assert settings.max_approved_image_bytes == 5_242_880
+
+
+def test_compose_passes_runtime_credentials_and_timeout():
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
-
-    assert "CHATBOT_MODE: ${CHATBOT_MODE:-mock}" in compose
-
-
-def test_env_example_documents_chatbot_mode():
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
 
-    assert "CHATBOT_MODE=mock" in env_example
+    for entry in (
+        "MODEL_REQUEST_TIMEOUT_SECONDS: ${MODEL_REQUEST_TIMEOUT_SECONDS:-180}",
+        "MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}",
+        "STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-240}",
+        "CHATBOT_MODE: ${CHATBOT_MODE:-mock}",
+        "MAX_APPROVED_IMAGE_BYTES: ${MAX_APPROVED_IMAGE_BYTES:-5242880}",
+    ):
+        assert entry in compose
+
+    for entry in (
+        "MODEL_REQUEST_TIMEOUT_SECONDS=180",
+        "MODEL_THREAD_POOL_WORKERS=2",
+        "STALE_RECOVERY_SECONDS=240",
+        "CHATBOT_MODE=mock",
+        "OPENAI_API_KEY=",
+        "HF_TOKEN=",
+    ):
+        assert entry in env_example
 
 
 def test_compose_passes_actual_model_environment_to_backend():
@@ -53,6 +86,7 @@ def test_actual_runtime_isolated_pool_validation_and_hf_cache_are_explicit():
 
     for entry in (
         "MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}",
+        "STALE_RECOVERY_SECONDS: ${STALE_RECOVERY_SECONDS:-240}",
         "VALIDATION_DYNAMIC_TOP_K: ${VALIDATION_DYNAMIC_TOP_K:-0}",
         "VALIDATION_TOP_K: ${VALIDATION_TOP_K:-3}",
         "VALIDATION_MAX_TOP_K: ${VALIDATION_MAX_TOP_K:-3}",
@@ -67,7 +101,13 @@ def test_actual_runtime_isolated_pool_validation_and_hf_cache_are_explicit():
     assert "start_period: 90s" in compose
     assert "start_period: 90s" in deploy
     assert "MODEL_THREAD_POOL_WORKERS=2" in env_example
-    assert "STALE_RECOVERY_SECONDS=120" in env_example
+    assert "STALE_RECOVERY_SECONDS=240" in env_example
+
+
+def test_env_example_documents_actual_mode_for_deployment_vm():
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+
+    assert "# 배포 VM에서는 CHATBOT_MODE=actual로 설정" in env_example
     assert "HF_HOME=/app/.cache/huggingface" in env_example
 
 
