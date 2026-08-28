@@ -1,5 +1,6 @@
 # build_consultant 그래프 골격 테스트
 import json
+from importlib import import_module
 from unittest.mock import patch
 
 from models.consult.graph.build_consultant import build_consultant
@@ -288,6 +289,136 @@ def test_market_and_trend_run_in_parallel_not_sequential(
     mock_get_trend.assert_called_once()
 
 
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.security_input.check_input")
+def test_input_block_ends_before_any_question_llm(
+    mock_check_input,
+    mock_question_call_llm,
+) -> None:
+    mock_check_input.return_value = {
+        "action": "block",
+        "message": "처리할 수 없는 요청입니다.",
+    }
+
+    result = build_consultant().invoke(_initial_state())
+
+    assert result["status"] == "blocked"
+    assert result["issues"][0]["reason"] == "illegal_or_injection"
+    mock_question_call_llm.assert_not_called()
+
+
+@patch("models.consult.nodes.self_check_node.self_check")
+@patch("models.consult.nodes.security_output.check_output")
+@patch("models.consult.nodes.strategy.call_llm")
+@patch("models.consult.nodes.suggested_chips.call_llm")
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.trend_for_consult.get_trend", return_value=None)
+@patch("models.consult.nodes.market_for_consult.get_market", return_value=None)
+def test_output_warn_masks_each_field_before_self_check(
+    _mock_get_market,
+    _mock_get_trend,
+    mock_question_call_llm,
+    mock_chips_call_llm,
+    mock_strategy_call_llm,
+    mock_check_output,
+    mock_self_check,
+) -> None:
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 홍보 전략",
+                "is_sufficient": True,
+                "missing_info": [],
+                "keyword": None,
+            }
+        ),
+        10,
+    )
+    mock_chips_call_llm.return_value = (
+        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        10,
+    )
+    mock_strategy_call_llm.return_value = (
+        json.dumps(
+            {
+                "title": "전략 제목",
+                "summary": "요약 원문",
+                "actions": [{"type": "promotion", "content": "액션 원문"}],
+                "reasons": ["근거 원문"],
+            }
+        ),
+        10,
+    )
+    mock_check_output.side_effect = lambda text: {
+        "action": "warn",
+        "message": "마스킹했습니다.",
+        "masked_text": f"마스킹:{text}",
+    }
+    mock_self_check.return_value = {"action": "pass", "reasons": [], "message": ""}
+
+    result = build_consultant().invoke(_initial_state())
+
+    assert result["result"]["summary"] == "마스킹:요약 원문"
+    assert result["result"]["actions"][0]["content"] == "마스킹:액션 원문"
+    assert result["result"]["reasons"] == ["마스킹:근거 원문"]
+    checked_result = mock_self_check.call_args.args[0]
+    assert checked_result["summary"] == "마스킹:요약 원문"
+
+
+@patch("models.consult.nodes.self_check_node.self_check")
+@patch("models.consult.nodes.strategy.call_llm")
+@patch("models.consult.nodes.suggested_chips.call_llm")
+@patch("models.consult.nodes.question_analysis.call_llm")
+@patch("models.consult.nodes.trend_for_consult.get_trend", return_value=None)
+@patch("models.consult.nodes.market_for_consult.get_market", return_value=None)
+def test_self_check_reject_retries_strategy_once_then_returns_error(
+    _mock_get_market,
+    _mock_get_trend,
+    mock_question_call_llm,
+    mock_chips_call_llm,
+    mock_strategy_call_llm,
+    mock_self_check,
+) -> None:
+    mock_question_call_llm.return_value = (
+        json.dumps(
+            {
+                "rewritten_question": "우리 카페 홍보 전략",
+                "is_sufficient": True,
+                "missing_info": [],
+                "keyword": None,
+            }
+        ),
+        10,
+    )
+    mock_chips_call_llm.return_value = (
+        json.dumps({"chips": ["질문 1", "질문 2", "질문 3"]}),
+        10,
+    )
+    mock_strategy_call_llm.return_value = (
+        json.dumps(
+            {
+                "title": "전략 제목",
+                "summary": "요약",
+                "actions": [{"type": "promotion", "content": "액션"}],
+                "reasons": ["근거"],
+            }
+        ),
+        10,
+    )
+    mock_self_check.return_value = {
+        "action": "reject",
+        "reasons": ["답변 근거 없음"],
+        "message": "답변 근거가 부족합니다.",
+    }
+
+    result = build_consultant().invoke(_initial_state())
+
+    assert mock_strategy_call_llm.call_count == 2
+    assert mock_self_check.call_count == 2
+    assert result["status"] == "error"
+    assert result["issues"][-1]["reason"] == "unknown"
+
+
 def test_default_path_skips_link_to_ads() -> None:
     """link_to_ads는 사용자가 버튼을 눌렀을 때만 호출돼야 하므로 기본 경로에 없어야 한다."""
     drawable = build_consultant().get_graph()
@@ -297,6 +428,29 @@ def test_default_path_skips_link_to_ads() -> None:
     edges = {(edge.source, edge.target) for edge in drawable.edges}
     assert ("strategy_check", "security_output") in edges
     assert ("strategy_check", "link_to_ads") not in edges
+
+
+def test_validation_routers_follow_contract_actions() -> None:
+    graph_module = import_module("models.consult.graph.build_consultant")
+    route_input = getattr(graph_module, "route_after_security_input", None)
+    route_output = getattr(graph_module, "route_after_security_output", None)
+    route_self_check = getattr(graph_module, "route_after_self_check", None)
+
+    assert route_input is not None
+    assert route_output is not None
+    assert route_self_check is not None
+
+    assert route_input({"status": "blocked"}) == "end"
+    assert route_input({}) == "question_analysis"
+    assert route_output({"status": "blocked"}) == "end"
+    assert route_output({}) == "self_check_node"
+    assert route_self_check({"status": "error"}) == "end"
+    assert route_self_check(
+        {"validation": {"self_check": {"action": "reject"}}}
+    ) == "strategy"
+    assert route_self_check(
+        {"validation": {"self_check": {"action": "pass"}}}
+    ) == "end"
 
 
 def test_default_path_has_expected_topology() -> None:
@@ -323,6 +477,7 @@ def test_default_path_has_expected_topology() -> None:
     assert edges == {
         ("__start__", "security_input"),
         ("security_input", "question_analysis"),
+        ("security_input", "__end__"),
         ("question_analysis", "suggested_chips"),
         ("suggested_chips", "market_for_consult"),
         ("suggested_chips", "trend_for_consult"),
@@ -331,5 +486,7 @@ def test_default_path_has_expected_topology() -> None:
         ("strategy", "strategy_check"),
         ("strategy_check", "security_output"),
         ("security_output", "self_check_node"),
+        ("security_output", "__end__"),
+        ("self_check_node", "strategy"),
         ("self_check_node", "__end__"),
     }

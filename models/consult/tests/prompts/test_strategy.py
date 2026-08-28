@@ -109,3 +109,10 @@ def test_system_prompt_requires_explicit_zero_for_no_competitors() -> None:
     normalized = " ".join(SYSTEM_PROMPT.split())
     assert '0곳이면 "경쟁이 없다"·"동일 업종이 없다"처럼 숫자 없이 쓰지 말고' in normalized
     assert 'reasons에도 반드시 "0곳"이라고 숫자로 명시한다' in normalized
+
+
+def test_system_prompt_forbids_unsubstantiated_superlatives_and_medical_claims() -> None:
+    normalized = " ".join(SYSTEM_PROMPT.split())
+
+    assert "근거 없는 최상급 표현" in normalized
+    assert "질병 예방·치료 효능 표현" in normalized

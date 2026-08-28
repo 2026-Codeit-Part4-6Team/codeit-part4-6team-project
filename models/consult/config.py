@@ -12,3 +12,6 @@ MAX_RELATED_KEYWORDS = 5
 # 어긋남을 잡는다.
 MIN_ACTIONS = 1
 MAX_ACTIONS = 3
+
+# validation_contract.md V-03 — self_check reject 시 전략 재생성은 최대 1회다.
+SELF_CHECK_MAX_RETRY = 1
