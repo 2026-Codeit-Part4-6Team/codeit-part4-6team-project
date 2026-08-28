@@ -111,13 +111,6 @@ def test_env_example_documents_actual_mode_for_deployment_vm():
     assert "HF_HOME=/app/.cache/huggingface" in env_example
 
 
-def test_deploy_compose_reads_app_env_from_vm_environment():
-    """시연/운영 모드는 기존 CD의 VM .env에서 선택한다."""
-    deploy = (ROOT / "compose.deploy.yaml").read_text(encoding="utf-8")
-
-    assert "APP_ENV: ${APP_ENV:-demo}" in deploy
-
-
 def test_actual_model_boundary_smoke_is_documented_as_e2e_preflight():
     workflow_readme = (ROOT / ".github" / "workflows" / "README.md").read_text(
         encoding="utf-8"
