@@ -39,6 +39,7 @@ class Settings:
     model_thread_pool_workers: int
     stale_recovery_seconds: int
     chatbot_mode: str
+    max_approved_image_bytes: int
     session_secret_key: str
     session_max_age_seconds: int
     session_cookie_secure: bool
@@ -83,8 +84,11 @@ def load_settings() -> Settings:
             "MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60
         ),
         model_thread_pool_workers=_read_int("MODEL_THREAD_POOL_WORKERS", 2, minimum=1),
-        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 120, minimum=1),
+        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 240, minimum=1),
         chatbot_mode=chatbot_mode,
+        max_approved_image_bytes=_read_int(
+            "MAX_APPROVED_IMAGE_BYTES", 5_242_880, minimum=1
+        ),
         session_secret_key=secret_key,
         session_max_age_seconds=_read_int("SESSION_MAX_AGE_SECONDS", 28_800, minimum=1),
         session_cookie_secure=session_cookie_secure,

@@ -171,8 +171,8 @@ def strategy(state: ConsultState) -> dict:
         # 다른 노드(D9 strategy_check)도 같은 키에 쓸 예정이라 덮어쓰지 않고 누적한다
         # (PM 리뷰, PR #93).
         "retry_count": state.get("retry_count", 0) + retry_count,
-        "actions_retried": actions_retried,
-        "actions_truncated": actions_truncated,
+        "actions_retried": state.get("actions_retried", False) or actions_retried,
+        "actions_truncated": state.get("actions_truncated", False) or actions_truncated,
         **sources_update,
     }
 

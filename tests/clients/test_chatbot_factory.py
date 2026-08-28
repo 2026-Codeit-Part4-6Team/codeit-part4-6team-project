@@ -9,7 +9,7 @@ from backend.clients import chatbot_client
 def _settings(mode: str):
     return SimpleNamespace(
         chatbot_mode=mode,
-        model_request_timeout_seconds=60,
+        model_request_timeout_seconds=180,
         model_thread_pool_workers=2,
     )
 
@@ -46,12 +46,15 @@ def test_factory_loads_both_actual_run_entrypoints(monkeypatch):
 
     client = chatbot_client.create_chatbot_client(_settings("actual"))
 
-    assert isinstance(client, chatbot_client.ActualChatbotClient)
-    assert client._basic is basic_run
-    assert client._consultant is consultant_run
-    assert client._timeout_seconds == 60
-    assert client._executor._max_workers == 2
-    assert seen == ["models.basic.main", "models.consult.main"]
+    try:
+        assert isinstance(client, chatbot_client.ActualChatbotClient)
+        assert client._basic is basic_run
+        assert client._consultant is consultant_run
+        assert client._timeout_seconds == 180
+        assert client._executor._max_workers == 2
+        assert seen == ["models.basic.main", "models.consult.main"]
+    finally:
+        client.close()
 
 
 @pytest.mark.parametrize(

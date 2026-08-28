@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import sys
 import types
@@ -38,3 +39,17 @@ def test_create_app_wires_one_chatbot_client_from_factory(monkeypatch):
     assert calls == [main.settings]
     assert app.state.chatbot_client is sentinel
     assert app.state.chatbot_client is sentinel
+
+
+def test_actual_app_lifespan_preloads_huggingface_weights(monkeypatch):
+    from backend import main
+
+    calls = []
+    monkeypatch.setattr(main, "settings", type("Settings", (), {"chatbot_mode": "actual"})())
+    monkeypatch.setattr(main, "preload_actual_model_weights", lambda: calls.append("preload"))
+
+    async def exercise_lifespan():
+        async with main.lifespan(object()):
+            assert calls == ["preload"]
+
+    asyncio.run(exercise_lifespan())

@@ -25,6 +25,11 @@ def _load_clip():
     return _clip_model, _clip_processor
 
 
+def preload_clip():
+    """앱 기동 시 CLIP 가중치를 미리 받아 첫 요청의 지연을 제거합니다."""
+    _load_clip()
+
+
 def _clip_score(image, text: str) -> float:
     """이미지와 텍스트 간 CLIP 코사인 유사도 점수를 계산한다."""
     model, processor = _load_clip()

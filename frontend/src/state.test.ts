@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { apiErrorMessage, createFollowUpMessage, createPendingGeneration, generationPayload, mockFollowUpReply } from "./state";
+import {
+  apiErrorMessage,
+  createFollowUpMessage,
+  createPendingGeneration,
+  generationPayload,
+  nextGenerationAction,
+  withClarification,
+} from "./state";
 
 describe("generation state", () => {
   it("reuses its key and accepts estimated paid credits", () => {
@@ -17,6 +24,30 @@ describe("generation state", () => {
       platform: "instagram",
       max_accepted_credits: 50,
     });
+  });
+
+  it("starts free generation immediately and pauses paid generation for consent", () => {
+    const payload = {
+      chatbot_type: "basic" as const,
+      question: "광고",
+      platform: "instagram" as const,
+    };
+
+    const free = nextGenerationAction(
+      { requires_confirmation: false, estimated_credits: 50 },
+      payload,
+      "key-free",
+    );
+    const paid = nextGenerationAction(
+      { requires_confirmation: true, estimated_credits: 50 },
+      payload,
+      "key-paid",
+    );
+
+    expect(free.kind).toBe("generate");
+    expect(generationPayload(free.pending).max_accepted_credits).toBe(0);
+    expect(paid.kind).toBe("confirm");
+    expect(generationPayload(paid.pending).max_accepted_credits).toBe(50);
   });
 
   it("distinguishes auth, credit, validation, and server errors", () => {
@@ -36,6 +67,21 @@ describe("generation state", () => {
       role: "user",
       content: "더 캐주얼하게",
     });
-    expect(mockFollowUpReply("20대 대상으로 바꿔줘")).toContain("20대");
+  });
+
+  it("adds clarification to the next generation request without dropping other fields", () => {
+    expect(withClarification({
+      purpose: "신메뉴 홍보",
+      price_range: null,
+      target_age: "20대",
+      strength: null,
+      clarification: null,
+    }, "더 캐주얼하게")).toEqual({
+      purpose: "신메뉴 홍보",
+      price_range: null,
+      target_age: "20대",
+      strength: null,
+      clarification: "더 캐주얼하게",
+    });
   });
 });
