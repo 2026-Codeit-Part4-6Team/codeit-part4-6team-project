@@ -39,7 +39,7 @@ export function ResultCards({
   const reasons = Array.isArray(result.reasons) ? result.reasons.filter((item): item is string => typeof item === "string") : [];
   const sources = Array.isArray(result.sources) ? result.sources.filter((item): item is string => typeof item === "string") : [];
   const suggestedChips = Array.isArray(result.suggested_chips) ? result.suggested_chips.filter((item): item is string => typeof item === "string") : [];
-  const isXBanner = platform === "xbanner";
+  const isXBanner = platform === "xbanner" || platform === "banner";
 
   return (
     <section className={`result-section${isXBanner ? " result-section--xbanner" : ""}`}>

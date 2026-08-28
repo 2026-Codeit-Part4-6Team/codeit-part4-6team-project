@@ -62,6 +62,29 @@ def test_authenticated_user_can_update_store_profile(store_client: TestClient):
     assert store_client.get("/users/me").json()["business_name"] == "바뀐 가게"
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"business_name": "   ", "business_type": "카페"},
+        {"business_name": "가게", "business_type": "\t\n"},
+    ],
+)
+def test_store_profile_update_rejects_blank_required_fields(
+    store_client: TestClient, payload: dict[str, str]
+):
+    login = store_client.post(
+        "/auth/login", json={"username": "store-owner", "password": "safe-password"}
+    )
+    assert login.status_code == 200
+
+    response = store_client.patch("/users/me/store", json=payload)
+
+    assert response.status_code == 422
+    current = store_client.get("/users/me").json()
+    assert current["business_name"] == "원래 가게"
+    assert current["business_type"] == "카페"
+
+
 def test_store_profile_update_requires_authentication(store_client: TestClient):
     store_client.post("/auth/logout")
     response = store_client.patch(

@@ -33,6 +33,13 @@ describe("SettingsPage", () => {
     expect(html).toContain("더 크게");
   });
 
+  it("keeps uncontracted model choices disabled", () => {
+    const html = renderToStaticMarkup(<SettingsPage onBack={() => undefined} />);
+
+    expect(html).toContain('disabled=""');
+    expect(html).toContain("Provider 확정 후 제공 예정");
+  });
+
   it("offers editable store fields from the store route", () => {
     const html = renderToStaticMarkup(
       <StoreProfilePage api={{} as never} user={user} onBack={() => undefined} />,

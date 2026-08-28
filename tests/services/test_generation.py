@@ -1,3 +1,4 @@
+import inspect
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -16,6 +17,7 @@ from backend.services.generation_service import (
     SourceGenerationNotFound,
     StoreContextValidationError,
     build_model_request,
+    generate,
     hash_generate_request,
     replay_existing_generation,
 )
@@ -25,6 +27,12 @@ def make_engine(tmp_path, name="generation.db"):
     engine = create_database_engine(f"sqlite:///{tmp_path / name}")
     create_tables(engine)
     return engine
+
+
+def test_generate_default_stale_recovery_window_leaves_grace_after_model_timeout():
+    default = inspect.signature(generate).parameters["stale_recovery_seconds"].default
+
+    assert default == 240
 
 
 def add_user(
@@ -449,12 +457,60 @@ def test_generate_paid_consultant_charges_once(tmp_path):
             )
         )
 
-        db.refresh(user)
         assert response.status == "done"
         assert response.usage.plan == "paid"
         assert response.usage.credits_used == 10
+        # synchronize_session=False 뒤에도 요청 범위의 ORM 객체가 최신 잔액을 가져야 합니다.
         assert user.credits == 10
         assert client.calls == 1
+
+
+def test_generate_inserts_pending_row_before_reserving_usage(tmp_path, monkeypatch):
+    """같은 key race가 과금 CAS보다 먼저 UNIQUE 제약을 만나도록 pending을 선점합니다."""
+    from asyncio import run
+
+    from backend.services import generation_service
+
+    engine = make_engine(tmp_path)
+    now = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    key = "00000000-0000-0000-0000-000000000035"
+    original_reserve = generation_service.reserve_generation_usage
+
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(
+            db,
+            credits=20,
+            used=10,
+            reset_at=now + timedelta(hours=12),
+        )
+
+        def observe_pending_before_reserve(*args, **kwargs):
+            pending = db.query(Generation).filter_by(idempotency_key=key).one_or_none()
+            assert pending is not None
+            assert pending.status == "pending"
+            return original_reserve(*args, **kwargs)
+
+        monkeypatch.setattr(
+            generation_service,
+            "reserve_generation_usage",
+            observe_pending_before_reserve,
+        )
+
+        response = run(
+            generation_service.generate(
+                db,
+                user,
+                consultant_request(max_accepted_credits=10),
+                key,
+                RecordingClient(consultant_result_payload()),
+                now=now,
+                free_limit=10,
+                model_timeout_seconds=60,
+            )
+        )
+
+        assert response.status == "done"
+        assert user.credits == 10
 
 
 def test_generate_billing_confirmation_failure_does_not_insert_or_charge(tmp_path):
@@ -526,8 +582,17 @@ def test_generate_insufficient_credits_does_not_insert(tmp_path):
         assert db.query(Generation).count() == 0
 
 
-@pytest.mark.parametrize("action", ["block", "reask", "warn"])
-def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, action):
+@pytest.mark.parametrize(
+    ("action", "reason"),
+    [
+        ("block", "illegal_or_injection"),
+        ("reask", "insufficient_info"),
+        ("warn", "regulation_risk"),
+    ],
+)
+def test_generate_blocked_result_compensates_committed_free_usage(
+    tmp_path, action, reason
+):
     from asyncio import run
 
     from backend.services.generation_service import generate
@@ -539,7 +604,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         blocked = {
             "status": "blocked",
             "action": action,
-            "reason": "insufficient_info",
+            "reason": reason,
             "message": "추가 정보를 입력해 주세요.",
         }
 
@@ -562,6 +627,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         assert response.result is not None
         assert response.result.status == "blocked"
         assert response.result.action == action
+        assert response.result.reason == reason
         assert response.usage.credits_used == 0
         assert user.daily_free_used == 0
         assert row is not None
@@ -570,6 +636,7 @@ def test_generate_blocked_result_compensates_committed_free_usage(tmp_path, acti
         stored_result = json.loads(row.result_json)
         assert stored_result["status"] == "blocked"
         assert stored_result["action"] == action
+        assert stored_result["reason"] == reason
 
 
 def test_generate_error_result_compensates_paid_credit_and_raises(tmp_path):
@@ -763,7 +830,7 @@ def test_stale_paid_generation_refunds_once_and_becomes_failed(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         db.refresh(row)
@@ -777,10 +844,44 @@ def test_stale_paid_generation_refunds_once_and_becomes_failed(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=180),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is False
         db.refresh(user)
         assert user.credits == 50
+
+
+def test_stale_recovery_uses_independent_threshold_when_model_timeout_changes(tmp_path):
+    from backend.services.generation_service import recover_stale_generating
+
+    engine = make_engine(tmp_path)
+    created_at = datetime(2026, 8, 13, 3, 0, tzinfo=UTC)
+    with Session(engine, expire_on_commit=False) as db:
+        user = add_user(db, credits=0, used=10, reset_at=created_at + timedelta(hours=12))
+        row = add_generation(
+            db,
+            user,
+            request=basic_request(max_accepted_credits=50),
+            status="generating",
+            plan="paid",
+            credits_used=50,
+        )
+        row.created_at = created_at.replace(tzinfo=None)
+        db.commit()
+
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=119),
+            stale_recovery_seconds=120,
+        ) is False
+        assert recover_stale_generating(
+            db,
+            row,
+            user,
+            now=created_at + timedelta(seconds=120),
+            stale_recovery_seconds=120,
+        ) is True
 
 
 def test_stale_free_generation_decrements_only_same_usage_period(tmp_path):
@@ -809,7 +910,7 @@ def test_stale_free_generation_decrements_only_same_usage_period(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         assert user.daily_free_used == 0
@@ -841,7 +942,7 @@ def test_stale_free_generation_does_not_touch_new_usage_period(tmp_path):
             row,
             user,
             now=created_at + timedelta(seconds=120),
-            model_timeout_seconds=60,
+            stale_recovery_seconds=120,
         ) is True
         db.refresh(user)
         assert user.daily_free_used == 3

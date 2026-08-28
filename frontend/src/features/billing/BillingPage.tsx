@@ -1,113 +1,87 @@
 import { useEffect, useState } from "react";
 
-import {
-  type ApiClient,
-  type DemoPaymentCatalogResponse,
-  type DemoPaymentPackage,
-  type DemoPaymentResponse,
-} from "../../api";
+import type { ApiClient, PaymentPackage } from "../../api";
+import { createIdempotencyKey } from "../../requestId";
 
-const closedCatalog: DemoPaymentCatalogResponse = {
-  demo_enabled: false,
-  packages: [
-    { id: "starter", amount: 0, credits: 0 },
-    { id: "standard", amount: 0, credits: 0 },
-    { id: "pro", amount: 0, credits: 0 },
-  ],
-};
-
-type BillingPageProps = {
-  onBack: () => void;
-  api?: Pick<ApiClient, "paymentCatalog" | "purchaseDemoPackage">;
-  currentCredits?: number;
-  onCreditsChanged?: (credits: number) => void;
-  demoCatalog?: DemoPaymentCatalogResponse;
-};
-
-function formatAmount(value: number): string {
-  return `${value.toLocaleString("ko-KR")}원`;
+function money(amount: number) {
+  return `${amount.toLocaleString("ko-KR")}원`;
 }
 
 export function BillingPage({
-  onBack,
   api,
-  currentCredits = 0,
-  onCreditsChanged = () => undefined,
-  demoCatalog,
-}: BillingPageProps) {
-  const [catalog, setCatalog] = useState(demoCatalog ?? closedCatalog);
-  const [loading, setLoading] = useState(api !== undefined && demoCatalog === undefined);
-  const [busyPackage, setBusyPackage] = useState<DemoPaymentPackage["id"] | null>(null);
-  const [completed, setCompleted] = useState<DemoPaymentResponse | null>(null);
+  currentCredits,
+  onCreditsChanged,
+  onBack,
+}: {
+  api: ApiClient;
+  currentCredits: number;
+  onCreditsChanged?: (credits: number) => void;
+  onBack: () => void;
+}) {
+  const [packages, setPackages] = useState<PaymentPackage[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [buying, setBuying] = useState<PaymentPackage["id"] | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (api === undefined || demoCatalog !== undefined) return;
     let active = true;
-    api.paymentCatalog()
-      .then((next) => { if (active) setCatalog(next); })
-      .catch(() => { if (active) setError("결제 데모 정보를 불러오지 못했습니다."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [api, demoCatalog]);
+    setCatalogStatus("loading");
+    setPackages([]);
+    void api.paymentCatalog()
+      .then((catalog) => {
+        if (!active) return;
+        setPackages(catalog.packages);
+        setCatalogStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setPackages([]);
+        setCatalogStatus("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, [api]);
 
-  async function purchase(packageId: DemoPaymentPackage["id"]) {
-    if (api === undefined || busyPackage !== null) return;
-    setBusyPackage(packageId);
+  async function purchase(packageId: PaymentPackage["id"]) {
+    setBuying(packageId);
+    setMessage(null);
     setError(null);
     try {
-      const response = await api.purchaseDemoPackage(packageId, crypto.randomUUID());
-      setCompleted(response);
-      onCreditsChanged(response.balance);
+      const result = await api.purchasePackage(packageId, createIdempotencyKey());
+      onCreditsChanged?.(result.balance);
+      setMessage(`${result.credits.toLocaleString("ko-KR")} 크레딧이 충전되었습니다. 현재 잔액 ${result.balance.toLocaleString("ko-KR")} 크레딧`);
     } catch {
-      setError("데모 충전에 실패했습니다. 다시 시도해 주세요.");
+      setError("결제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
-      setBusyPackage(null);
+      setBuying(null);
     }
-  }
-
-  if (!catalog.demo_enabled) {
-    return (
-      <section className="billing-page" aria-labelledby="billing-title">
-        <button type="button" className="back-link" onClick={onBack}>← 대시보드로 돌아가기</button>
-        <div className="page-heading">
-          <p className="kicker">PAYMENT POLICY GATE</p>
-          <h1 id="billing-title">결제 정책 확정 대기</h1>
-          <p>{loading ? "결제 설정을 확인하고 있습니다." : "가격과 지급량, 상태 전이, 중복 방지 기준을 팀 합의 후 제공합니다."}</p>
-        </div>
-        {error && <div className="error-banner" role="alert">{error}</div>}
-        <div className="billing-gate-grid">
-          {closedCatalog.packages.map((item) => (
-            <article className="card billing-gate-card" key={item.id}>
-              <span>PACKAGE ID</span>
-              <h2>{item.id}</h2>
-              <button type="button" disabled>정책 대기</button>
-            </article>
-          ))}
-        </div>
-      </section>
-    );
   }
 
   return (
     <section className="billing-page" aria-labelledby="billing-title">
       <button type="button" className="back-link" onClick={onBack}>← 대시보드로 돌아가기</button>
-      <div className="page-heading billing-demo-heading">
-        <p className="kicker">DEMO PAYMENT</p>
-        <span className="demo-badge">시연용 결제</span>
-        <h1 id="billing-title">발표용 Credit 충전</h1>
-        <p>실제 결제가 발생하지 않는 데모입니다. 현재 잔액은 {currentCredits.toLocaleString("ko-KR")} Credit입니다.</p>
+      <div className="page-heading">
+        <p className="kicker">CREDIT STORE</p>
+        <h1 id="billing-title">크레딧 충전</h1>
+        <p>현재 잔액 {currentCredits.toLocaleString("ko-KR")} 크레딧 · 모든 금액은 VAT 별도입니다.</p>
+        <p className="payment-notice" role="note">⚠️ PG 연동 전 단계입니다. 지금은 실제 결제가 발생하지 않고 크레딧만 지급됩니다 — 시연·테스트 용도입니다.</p>
       </div>
-      {completed && <div className="payment-success" role="status"><strong>{completed.credits.toLocaleString("ko-KR")} Credit 충전 완료</strong><span>새 잔액 {completed.balance.toLocaleString("ko-KR")} Credit</span></div>}
-      {error && <div className="error-banner" role="alert">{error}</div>}
-      <div className="billing-gate-grid billing-demo-grid">
-        {catalog.packages.map((item) => (
-          <article className="card billing-gate-card billing-demo-card" key={item.id}>
-            <span>DEMO PACKAGE</span>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {message && <p className="saved-note" role="status">{message}</p>}
+      {catalogStatus === "loading" && <p role="status">가격 정보를 불러오는 중입니다.</p>}
+      {catalogStatus === "error" && <p className="form-error" role="alert">가격 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
+      <div className="billing-gate-grid" aria-busy={catalogStatus === "loading"}>
+        {packages.map((item) => (
+          <article className="card billing-gate-card" key={item.id}>
+            <span>{item.discount_percent}% 할인</span>
             <h2>{item.id}</h2>
-            <strong>{formatAmount(item.amount)}</strong>
-            <p>{item.credits.toLocaleString("ko-KR")} Credit</p>
-            <button type="button" disabled={busyPackage !== null} onClick={() => void purchase(item.id)}>{busyPackage === item.id ? "처리 중…" : "데모 충전"}</button>
+            <strong>{item.credits.toLocaleString("ko-KR")} 크레딧</strong>
+            <p>{money(item.amount)} <small>VAT 별도</small></p>
+            <button type="button" className="primary" disabled={buying !== null} onClick={() => void purchase(item.id)}>
+              {buying === item.id ? "처리 중…" : "충전하기 (시연용)"}
+            </button>
           </article>
         ))}
       </div>

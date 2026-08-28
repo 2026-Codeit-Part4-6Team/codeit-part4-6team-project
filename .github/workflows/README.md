@@ -30,6 +30,19 @@ Branch ruleset을 구성하고, CD에서는 배포 대상·설정·인증·헬�
 
 ## CI 작업 명세
 
+### Actual model boundary smoke (E2E 사전 점검)
+
+실제 Basic·Consultant 모델 브랜치를 통합한 workspace에서 E2E를 시작하기 전에 담당자가
+아래 게이트를 1회 실행하고 결과를 E2E 결과서에 기록합니다. 일반 PR CI에서는 실제 모델과
+API 비용을 사용하지 않도록 실행하지 않습니다.
+
+```bash
+RUN_MODEL_BOUNDARY_SMOKE=1 uv run --locked --all-groups pytest \
+  tests/integration/test_d7_model_boundary.py -q
+```
+
+게이트가 실패하면 화면 E2E를 진행하지 않고 모델 entrypoint·패키징·환경변수를 먼저 정리합니다.
+
 CI는 `main` 대상 PR의 코드와 컨테이너 구성이 실행 가능한지 검증합니다. GitHub Runner의
 임시 환경에서만 실행하며 Artifact Registry, GCP VM, JupyterHub를 변경하지 않습니다.
 
@@ -78,6 +91,20 @@ Windows와 Linux 모두 테스트 통과 후 `pytest` 프로세스가 정상 종
 세 Job이 모두 성공해야 CI 통과로 판단합니다. 실패 시 관련 Job의 로그를 확인하며, Compose 실패
 시에는 컨테이너 상태와 최근 로그를 자동 출력합니다. CI 실패는 PR 병합만 차단하고 실행 중인 VM
 서비스에는 영향을 주지 않습니다.
+
+### Actual model boundary smoke (E2E 사전 점검)
+
+실제 Basic·Consultant 모델을 합친 통합 workspace에서는 E2E 시작 직전에 모델 경계 smoke를
+수동으로 실행합니다. 일반 PR CI에서는 모델 호출 비용과 가중치 다운로드를 피하기 위해 실행하지
+않으며, 실행자는 통합 테스트 담당자가 담당 브랜치와 로그를 함께 공유합니다.
+
+```bash
+RUN_MODEL_BOUNDARY_SMOKE=1 uv run --locked --all-groups \
+  pytest tests/integration/test_d7_model_boundary.py -q
+```
+
+이 smoke가 통과하고 backend/frontend healthcheck가 healthy인 상태를 1차 E2E 진입 조건으로
+삼습니다. 실패하면 E2E 결과서에 모델 entrypoint·환경변수·가중치 캐시 상태를 먼저 기록합니다.
 
 ## CD 작업 명세
 
@@ -209,7 +236,15 @@ BACKEND_BIND_ADDRESS=127.0.0.1
 BACKEND_PORT=18000
 BACKEND_URL=http://backend:8000
 APP_DATA_DIR=/srv/team6/data
+STALE_RECOVERY_SECONDS=120
+HF_TOKEN=hf_...                 # 실제 값은 이 VM의 .env에만 입력
+HF_HOME=/app/.cache/huggingface
+HF_HOME_HOST_PATH=/srv/team6/models
 ```
+
+`HF_TOKEN`은 GitHub Secrets나 저장소 파일에 넣지 않습니다. `/srv/team6/app/.env`에만
+입력하고 파일 권한은 `chmod 600 /srv/team6/app/.env`로 유지합니다. `HF_HOME_HOST_PATH`는
+컨테이너 재생성 후에도 Hugging Face 가중치 캐시를 보존하는 호스트 경로입니다.
 
 기존에 수동으로 실행한 Compose 스택이 동일 포트를 사용한다면 최초 자동 배포 전에 해당
 스택만 `docker compose down`으로 종료합니다. JupyterHub 서비스는 종료하지 않습니다.
