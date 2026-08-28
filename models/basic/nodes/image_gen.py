@@ -348,6 +348,15 @@ def _english_caption(store_type: str, copy: str) -> str | None:
         return None
 
 
+def _verify(extracted: str, question: str) -> str | None:
+    """추출값이 질문 원문에 그대로 있을 때만 채택한다 — LLM이 자릿수를
+    바꾸거나 정규식이 잘못 잘라내면 배너에 틀린 연락처가 인쇄된다.
+    사용자는 자기가 쓴 값이라 믿어 알아채지 못한다."""
+    a = extracted.replace(" ", "").replace("-", "")
+    b = question.replace(" ", "").replace("-", "")
+    return extracted if a in b else None
+
+
 def _extract_business_details(question: str) -> list[str]:
     """사용자 질문 원문에 전화번호·영업시간·행사(이벤트) 기간처럼 구체적인
     가게 정보가 포함돼 있으면 추출해 provided_info에 이어붙일 항목
@@ -355,7 +364,8 @@ def _extract_business_details(question: str) -> list[str]:
     없으면 빈 리스트를 반환해 provided_info가 상호·주소만으로 유지되게
     한다. 문자열이 아니라 리스트로 반환하는 이유는, 하단 배너 프롬프트에
     "정확히 N개 항목만 표시한다"처럼 개수를 숫자로 못박기 위해서다 —
-    문자열로 합쳐버리면 개수 정보가 사라진다."""
+    문자열로 합쳐버리면 개수 정보가 사라진다. 추출값을 지문 원문과 대조해
+    일치할 때만 채택한다."""
     try:
         raw, _tokens = call_llm(
             "사용자 질문에 가게의 전화번호·영업시간·행사(이벤트) 기간이 "
@@ -372,12 +382,15 @@ def _extract_business_details(question: str) -> list[str]:
         return []
 
     parts = []
-    if parsed.get("phone"):
-        parts.append(f'전화번호 "{parsed["phone"]}"')
-    if parsed.get("hours"):
-        parts.append(f'영업시간 "{parsed["hours"]}"')
-    if parsed.get("event_period"):
-        parts.append(f'행사 기간 "{parsed["event_period"]}"')
+    phone = parsed.get("phone")
+    if phone and _verify(phone, question):
+        parts.append(f'전화번호 "{phone}"')
+    hours = parsed.get("hours")
+    if hours and _verify(hours, question):
+        parts.append(f'영업시간 "{hours}"')
+    event_period = parsed.get("event_period")
+    if event_period and _verify(event_period, question):
+        parts.append(f'행사 기간 "{event_period}"')
     return parts
 
 

@@ -6,7 +6,7 @@ from models.shared.llm_errors import classify_llm_error
 from ..config import COPY_MAX_RETRY
 from ..graph.state import BasicState
 
-FEWSHOT_TERMS: list[str] = []
+FEWSHOT_TERMS: list[str] = ["브런치 세트", "주말 브런치", "브런치카페"]
 FEWSHOT_NUMBERS: list[int] = []
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고법을 준수한다.
@@ -31,7 +31,7 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 
 예시(참고용, 그대로 베끼지 말 것):
 - 일반론(피할 것): "신메뉴 출시! 지금 만나보세요"
-- 구체적(지향할 것): "역삼동 직장인들 사이 콜드브루 검색이 늘고 있어요 — 당일 로스팅 원두로 내린 카페 코드잇 아이스 아메리카노"
+- 구체적(지향할 것): "주말 브런치 찾는 분들 사이 입소문 나고 있어요 — 매일 직접 굽는 브런치카페 브런치 세트"
 
 계절성 원칙:
 - seasonality(reference_date·calendar_period·season_hint)가 주어지면, 카피의 분위기나
@@ -97,16 +97,6 @@ def copy_gen_node(state: BasicState) -> dict:
         alternative = regulation_result.get("alternative")
         if alternative:
             payload["suggested_alternative"] = alternative
-
-    source_context = state.get("source_context")
-    if source_context:
-        strategy = source_context["strategy"]
-        actions = " / ".join(a["content"] for a in strategy["actions"])
-        payload["consulting_strategy"] = {
-            "summary": strategy["summary"],
-            "actions": actions,
-            "reasons": " · ".join(source_context["reasons"]),
-        }
 
     try:
         raw, tokens = call_llm(

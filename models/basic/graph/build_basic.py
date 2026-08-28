@@ -1,9 +1,10 @@
 """D3 기본 카피/이미지 생성 파이프라인의 LangGraph 그래프 정의.
 
-security_input → question_analysis → (channel/market/trend/benchmark 컨텍스트 수집)
-→ copy_gen → ranking → regulation → image_gen → image_review → channel_format
-→ security_output → self_check 순으로 노드를 연결하며, 각 단계 실패 시
-재시도(COPY_MAX_RETRY/IMAGE_MAX_RETRY) 또는 조기 종료(end_blocked)로 분기한다.
+security_input → question_analysis → (channel/market/trend/benchmark/seasonality
+컨텍스트 수집) → copy_gen → ranking → regulation → image_gen → image_review
+→ channel_format → security_output → self_check 순으로 노드를 연결하며, 각 단계
+실패 시 재시도(COPY_MAX_RETRY/IMAGE_MAX_RETRY) 또는 조기 종료(end_blocked)로
+분기한다.
 """
 
 from langgraph.graph import END, START, StateGraph
