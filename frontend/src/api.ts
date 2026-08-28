@@ -30,6 +30,32 @@ export type UserResponse = {
   daily_free_remaining: number;
 };
 
+export type PaymentPackage = {
+  id: "starter" | "standard" | "pro";
+  credits: number;
+  amount: number;
+  discount_percent: number;
+};
+
+export type PaymentCatalogResponse = {
+  currency: "KRW";
+  vat_included: false;
+  unit_price: number;
+  packages: PaymentPackage[];
+};
+
+export type PaymentResponse = {
+  payment_id: number;
+  package: PaymentPackage["id"];
+  credits: number;
+  amount: number;
+  discount_percent: number;
+  vat_included: false;
+  balance: number;
+  status: "completed";
+  provider: "pending";
+};
+
 export type StoreProfileUpdate = {
   business_name: string;
   business_type: string;
@@ -91,24 +117,6 @@ export type GenerationDetailResponse = GenerationListItem & {
   hitl_approved: boolean;
 };
 
-export type DemoPaymentPackage = {
-  id: "starter" | "standard" | "pro";
-  amount: number;
-  credits: number;
-};
-
-export type DemoPaymentCatalogResponse = {
-  demo_enabled: boolean;
-  packages: DemoPaymentPackage[];
-};
-
-export type DemoPaymentResponse = DemoPaymentPackage & {
-  payment_id: number;
-  balance: number;
-  status: "completed";
-  demo: true;
-};
-
 export class ApiClient {
   constructor(
     private readonly baseUrl = "/api",
@@ -165,6 +173,18 @@ export class ApiClient {
     return this.request("/users/me", { method: "GET" });
   }
 
+  paymentCatalog(): Promise<PaymentCatalogResponse> {
+    return this.request("/payments/catalog", { method: "GET" });
+  }
+
+  purchasePackage(packageId: PaymentPackage["id"], idempotencyKey: string): Promise<PaymentResponse> {
+    return this.request("/payments", {
+      method: "POST",
+      body: JSON.stringify({ package: packageId }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  }
+
   updateStoreProfile(payload: StoreProfileUpdate): Promise<UserResponse> {
     return this.request("/users/me/store", {
       method: "PATCH",
@@ -182,21 +202,6 @@ export class ApiClient {
 
   generationDetail(generationId: number): Promise<GenerationDetailResponse> {
     return this.request(`/generations/${generationId}`, { method: "GET" });
-  }
-
-  paymentCatalog(): Promise<DemoPaymentCatalogResponse> {
-    return this.request("/payments/catalog", { method: "GET" });
-  }
-
-  purchaseDemoPackage(
-    packageId: DemoPaymentPackage["id"],
-    idempotencyKey: string,
-  ): Promise<DemoPaymentResponse> {
-    return this.request("/payments", {
-      method: "POST",
-      body: JSON.stringify({ package: packageId }),
-      headers: { "Idempotency-Key": idempotencyKey },
-    });
   }
 
   estimate(payload: EstimatePayload): Promise<EstimateResponse> {

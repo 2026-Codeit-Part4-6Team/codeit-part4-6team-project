@@ -169,6 +169,38 @@ class PreviewGenerateResponse(StrictModel):
     result: PreviewGenerationResult
 
 
+class PaymentPackage(StrictModel):
+    """서버가 소유하는 크레딧 패키지 가격입니다(VAT 별도)."""
+
+    id: Literal["starter", "standard", "pro"]
+    credits: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
+
+
+class PaymentCatalogResponse(StrictModel):
+    currency: Literal["KRW"]
+    vat_included: Literal[False]
+    unit_price: int = Field(gt=0)
+    packages: list[PaymentPackage]
+
+
+class PaymentRequest(StrictModel):
+    package: Literal["starter", "standard", "pro"]
+
+
+class PaymentResponse(StrictModel):
+    payment_id: int = Field(gt=0)
+    package: Literal["starter", "standard", "pro"]
+    credits: int = Field(gt=0)
+    amount: int = Field(gt=0)
+    discount_percent: int = Field(ge=0, le=100)
+    vat_included: Literal[False]
+    balance: int = Field(ge=0)
+    status: Literal["completed"]
+    provider: Literal["pending"] = "pending"
+
+
 class GenerateExtra(StrictModel):
     """두 챗봇이 공유하는 선택형 추가 입력."""
 
@@ -498,35 +530,3 @@ class GenerationDetailResponse(GenerationListItem):
     selected_proposal_index: Literal[0, 1, 2] | None = None
     hitl_approved: bool
 
-
-class DemoPaymentPackage(StrictModel):
-    """시연 환경에서만 노출하는 임시 Credit 패키지입니다."""
-
-    id: Literal["starter", "standard", "pro"]
-    amount: int = Field(gt=0)
-    credits: int = Field(gt=0)
-
-
-class DemoPaymentCatalogResponse(StrictModel):
-    """데모 결제 활성화 여부와 서버 소유 카탈로그입니다."""
-
-    demo_enabled: bool
-    packages: list[DemoPaymentPackage]
-
-
-class DemoPaymentRequest(StrictModel):
-    """시연용으로 선택한 패키지 식별자입니다."""
-
-    package: Literal["starter", "standard", "pro"]
-
-
-class DemoPaymentResponse(StrictModel):
-    """원자적으로 완료된 시연용 Credit 충전 결과입니다."""
-
-    payment_id: int = Field(gt=0)
-    package: Literal["starter", "standard", "pro"]
-    amount: int = Field(gt=0)
-    credits: int = Field(gt=0)
-    balance: int = Field(ge=0)
-    status: Literal["completed"]
-    demo: Literal[True]
