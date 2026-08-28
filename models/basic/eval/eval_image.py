@@ -264,7 +264,11 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
     copies = _pick_copies(copy_result.get("copy_candidates", []))
     if not copies:
         return {"id": item["id"], "passed": False, "reason": "copy_generation_failed"}
-    business_details = _extract_business_details(request["question"]) if platform == "xbanner" else None
+    business_details = (
+        _extract_business_details(request["question"])
+        if platform == "xbanner"
+        else None
+    )
 
     image_evals = []
     total_latency = 0.0
@@ -289,7 +293,9 @@ def _evaluate_item(item: dict, run_dir: Path) -> dict:
         caption = _english_caption(store.get("type", "store"), copy)
         clip = _clip_score(image, caption or image_prompt)
 
-        image_rubric, regulation_check = judge_image_rubric(store, copy, image, platform)
+        image_rubric, regulation_check = judge_image_rubric(
+            store, copy, image, platform
+        )
         moderation = moderation_check(image)
         tone_similarity = (
             _xbanner_tone_similarity(image) if platform == "xbanner" else None
@@ -401,7 +407,9 @@ def run(
     )
 
     tone_similarities = [
-        img["tone_similarity"] for img in all_image_evals if img.get("tone_similarity") is not None
+        img["tone_similarity"]
+        for img in all_image_evals
+        if img.get("tone_similarity") is not None
     ]
     xbanner_tone_similarity_avg = (
         round(sum(tone_similarities) / len(tone_similarities), 3)
