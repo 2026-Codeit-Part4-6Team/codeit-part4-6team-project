@@ -83,14 +83,31 @@ if ! "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180; then
   exit 1
 fi
 
-if ! "${compose[@]}" exec -T frontend /app/.venv/bin/python - <<'PY'
-import os
+if ! "${compose[@]}" exec -T frontend node - <<'JS'
+async function verifyBackendHealth() {
+  const backendUrl = process.env.BACKEND_URL?.replace(/\/+$/, "");
+  if (!backendUrl) {
+    throw new Error("BACKEND_URL is required for the frontend-to-backend smoke check");
+  }
 
-from frontend.api_client import ApiClient
+  const response = await fetch(`${backendUrl}/health`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error(`backend health check failed with HTTP ${response.status}`);
+  }
 
-result = ApiClient(os.environ["BACKEND_URL"], timeout=10).health()
-assert result == {"status": "ok"}
-PY
+  const result = await response.json();
+  if (result.status !== "ok") {
+    throw new Error(`unexpected backend health response: ${JSON.stringify(result)}`);
+  }
+}
+
+verifyBackendHealth().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+JS
 then
   "${compose[@]}" ps >&2 || true
   "${compose[@]}" logs --no-color --tail=200 >&2 || true
