@@ -632,7 +632,7 @@ async def generate(
     now,
     free_limit: int,
     model_timeout_seconds: int,
-    stale_recovery_seconds: int = 120,
+    stale_recovery_seconds: int = 240,
 ) -> GenerationResponse:
     """D4 생성 요청의 idempotency, reservation, model, persistence를 조율합니다."""
     normalized_key = _normalize_idempotency_key(idempotency_key)
