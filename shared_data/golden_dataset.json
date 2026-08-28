@@ -60,7 +60,7 @@
     "type": "market",
     "question": "이 동네에 저 말고 미용실 하는 사람이 또 있어요?",
     "input": {
-      "reference_date": "2026-04-15",
+      "reference_date": "2026-01-15",
       "store": {
         "name": "대관령 미용실",
         "type": "미용실",
@@ -684,7 +684,7 @@
     "type": "strategy",
     "question": "치킨집인데 뭘로 차별화하면 좋을까요?",
     "input": {
-      "reference_date": "2026-01-15",
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -810,7 +810,7 @@
     "type": "strategy",
     "question": "우리 가게는 뭘 다르게 해야 돼요?",
     "input": {
-      "reference_date": "2026-04-15",
+      "reference_date": "2026-10-15",
       "store": {
         "name": "홍천 치킨집",
         "type": "치킨",
@@ -1177,7 +1177,7 @@
     "type": "season",
     "question": "비 오는 날은 손님이 줄던데 뭘 하면 좋을까요?",
     "input": {
-      "reference_date": "2026-01-15",
+      "reference_date": "2026-10-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2408,7 +2408,7 @@
     "type": "strategy",
     "question": "구례 슈퍼마켓에서 저녁 장보기 시간대 손님을 끌려면 어떤 전략이 좋을까요?",
     "input": {
-      "reference_date": "2026-10-15",
+      "reference_date": "2026-04-15",
       "store": {
         "name": "구례 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2596,7 +2596,7 @@
     "type": "season",
     "question": "새 학기 시작 전에 동네 슈퍼마켓에서 할 만한 행사가 있을까요?",
     "input": {
-      "reference_date": "2026-04-15",
+      "reference_date": "2027-02-15",
       "store": {
         "name": "가평 슈퍼마켓",
         "type": "슈퍼마켓",
@@ -2658,7 +2658,7 @@
     "type": "season",
     "question": "주말에 가평 치킨집 방문을 늘릴 이벤트를 알려주세요.",
     "input": {
-      "reference_date": "2026-10-15",
+      "reference_date": "2026-04-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -2722,7 +2722,7 @@
     "type": "season",
     "question": "연말에 강남 카페가 할 만한 이벤트는 뭐가 있을까요?",
     "input": {
-      "reference_date": "2026-01-15",
+      "reference_date": "2026-12-15",
       "market_fixture": {
         "fixture_version": "v2-industry-code",
         "captured_at": "2026-08-18",
@@ -3146,7 +3146,7 @@
     "type": "season",
     "question": "요즘 흑임자라떼가 뜬다던데 계절 메뉴로 넣으면 좋을까요?",
     "input": {
-      "reference_date": "2026-01-15",
+      "reference_date": "2026-07-15",
       "store": {
         "name": "청양 카페",
         "type": "카페",
@@ -3594,7 +3594,7 @@
     "type": "strategy",
     "question": "볼륨매직 시술을 더 홍보하려면 어떻게 해야 할까요?",
     "input": {
-      "reference_date": "2026-10-15",
+      "reference_date": "2026-04-15",
       "store": {
         "name": "강남 미용실",
         "type": "미용실",
@@ -3669,7 +3669,7 @@
     "type": "market",
     "question": "닭강정을 대표 메뉴로 밀어도 경쟁력이 있을까요?",
     "input": {
-      "reference_date": "2026-07-15",
+      "reference_date": "2026-01-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",
@@ -3746,7 +3746,7 @@
     "type": "season",
     "question": "예산 크게 안 들이고 마늘치킨을 연말 특선으로 밀 수 있을까요?",
     "input": {
-      "reference_date": "2026-01-15",
+      "reference_date": "2026-12-15",
       "store": {
         "name": "가평 치킨집",
         "type": "치킨",

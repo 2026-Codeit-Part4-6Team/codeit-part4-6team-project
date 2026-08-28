@@ -12,8 +12,10 @@ from zoneinfo import ZoneInfo
 import openai
 
 from models.consult.eval.eval_strategy import (
+    DATASET_VERSION,
     DEFAULT_DATASET_PATH,
     _build_model_request,
+    _item_reference_date,
     _judge_response,
     _run_graph,
     _sanitize_market_fixture,
@@ -24,6 +26,7 @@ from models.shared.config import (
     OPENAI_JUDGE_MODEL,
     OPENAI_MODEL,
 )
+from models.shared.eval.judge_stability import evaluate_stability
 from models.shared.eval.token_usage import (
     build_token_usage,
     item_token_delta,
@@ -31,6 +34,7 @@ from models.shared.eval.token_usage import (
     token_snapshot,
 )
 from models.shared.llm_errors import classify_llm_error
+from models.shared.seasonality import compute_seasonality
 
 PILOT_ITEM_COUNT = 5
 JUDGE_REPEAT = 3
@@ -53,10 +57,19 @@ def _load_pilot_items(dataset_path: Path) -> list[dict]:
     return items
 
 
+def _count_consult_items(dataset_path: Path) -> int:
+    """안정성 외삽에 쓸 전체 컨설턴트 문항 수를 데이터셋에서 센다."""
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    if not isinstance(dataset, list):
+        raise TypeError("골든 데이터셋 최상위 값은 배열이어야 합니다.")
+    return sum(item.get("area") == "consult" for item in dataset)
+
+
 def _generate_once(item: dict) -> tuple[dict, dict]:
     """fixture를 주입해 컨설턴트 그래프를 한 번 실행한다."""
     market_fixture = _sanitize_market_fixture(item)
     trend_fixture = _sanitize_trend_fixture(item)
+    seasonality_fixture = compute_seasonality(_item_reference_date(item))
     with (
         patch(
             "models.consult.nodes.market_for_consult.get_market",
@@ -65,6 +78,10 @@ def _generate_once(item: dict) -> tuple[dict, dict]:
         patch(
             "models.consult.nodes.trend_for_consult.get_trend",
             return_value=trend_fixture,
+        ),
+        patch(
+            "models.consult.nodes.seasonality_for_consult.compute_seasonality",
+            return_value=seasonality_fixture,
         ),
     ):
         final_state, response = _run_graph(_build_model_request(item))
@@ -78,12 +95,15 @@ def run_pilot(
     *,
     generate: Generate = _generate_once,
     judge: Judge = _judge_response,
+    target_item_count: int,
 ) -> dict:
     """응답을 문항당 한 번 생성하고 같은 입력을 세 번 채점한다."""
+    for item in items:
+        _item_reference_date(item)
     preflight()
     results = []
-    unstable_items = []
     failed_items = []
+    runs_by_item: dict[str, dict[str, list[int]]] = {}
 
     for item in items:
         snapshot = token_snapshot()
@@ -97,6 +117,7 @@ def run_pilot(
                 else "invalid_response"
             )
             failed_items.append(item["id"])
+            runs_by_item[item["id"]] = {}
             results.append(
                 {
                     "id": item["id"],
@@ -114,29 +135,44 @@ def run_pilot(
             criterion: max(run[criterion] for run in runs) - min(run[criterion] for run in runs)
             for criterion in rubric
         }
-        stable = all(value == 0 for value in spread.values())
-        if not stable:
-            unstable_items.append(item["id"])
+        runs_by_item[item["id"]] = {
+            criterion: [run[criterion] for run in runs] for criterion in rubric
+        }
         results.append(
             {
                 "id": item["id"],
                 "runs": runs,
                 "spread": spread,
-                "stable": stable,
+                "stable": False,
                 "generation_error": None,
                 "tokens": item_token_delta(snapshot),
             }
         )
 
+    stability = evaluate_stability(runs_by_item, target_item_count)
+    unstable_items = sorted(
+        item_id
+        for item_id in runs_by_item
+        if any(detail.startswith(f"{item_id}·") for detail in stability["cells_over_1"])
+        or any(
+            detail.startswith(f"{item_id} ")
+            for detail in stability["items_over_0_5"]
+        )
+    )
+    for result in results:
+        result["stable"] = bool(result["runs"]) and result["id"] not in unstable_items
+
     return {
+        "dataset_version": DATASET_VERSION,
         "generation_model": OPENAI_MODEL,
         "judge_model": OPENAI_JUDGE_MODEL,
         "judge_temperature": LLM_JUDGE_TEMPERATURE,
         "judge_repeat": JUDGE_REPEAT,
         "item_count": len(items),
-        "passed": not unstable_items and not failed_items,
+        "passed": stability["passed"] and not failed_items,
         "failed_items": failed_items,
         "unstable_items": unstable_items,
+        "stability": stability,
         "token_usage": build_token_usage(),
         "items": results,
     }
@@ -149,7 +185,8 @@ def main(
 ) -> int:
     """안정성 파일럿을 실행하고 고유한 JSON 리포트를 저장한다."""
     items = _load_pilot_items(dataset_path)
-    report = run_pilot(items)
+    target_item_count = _count_consult_items(dataset_path)
+    report = run_pilot(items, target_item_count=target_item_count)
     report_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d_%H%M%S_%f")
     report_path = report_dir / f"{timestamp}_consult_judge_stability.json"

@@ -12,6 +12,7 @@ def _item(item_id: str = "C-001") -> dict:
         "area": "consult",
         "question": "주변 경쟁사는 얼마나 되나요?",
         "input": {
+            "reference_date": "2026-04-15",
             "market_fixture": {
                 "fixture_version": "v2-industry-code",
                 "captured_at": "2026-08-18",
@@ -66,7 +67,9 @@ def test_run_pilot_generates_once_and_judges_same_response_three_times(
         judged.append((actual_item["id"], actual_response, actual_context))
         return {"근거_충실도": 4, "자연스러움": 5}
 
-    report = pilot.run_pilot([item], generate=generate, judge=judge)
+    report = pilot.run_pilot(
+        [item], generate=generate, judge=judge, target_item_count=60
+    )
 
     assert generated == ["C-001"]
     assert len(judged) == 3
@@ -77,9 +80,11 @@ def test_run_pilot_generates_once_and_judges_same_response_three_times(
     assert report["items"][0]["spread"] == {"근거_충실도": 0, "자연스러움": 0}
     assert report["items"][0]["generation_error"] is None
     assert report["items"][0]["tokens"] == {"generation": 100, "judge": 60}
+    assert report["dataset_version"] == "v1.3-seasonality-4season"
+    assert report["stability"]["passed"] is True
 
 
-def test_run_pilot_reports_item_when_any_rubric_score_changes(monkeypatch) -> None:
+def test_run_pilot_allows_adjacent_score_change_within_three_level_limits(monkeypatch) -> None:
     monkeypatch.setattr(pilot, "preflight", lambda: None)
     monkeypatch.setattr(pilot, "token_snapshot", dict)
     monkeypatch.setattr(pilot, "item_token_delta", lambda _snapshot: {})
@@ -96,11 +101,37 @@ def test_run_pilot_reports_item_when_any_rubric_score_changes(monkeypatch) -> No
         [_item()],
         generate=lambda _item: ({"status": "ok"}, {}),
         judge=lambda _item, _response, _context: next(scores),
+        target_item_count=60,
+    )
+
+    assert report["passed"] is True
+    assert report["unstable_items"] == []
+    assert report["items"][0]["spread"] == {"근거_충실도": 1, "자연스러움": 0}
+
+
+def test_run_pilot_rejects_score_spread_over_one(monkeypatch) -> None:
+    monkeypatch.setattr(pilot, "preflight", lambda: None)
+    monkeypatch.setattr(pilot, "token_snapshot", dict)
+    monkeypatch.setattr(pilot, "item_token_delta", lambda _snapshot: {})
+    monkeypatch.setattr(pilot, "build_token_usage", dict)
+    scores = iter(
+        [
+            {"근거_충실도": 3, "자연스러움": 5},
+            {"근거_충실도": 5, "자연스러움": 5},
+            {"근거_충실도": 3, "자연스러움": 5},
+        ]
+    )
+
+    report = pilot.run_pilot(
+        [_item()],
+        generate=lambda _item: ({"status": "ok"}, {}),
+        judge=lambda _item, _response, _context: next(scores),
+        target_item_count=60,
     )
 
     assert report["passed"] is False
     assert report["unstable_items"] == ["C-001"]
-    assert report["items"][0]["spread"] == {"근거_충실도": 1, "자연스러움": 0}
+    assert report["stability"]["cells_over_1"]
 
 
 def test_run_pilot_preserves_generation_failure_and_stops_later_items(monkeypatch) -> None:
@@ -137,6 +168,7 @@ def test_run_pilot_preserves_generation_failure_and_stops_later_items(monkeypatc
         [_item("C-001"), _item("C-002")],
         generate=generate,
         judge=judge,
+        target_item_count=60,
     )
 
     assert generated == ["C-001"]
@@ -167,6 +199,19 @@ def test_load_pilot_items_requires_five_consult_items(tmp_path) -> None:
         pilot._load_pilot_items(dataset_path)
 
 
+def test_count_consult_items_uses_actual_dataset_area_count(tmp_path) -> None:
+    dataset_path = tmp_path / "golden.json"
+    dataset_path.write_text(
+        json.dumps(
+            [_item("C-001"), {"id": "B-001", "area": "basic"}, _item("C-002")],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    assert pilot._count_consult_items(dataset_path) == 2
+
+
 def test_generate_once_injects_fixtures_and_returns_runtime_context(monkeypatch) -> None:
     item = _item()
     runtime_context = {"market": {"same_industry_count": 12}, "trend": None}
@@ -174,6 +219,7 @@ def test_generate_once_injects_fixtures_and_returns_runtime_context(monkeypatch)
 
     def run_graph(_request: dict) -> tuple[dict, dict]:
         from models.consult.nodes.market_for_consult import get_market
+        from models.consult.nodes.seasonality_for_consult import compute_seasonality
         from models.consult.nodes.trend_for_consult import get_trend
 
         assert get_market(0, 0) == {
@@ -182,6 +228,11 @@ def test_generate_once_injects_fixtures_and_returns_runtime_context(monkeypatch)
             "nearest_distance_m": 50,
         }
         assert get_trend("카페") is None
+        assert compute_seasonality() == {
+            "reference_date": "2026-04-15",
+            "calendar_period": "4월 중순",
+            "season_hint": "봄",
+        }
         return {"context": runtime_context}, response
 
     monkeypatch.setattr(pilot, "_run_graph", run_graph)
@@ -190,6 +241,24 @@ def test_generate_once_injects_fixtures_and_returns_runtime_context(monkeypatch)
 
     assert actual_response == response
     assert actual_context == runtime_context
+
+
+def test_run_pilot_validates_all_reference_dates_before_generation(monkeypatch) -> None:
+    first = _item("C-001")
+    second = _item("C-002")
+    second["input"]["reference_date"] = "20260415"
+    generated = []
+    monkeypatch.setattr(pilot, "preflight", lambda: None)
+
+    with pytest.raises(ValueError, match="reference_date"):
+        pilot.run_pilot(
+            [first, second],
+            generate=lambda item: generated.append(item) or ({"status": "ok"}, {}),
+            judge=lambda *_args: {},
+            target_item_count=60,
+        )
+
+    assert generated == []
 
 
 def test_generate_once_rejects_error_response(monkeypatch) -> None:
@@ -217,7 +286,12 @@ def test_main_writes_stability_report(monkeypatch, tmp_path) -> None:
         "items": [],
     }
     monkeypatch.setattr(pilot, "_load_pilot_items", lambda _path: [_item()] * 5)
-    monkeypatch.setattr(pilot, "run_pilot", lambda _items: report)
+    monkeypatch.setattr(pilot, "_count_consult_items", lambda _path: 60)
+    monkeypatch.setattr(
+        pilot,
+        "run_pilot",
+        lambda _items, *, target_item_count: report,
+    )
 
     exit_code = pilot.main(dataset_path=tmp_path / "golden.json", report_dir=tmp_path)
 

@@ -73,7 +73,17 @@ def test_reference_date_uses_kst_today_when_env_var_unset(mock_datetime_cls, mon
     assert result == date(2026, 8, 25)
 
 
-@pytest.mark.parametrize("invalid_value", ["2026/07/15", "not-a-date", "2026-13-01", ""])
+@pytest.mark.parametrize(
+    "invalid_value",
+    [
+        "2026/07/15",
+        "not-a-date",
+        "2026-13-01",
+        "",
+        "20260715",
+        "2026-W29-3",
+    ],
+)
 def test_reference_date_raises_on_malformed_env_var(monkeypatch, invalid_value) -> None:
     """잘못된 형식이면 오늘 날짜로 조용히 대체하지 않고 즉시 예외를 던진다 —
     잘못된 기준일로 평가가 조용히 진행되는 걸 막기 위해서다(PM 리뷰)."""

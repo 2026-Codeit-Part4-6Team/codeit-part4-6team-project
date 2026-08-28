@@ -226,6 +226,10 @@ def _item_reference_date(item: dict) -> date | None:
         return None
     if not isinstance(raw, str) or not raw:
         raise TypeError("input.reference_date는 YYYY-MM-DD 문자열이어야 합니다.")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw) is None:
+        raise ValueError(
+            f"input.reference_date 형식이 올바르지 않습니다(YYYY-MM-DD 필요): {raw!r}"
+        )
     try:
         return date.fromisoformat(raw)
     except ValueError as exc:

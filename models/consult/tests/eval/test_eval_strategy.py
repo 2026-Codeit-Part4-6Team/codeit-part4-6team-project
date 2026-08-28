@@ -69,6 +69,21 @@ def test_golden_dataset_balances_explicit_reference_dates_across_four_seasons() 
         "가을": 15,
         "겨울": 15,
     }
+    dimensions = {
+        "type": lambda item: item["type"],
+        "industry": lambda item: (
+            (item["input"].get("store") or {}).get("type") or DEFAULT_STORE["type"]
+        ),
+        "trend": lambda item: bool(item["input"].get("trend_fixture")),
+    }
+    for value_for in dimensions.values():
+        values = {value_for(item) for item in consult_items}
+        for value in values:
+            counts = [
+                sum(value_for(item) == value for item in by_season[season])
+                for season in ("봄", "여름", "가을", "겨울")
+            ]
+            assert max(counts) - min(counts) <= 1
     for items in by_season.values():
         assert {item["type"] for item in items} == {"market", "season", "strategy"}
         assert {bool(item["input"].get("trend_fixture")) for item in items} == {
@@ -83,8 +98,10 @@ def test_golden_dataset_balances_explicit_reference_dates_across_four_seasons() 
     by_id = {item["id"]: item for item in consult_items}
     assert by_id["C-023"]["input"]["reference_date"] == "2026-07-15"
     assert by_id["C-041"]["input"]["reference_date"] == "2026-01-15"
-    assert by_id["C-043"]["input"]["reference_date"] == "2026-04-15"
+    assert by_id["C-043"]["input"]["reference_date"] == "2027-02-15"
+    assert by_id["C-045"]["input"]["reference_date"] == "2026-12-15"
     assert by_id["C-047"]["input"]["reference_date"] == "2026-10-15"
+    assert by_id["C-059"]["input"]["reference_date"] == "2026-12-15"
 
 
 def _item(item_id: str = "C-001") -> dict:
@@ -372,7 +389,10 @@ def test_item_reference_date_parses_optional_iso_date() -> None:
     assert parser(_item()) is None
 
 
-@pytest.mark.parametrize("invalid", ["2026/10/15", "", 20261015, True])
+@pytest.mark.parametrize(
+    "invalid",
+    ["2026/10/15", "", "20261015", "2026-W42-4", 20261015, True],
+)
 def test_item_reference_date_rejects_invalid_value(invalid) -> None:
     parser = getattr(eval_strategy, "_item_reference_date", None)
     assert parser is not None

@@ -6,10 +6,12 @@
 문항별 기준일을 입력해 계절별 재현성을 확보한다."""
 
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 
 _KST = timezone(timedelta(hours=9))
 _ENV_REFERENCE_DATE = "VALIDATION_REFERENCE_DATE"
+_ISO_DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # 계절 힌트 경계값 — 구체적인 초입·한창·말기 라벨이 날짜만으로 수요를 추론하도록
 # 유도한 v3 실측 결과에 따라 월 기준 4계절로 단순화했다. (월, 일) 오름차순으로
@@ -57,6 +59,10 @@ def _reference_date() -> date:
     raw = os.getenv(_ENV_REFERENCE_DATE)
     if raw is None:
         return datetime.now(_KST).date()
+    if _ISO_DATE_PATTERN.fullmatch(raw) is None:
+        raise ValueError(
+            f"{_ENV_REFERENCE_DATE} 형식이 올바르지 않습니다(YYYY-MM-DD 필요): {raw!r}"
+        )
     try:
         return date.fromisoformat(raw)
     except ValueError as exc:
