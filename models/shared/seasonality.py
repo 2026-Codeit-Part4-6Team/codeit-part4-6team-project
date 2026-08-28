@@ -2,7 +2,8 @@
 """날씨 API를 새로 연동하는 대신, 요청 시점의 날짜만으로 계절성 힌트를 계산한다
 (v3 섹션C, weather 필드 제거와 짝을 이루는 대체안). 외부 I/O가 전혀 없는 순수
 함수라 그래프 노드로 감싸는 쪽(각 챗봇의 seasonality_for_* 노드)이 그대로 호출하며,
-ModelRequest·서비스 스키마·DB·골든 데이터셋 문항에는 새 필드를 추가하지 않는다."""
+운영 ModelRequest·서비스 스키마·DB에는 새 필드를 추가하지 않는다. 평가 데이터셋만
+문항별 기준일을 입력해 계절별 재현성을 확보한다."""
 
 import os
 from datetime import date, datetime, timedelta, timezone
@@ -10,31 +11,22 @@ from datetime import date, datetime, timedelta, timezone
 _KST = timezone(timedelta(hours=9))
 _ENV_REFERENCE_DATE = "VALIDATION_REFERENCE_DATE"
 
-# 계절 힌트 경계값 — 실측 근거가 아니라 팀이 정한 정책값이다(PM 리뷰: 8/20~9/10을
-# "여름 말기"로 삼은 예시를 그대로 유지하고, 나머지 구간은 봄/여름/가을/겨울을 각각
-# 초입·한창·말기 3단계로 나눠 채웠다). (월, 일) 오름차순으로 정렬돼 있어야 하며,
-# 마지막 항목(겨울 초입, 12/10~)은 해가 바뀌어 1월 초까지 그대로 이어진다.
+# 계절 힌트 경계값 — 구체적인 초입·한창·말기 라벨이 날짜만으로 수요를 추론하도록
+# 유도한 v3 실측 결과에 따라 월 기준 4계절로 단순화했다. (월, 일) 오름차순으로
+# 정렬돼 있어야 하며 마지막 겨울 구간은 해가 바뀌어 2월 말까지 이어진다.
 _SEASON_BOUNDARIES: list[tuple[tuple[int, int], str]] = [
-    ((1, 10), "겨울 한창"),
-    ((2, 9), "겨울 말기"),
-    ((3, 21), "봄 초입"),
-    ((4, 10), "봄 한창"),
-    ((4, 30), "봄 말기"),
-    ((5, 20), "여름 초입"),
-    ((6, 21), "여름 한창"),
-    ((8, 20), "여름 말기"),
-    ((9, 11), "가을 초입"),
-    ((10, 8), "가을 한창"),
-    ((11, 7), "가을 말기"),
-    ((12, 10), "겨울 초입"),
+    ((3, 1), "봄"),
+    ((6, 1), "여름"),
+    ((9, 1), "가을"),
+    ((12, 1), "겨울"),
 ]
 
 
 def _season_hint(target: date) -> str:
     """월일만으로 계절 힌트를 판정한다(연도 무관, 경계값은 위 정책표 기준)."""
     value = target.month * 100 + target.day
-    # 가장 이른 경계(1/10)보다 앞선 날짜(1/1~1/9)는 전년도 마지막 구간(겨울 초입)이
-    # 그대로 이어지는 것이므로, 기본값을 마지막 항목으로 두고 순회하며 갱신한다.
+    # 가장 이른 경계(3/1)보다 앞선 날짜는 전년도 마지막 겨울 구간이 그대로
+    # 이어지는 것이므로, 기본값을 마지막 항목으로 두고 순회하며 갱신한다.
     label = _SEASON_BOUNDARIES[-1][1]
     for (month, day), season_label in _SEASON_BOUNDARIES:
         if value >= month * 100 + day:
@@ -73,15 +65,15 @@ def _reference_date() -> date:
         ) from exc
 
 
-def compute_seasonality() -> dict:
+def compute_seasonality(reference_date: date | None = None) -> dict:
     """기준일의 계절성 힌트를 계산해 반환한다.
 
-    환경변수는 이 함수가 호출될 때마다 읽는다 — 모듈 import 시점에 한 번만 읽으면
-    평가 스크립트가 문항 사이에 기준일을 바꿔가며 재현성을 확보할 수 없다.
+    명시적 기준일이 있으면 환경변수보다 우선한다. 기준일을 생략한 운영 경로에서는
+    환경변수를 호출 때마다 읽고, 환경변수도 없으면 KST 오늘을 사용한다.
     """
-    reference_date = _reference_date()
+    target = reference_date if reference_date is not None else _reference_date()
     return {
-        "reference_date": reference_date.isoformat(),
-        "calendar_period": _calendar_period(reference_date),
-        "season_hint": _season_hint(reference_date),
+        "reference_date": target.isoformat(),
+        "calendar_period": _calendar_period(target),
+        "season_hint": _season_hint(target),
     }

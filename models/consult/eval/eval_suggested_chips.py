@@ -19,13 +19,16 @@ from zoneinfo import ZoneInfo
 
 import openai
 
-from models.consult.eval.eval_strategy import DEFAULT_DATASET_PATH, DEFAULT_STORE
+from models.consult.eval.eval_strategy import (
+    DATASET_VERSION,
+    DEFAULT_DATASET_PATH,
+    DEFAULT_STORE,
+)
 from models.shared import llm as shared_llm
 from models.shared.config import LLM_JUDGE_TEMPERATURE, OPENAI_JUDGE_MODEL, OPENAI_MODEL
 from models.shared.eval.token_usage import EvalPreflightError, build_report_header, preflight
 from models.shared.llm_errors import classify_llm_error
 
-DATASET_VERSION = "v1.3"
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 SLEEP_SECONDS = 1.0
 AREA = "consult_chips"

@@ -23,9 +23,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from models.consult.clients.market_api import industry_code_for
-from models.consult.eval.eval_strategy import DEFAULT_DATASET_PATH, DEFAULT_STORE
+from models.consult.eval.eval_strategy import (
+    DATASET_VERSION,
+    DEFAULT_DATASET_PATH,
+    DEFAULT_STORE,
+)
 
-DATASET_VERSION = "v1.3"
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 
 logger = logging.getLogger(__name__)

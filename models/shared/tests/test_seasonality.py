@@ -17,35 +17,17 @@ _ENV_VAR = "VALIDATION_REFERENCE_DATE"
 @pytest.mark.parametrize(
     "target, expected",
     [
-        # 12개 경계 전부를 "경계 전날"·"경계 당일" 쌍으로 검증한다 — 8월(PM 예시)·
-        # 12월(연말 wrap-around)만 확인하면 나머지 10개 경계가 잘못 수정돼도
-        # 못 잡는다(Codex 리뷰).
-        (date(2027, 1, 9), "겨울 초입"),  # 겨울 한창 경계 전날(해 바뀜, 연말 구간 이어짐)
-        (date(2027, 1, 10), "겨울 한창"),
-        (date(2026, 2, 8), "겨울 한창"),  # 겨울 말기 경계 전날
-        (date(2026, 2, 9), "겨울 말기"),
-        (date(2026, 3, 20), "겨울 말기"),  # 봄 초입 경계 전날
-        (date(2026, 3, 21), "봄 초입"),
-        (date(2026, 4, 9), "봄 초입"),  # 봄 한창 경계 전날
-        (date(2026, 4, 10), "봄 한창"),
-        (date(2026, 4, 29), "봄 한창"),  # 봄 말기 경계 전날
-        (date(2026, 4, 30), "봄 말기"),
-        (date(2026, 5, 19), "봄 말기"),  # 여름 초입 경계 전날
-        (date(2026, 5, 20), "여름 초입"),
-        (date(2026, 6, 20), "여름 초입"),  # 여름 한창 경계 전날
-        (date(2026, 6, 21), "여름 한창"),
-        (date(2026, 8, 19), "여름 한창"),  # 여름 말기 경계 전날
-        (date(2026, 8, 20), "여름 말기"),
-        (date(2026, 8, 24), "여름 말기"),  # PM 예시 문항(8월 하순)
-        (date(2026, 9, 10), "여름 말기"),  # 여름 말기 구간 마지막 날
-        (date(2026, 9, 11), "가을 초입"),  # 가을 초입 경계 당일
-        (date(2026, 10, 7), "가을 초입"),  # 가을 한창 경계 전날
-        (date(2026, 10, 8), "가을 한창"),
-        (date(2026, 11, 6), "가을 한창"),  # 가을 말기 경계 전날
-        (date(2026, 11, 7), "가을 말기"),
-        (date(2026, 12, 9), "가을 말기"),  # 겨울 초입 경계 전날
-        (date(2026, 12, 10), "겨울 초입"),  # 연말→연초로 이어짐(다음 항목과 같은 구간)
-        (date(2027, 1, 5), "겨울 초입"),  # 해가 바뀌어도 같은 구간
+        # 구체적인 초입·한창·말기 라벨이 근거 없는 수요 추론을 유발한 실측 결과에
+        # 따라, 월 기준 4계절의 경계 전날·당일과 연말 순환을 전부 고정한다.
+        (date(2026, 2, 28), "겨울"),
+        (date(2026, 3, 1), "봄"),
+        (date(2026, 5, 31), "봄"),
+        (date(2026, 6, 1), "여름"),
+        (date(2026, 8, 31), "여름"),
+        (date(2026, 9, 1), "가을"),
+        (date(2026, 11, 30), "가을"),
+        (date(2026, 12, 1), "겨울"),
+        (date(2027, 1, 15), "겨울"),
     ],
 )
 def test_season_hint_boundaries(target, expected) -> None:
@@ -111,7 +93,7 @@ def test_compute_seasonality_reads_env_var_at_call_time(monkeypatch) -> None:
     assert result == {
         "reference_date": "2026-08-24",
         "calendar_period": "8월 하순",
-        "season_hint": "여름 말기",
+        "season_hint": "여름",
     }
 
     monkeypatch.setenv(_ENV_VAR, "2026-01-05")
@@ -121,5 +103,18 @@ def test_compute_seasonality_reads_env_var_at_call_time(monkeypatch) -> None:
     assert result2 == {
         "reference_date": "2026-01-05",
         "calendar_period": "1월 상순",
-        "season_hint": "겨울 초입",
+        "season_hint": "겨울",
+    }
+
+
+def test_compute_seasonality_prefers_explicit_date_over_environment(monkeypatch) -> None:
+    """평가기에서 문항별 날짜를 넘기면 실행 단위 환경변수보다 우선해야 한다."""
+    monkeypatch.setenv(_ENV_VAR, "2026-07-15")
+
+    result = compute_seasonality(date(2026, 10, 15))
+
+    assert result == {
+        "reference_date": "2026-10-15",
+        "calendar_period": "10월 중순",
+        "season_hint": "가을",
     }

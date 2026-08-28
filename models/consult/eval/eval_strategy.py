@@ -7,7 +7,7 @@ import logging
 import os
 import re
 import time
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,7 @@ from models.shared.llm_errors import classify_llm_error
 from models.shared.seasonality import compute_seasonality
 
 EVAL_USER_ID = 1
-DATASET_VERSION = "v1.3"
+DATASET_VERSION = "v1.3-seasonality-4season"
 DEFAULT_DATASET_PATH = Path("shared_data/golden_dataset.json")
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 SLEEP_SECONDS = 1.0
@@ -219,6 +219,21 @@ def _sanitize_trend_fixture(item: dict) -> dict | None:
     }
 
 
+def _item_reference_date(item: dict) -> date | None:
+    """문항별 ISO 기준일을 date로 변환하고, 없으면 운영 폴백을 쓰도록 None을 반환한다."""
+    raw = (item.get("input") or {}).get("reference_date")
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw:
+        raise TypeError("input.reference_date는 YYYY-MM-DD 문자열이어야 합니다.")
+    try:
+        return date.fromisoformat(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"input.reference_date 형식이 올바르지 않습니다(YYYY-MM-DD 필요): {raw!r}"
+        ) from exc
+
+
 def _run_graph(request: dict) -> tuple[dict, dict]:
     """평가용으로 그래프를 한 번 실행해 최종 state와 서비스 응답을 함께 반환한다."""
     initial_state = build_initial_state(request)
@@ -312,6 +327,7 @@ def _evaluate_item(item: dict) -> dict:
     """한 문항의 모델 응답, 규칙 검사, Judge 점수와 내부 집계값을 만든다."""
     market_fixture = _sanitize_market_fixture(item)
     trend_fixture = _sanitize_trend_fixture(item)
+    seasonality_fixture = compute_seasonality(_item_reference_date(item))
     started_at = time.perf_counter()
     with (
         patch(
@@ -321,6 +337,10 @@ def _evaluate_item(item: dict) -> dict:
         patch(
             "models.consult.nodes.trend_for_consult.get_trend",
             return_value=trend_fixture,
+        ),
+        patch(
+            "models.consult.nodes.seasonality_for_consult.compute_seasonality",
+            return_value=seasonality_fixture,
         ),
     ):
         try:
@@ -564,13 +584,17 @@ def evaluate_dataset(
     selected = area_items[:limit] if limit is not None else area_items
 
     preflight()
+    item_reference_dates = [_item_reference_date(item) for item in selected]
+    uses_environment_reference_date = any(
+        reference_date is None for reference_date in item_reference_dates
+    )
     # 계절성 기준일을 고정하지 않으면 실행일마다 프롬프트에 주입되는 계절성 힌트가
     # 달라져, 서로 다른 날 돌린 두 리포트를 "같은 조건"으로 비교할 수 없다. 전체
     # 평가(limit=None)는 비교 재현성이 핵심이라 미설정을 즉시 차단한다 — 결과
     # 리포트 스키마에 기준일을 새 필드로 남기는 건 PM 설계 문서가 별도 승인이
     # 필요하다고 명시해 이번 범위에서는 하지 않는다(Codex 리뷰).
     reference_date_pinned = os.getenv("VALIDATION_REFERENCE_DATE") is not None
-    if limit is None and not reference_date_pinned:
+    if limit is None and uses_environment_reference_date and not reference_date_pinned:
         raise EvalPreflightError(
             "전체 평가는 VALIDATION_REFERENCE_DATE를 반드시 고정해야 합니다 — "
             "고정하지 않으면 실행일마다 계절성 입력이 달라져 다른 시점 리포트와 "
@@ -580,8 +604,8 @@ def evaluate_dataset(
     # 문항의 그래프 내부(seasonality_for_consult)에서야 예외로 잡혀 전체 문항이
     # 실패 처리되면서, 이미 병렬로 나간 다른 노드의 LLM·API 호출 비용까지
     # 낭비하는 걸 막는다(Codex 리뷰).
-    seasonality = compute_seasonality()
-    if not reference_date_pinned:
+    seasonality = compute_seasonality() if uses_environment_reference_date else None
+    if uses_environment_reference_date and not reference_date_pinned:
         logger.warning(
             "VALIDATION_REFERENCE_DATE가 설정되지 않아 실행일(%s) 기준으로 계절성이 "
             "계산됩니다 — 다른 시점에 실행한 리포트와 비교하려면 값을 고정하세요.",

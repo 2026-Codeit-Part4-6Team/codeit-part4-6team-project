@@ -121,14 +121,14 @@ def test_build_user_prompt_includes_seasonality_section_when_given() -> None:
     seasonality = {
         "reference_date": "2026-08-24",
         "calendar_period": "8월 하순",
-        "season_hint": "여름 말기",
+        "season_hint": "여름",
     }
 
     prompt = build_user_prompt("질문", store, None, None, seasonality)
 
     assert "2026-08-24" in prompt
     assert "8월 하순" in prompt
-    assert "여름 말기" in prompt
+    assert "여름" in prompt
 
 
 def test_build_user_prompt_omits_seasonality_section_when_none() -> None:
@@ -149,11 +149,11 @@ def test_system_prompt_allows_season_hint_in_summary_actions_not_reasons() -> No
 
 
 def test_system_prompt_forbids_demand_claims_from_season_alone() -> None:
-    """"여름 말기이므로 수요가 늘어난다"처럼 날짜만으로 실제 수요·검색량 증감을
+    """"여름이므로 수요가 늘어난다"처럼 날짜만으로 실제 수요·검색량 증감을
     단정하면 안 되고, 검색 수요 증감은 트렌드 데이터가 실제로 주어졌을 때만
     주장해야 한다(PM 설계)."""
     normalized = " ".join(SYSTEM_PROMPT.split())
-    assert "여름 말기이므로 수요가 늘어난다" in normalized
+    assert "여름이므로 수요가 늘어난다" in normalized
     assert "트렌드 데이터가 실제로 주어졌을 때만 주장한다" in normalized
 
 
@@ -168,7 +168,7 @@ def test_system_prompt_demand_ban_applies_to_all_three_fields() -> None:
 
 def test_system_prompt_prioritizes_user_stated_timing_over_seasonality() -> None:
     """사용자가 질문에서 "연말"·"겨울철"처럼 시점을 직접 제시했는데 계절성 참고
-    (예: 실제 요청일 기준 "여름 말기")가 그걸 덮어써 "여름 말기인 지금 시점에
+    (예: 당시 실제 요청일 기준 "여름 말기")가 그걸 덮어써 "여름 말기인 지금 시점에
     연말 특선"처럼 모순된 문장이 나온 사례(C-059, 2026-08-25 재평가)를 막는다."""
     normalized = " ".join(SYSTEM_PROMPT.split())
     assert "사용자가 제시한 시점을 우선한다" in normalized

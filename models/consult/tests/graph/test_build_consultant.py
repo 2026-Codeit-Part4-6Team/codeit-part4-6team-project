@@ -286,7 +286,7 @@ def test_suggested_chips_market_trend_seasonality_run_in_parallel_not_sequential
 
     def rendezvous_seasonality(*args, **kwargs):
         barrier.wait()
-        return {"reference_date": "2026-08-24", "calendar_period": "8월 하순", "season_hint": "여름 말기"}
+        return {"reference_date": "2026-08-24", "calendar_period": "8월 하순", "season_hint": "여름"}
 
     mock_get_market.side_effect = rendezvous_market
     mock_get_trend.side_effect = rendezvous_trend

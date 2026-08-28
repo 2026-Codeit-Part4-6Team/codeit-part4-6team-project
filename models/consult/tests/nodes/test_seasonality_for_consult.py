@@ -28,7 +28,7 @@ def test_returns_only_context_seasonality(mock_compute) -> None:
     mock_compute.return_value = {
         "reference_date": "2026-08-24",
         "calendar_period": "8월 하순",
-        "season_hint": "여름 말기",
+        "season_hint": "여름",
     }
 
     result = seasonality_for_consult(_state())
@@ -38,7 +38,7 @@ def test_returns_only_context_seasonality(mock_compute) -> None:
             "seasonality": {
                 "reference_date": "2026-08-24",
                 "calendar_period": "8월 하순",
-                "season_hint": "여름 말기",
+                "season_hint": "여름",
             }
         }
     }

@@ -45,9 +45,9 @@ def build_consultant() -> CompiledStateGraph:
     결과조차 필요 없다).
     context(merge_dicts)·sources(operator.add) reducer가 이미 병렬 쓰기를 지원하도록
     설계돼 있다. suggested_chips는 tokens_used를 갱신하지만 market_for_consult·
-    trend_for_consult 둘 다 이 필드를 건드리지 않아(외부 API만 호출, LLM 호출 없음)
-    세 노드가 병렬로 묶여도 tokens_used를 쓰는 노드는 suggested_chips 하나뿐이라
-    충돌 여지가 없다.
+    trend_for_consult·seasonality_for_consult는 이 필드를 건드리지 않아(외부 API
+    또는 순수 계산만 사용, LLM 호출 없음), 네 노드가 병렬로 묶여도 tokens_used를
+    쓰는 노드는 suggested_chips 하나뿐이라 충돌 여지가 없다.
 
     받아들인 트레이드오프(Codex 리뷰): suggested_chips의 LLM 호출이 인프라 장애로
     완전 실패(재시도 소진)하면 예외가 그대로 전파되는데(suggested_chips.py 참고 —

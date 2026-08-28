@@ -123,6 +123,7 @@ def test_evaluate_data_quality_builds_report_and_writes_file(tmp_path) -> None:
     assert report_path.exists()
     assert report["area"] == "consult_data_quality"
     assert report["scope"] == "golden_dataset:consult"
+    assert report["dataset_version"] == "v1.3-seasonality-4season"
     assert report["source_dataset"]["file"] == "golden_dataset.json"
     assert report["metrics"]["unique_industries"] == 2
     assert report["metrics"]["items_total"] == 2

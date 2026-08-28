@@ -45,7 +45,7 @@ _TREND = {
 _SEASONALITY = {
     "reference_date": "2026-08-24",
     "calendar_period": "8월 하순",
-    "season_hint": "여름 말기",
+    "season_hint": "여름",
 }
 
 
@@ -333,7 +333,7 @@ def test_includes_seasonality_data_when_available(mock_call_llm) -> None:
     assert "계절성 참고" in user_prompt
     assert "2026-08-24" in user_prompt
     assert "8월 하순" in user_prompt
-    assert "여름 말기" in user_prompt
+    assert "여름" in user_prompt
 
 
 @patch("models.consult.nodes.strategy.call_llm")
