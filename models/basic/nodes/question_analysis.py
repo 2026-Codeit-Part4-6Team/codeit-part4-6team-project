@@ -7,7 +7,8 @@ from ..graph.state import BasicState
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어시스턴트다.
 사용자 질문과 가게 정보를 보고 두 가지를 판단한다.
-1) 질문을 광고 카피 생성에 바로 쓸 수 있도록 명확하게 재작성한다.
+1) question·extra·consultant_strategy·consultant_reasons(주어진 경우)를 모두
+   참고해 질문을 광고 카피 생성에 바로 쓸 수 있도록 구체적으로 재작성한다.
 2) 카피를 만들기에 정보가 충분한지 판단한다.
 3) 검색 트렌드 조회에 쓸 핵심 키워드를 뽑는다.
 
@@ -22,8 +23,13 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
 - extra에 이미 채워진 정보(목적/가격대/고객층/특장점, 되물음에 대한 답변 등)가
   하나라도 있으면 그 자체로 충분한 것으로 간주한다. 더 자세한 내용을 추가로
   요구하지 않는다.
-- question과 extra를 모두 합쳐도 "무엇에 대한 광고인지" 주제조차 짐작할 수
-  없을 때만(예: "광고 만들어줘", "문구 좀 써줘") 정보 부족으로 판단한다.
+- consultant_strategy·consultant_reasons가 주어지면(컨설팅→광고 연계 요청),
+  question을 재작성할 때 strategy.actions의 구체적 실행 항목과 reasons를
+  적극 반영해 구체적으로 다시 쓴다. 이 정보가 있는 것만으로도 그 자체로
+  충분한 것으로 간주한다.
+- question·extra·consultant_strategy·consultant_reasons를 전부 합쳐도
+  "무엇에 대한 광고인지" 주제조차 짐작할 수 없을 때만(예: "광고 만들어줘",
+  "문구 좀 써줘") 정보 부족으로 판단한다.
 - 판단이 애매하면 무조건 충분함(sufficient: true)으로 판단한다. 정보 부족
   판단은 최후의 수단이다.
 
@@ -52,6 +58,10 @@ def question_analysis_node(state: BasicState) -> dict:
         "store": state["store"],
         "extra": state.get("extra") or {},
     }
+    source_context = state.get("source_context")
+    if source_context:
+        context["consultant_strategy"] = source_context.get("strategy")
+        context["consultant_reasons"] = source_context.get("reasons")
 
     try:
         raw, tokens = call_llm(

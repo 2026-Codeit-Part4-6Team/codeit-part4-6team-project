@@ -79,7 +79,7 @@ def assemble_response(state):
     if status == "ok":
         return {
             **state["result"],
-            "sources": state.get("sources") or [],
+            "sources": list(dict.fromkeys(state.get("sources") or [])),
             "tokens_used": state.get("tokens_used", 0),
             "status": "ok",
         }
