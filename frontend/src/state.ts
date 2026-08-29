@@ -3,6 +3,7 @@ import {
   buildGeneratePayload,
   type EstimatePayload,
   type EstimateResponse,
+  type GenerateExtra,
   type GeneratePayload,
 } from "./contract";
 
@@ -20,10 +21,11 @@ export function createFollowUpMessage(
   return { id, role, content };
 }
 
-export function mockFollowUpReply(input: string): string {
-  const normalizedInput = input.trim();
-  if (!normalizedInput) return "추가 요청을 입력해 주세요.";
-  return `요청하신 내용(${normalizedInput})을 반영한 시안으로 다시 준비해볼게요.`;
+export function withClarification(
+  extra: GenerateExtra,
+  clarification: string,
+): GenerateExtra {
+  return { ...extra, clarification: clarification.trim() || null };
 }
 
 /** Estimate 결과와 승인 key를 묶어 Generate 전까지 보관하는 상태다. */
@@ -43,6 +45,22 @@ export function createPendingGeneration(
 
 export function generationPayload(pending: PendingGeneration): GeneratePayload {
   return buildGeneratePayload(pending.estimatePayload, acceptedCredits(pending.estimate));
+}
+
+export type GenerationAction = {
+  kind: "generate" | "confirm";
+  pending: PendingGeneration;
+};
+
+export function nextGenerationAction(
+  estimate: EstimateResponse,
+  estimatePayload: EstimatePayload,
+  idempotencyKey: string,
+): GenerationAction {
+  return {
+    kind: estimate.requires_confirmation ? "confirm" : "generate",
+    pending: createPendingGeneration(estimatePayload, estimate, idempotencyKey),
+  };
 }
 
 export function apiErrorMessage(statusCode: number, detail: unknown): string {

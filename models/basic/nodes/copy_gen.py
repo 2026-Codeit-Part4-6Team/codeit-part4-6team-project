@@ -6,7 +6,7 @@ from models.shared.llm_errors import classify_llm_error
 from ..config import COPY_MAX_RETRY
 from ..graph.state import BasicState
 
-FEWSHOT_TERMS: list[str] = []
+FEWSHOT_TERMS: list[str] = ["브런치 세트", "주말 브런치", "브런치카페"]
 FEWSHOT_NUMBERS: list[int] = []
 
 SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고법을 준수한다.
@@ -16,13 +16,46 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피라이터다. 표시광고�
 - 가게 이름(store.name)은 주어진 값 그대로 정확히 사용한다. 절대 변형하거나 다르게 쓰지 않는다.
 - 한국어로만 작성한다. 영어 단어를 억지로 섞거나, 문맥과 무관한 단어를 넣지 않는다.
 - suggested_alternative가 주어지면 그 대안 표현을 최대한 살려서 다시 쓴다.
-- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸 
+- consultant_strategy·consultant_reasons가 주어지면, 이건 컨설턴트가 이미 분석해 낸
 전략과 그 근거다. 무시하지 말고 카피의 핵심 소재로 우선 반영한다
 (예: strategy.actions 의 content를 실제 문구에 녹여내고, reasons를 광고 톤·소구점에 반영).
 
+구체성 원칙 (중요):
+- "맛있어요", "지금 만나보세요"처럼 어느 가게에나 붙여도 말이 되는 일반론은 쓰지 않는다.
+- trend(검색 트렌드)·extra(강점·가격대·타겟 등) 중 값이 채워진 항목이 있으면,
+  최소 1가지 이상을 카피 문장 안에 구체적으로 녹여 쓴다. 값이 없는 항목은 언급하지 않는다.
+- 제공된 정보에 없는 사실(가격, 원산지, 수상 이력 등)은 절대 지어내지 않는다 — 구체성은
+  "있는 정보를 구체적으로" 쓰는 것이지 "없는 정보를 만들어내는" 것이 아니다.
+- market(상권 정보)은 구체성 확보 목적으로 쓰지 않는다. 매장 수·거리 등 market에서 나온
+  수치나 "경쟁 매장보다/와는 다른" 같은 비교 표현은 카피에 절대 언급하지 않는다.
+
+예시(참고용, 그대로 베끼지 말 것):
+- 일반론(피할 것): "신메뉴 출시! 지금 만나보세요"
+- 구체적(지향할 것): "주말 브런치 찾는 분들 사이 입소문 나고 있어요 — 매일 직접 굽는 브런치카페 브런치 세트"
+
+계절성 원칙:
+- seasonality(reference_date·calendar_period·season_hint)가 주어지면, 카피의 분위기나
+  소재를 잡는 참고용 힌트로만 쓴다.
+- "지금 이 계절이라 잘 팔린다/수요가 늘었다"처럼 실제 판매량·수요를 단정하는 문구로 쓰지
+  않는다 — season_hint는 날짜로 계산한 내부 힌트일 뿐 실측 데이터가 아니다.
+- calendar_period(예: "8월 하순")는 시의성 있는 표현에 참고할 수 있지만, 통계처럼
+  단정적으로 인용하지 않는다.
+- 계절 힌트는 문장의 톤·분위기에는 자유롭게 반영해도 된다. 다만 trend·extra 중
+  값이 채워진 항목이 있으면, 계절 힌트가 그 구체적 사실을 대체하지 않도록 같은
+  카피 안에 trend·extra 내용도 함께 반영한다 — "계절이라 좋다"는 말로 구체적
+  근거를 대신하지 않는다.
+- 계절 힌트는 "추가"하는 요소이지 다른 구체적 요소를 "대체"하는 게 아니다. 계절
+  힌트를 반영했다고 해서 원래 채우던 가게 위치(동네 이름)나 채널별 규칙(예:
+  instagram 해시태그 3~5개)을 생략하지 않는다 — 계절 힌트 하나로 구체성 요건을
+  다 채웠다고 판단하고 다른 디테일을 줄이지 않는다.
+
 채널별 규칙:
 - instagram: 짧고 친근한 문장 + 해시태그 3~5개 + 이모지
-- xbanner: 세로형 스탠드 배너 상단에 들어갈 한 줄, 눈에 띄는 핵심 메시지
+- xbanner: 세로형 스탠드 배너 상단에 들어갈 한 줄, 눈에 띄는 핵심 메시지.
+  질문에 전화번호·영업시간·행사(이벤트) 기간처럼 가게 운영 정보나
+  "11:00~14:00", "12월 1일부터 24일까지", "화-일 10:00~19:00" 같은
+  구체적인 시각·날짜·요일 표현이 있어도 카피 문구 자체에는 담지 않는다
+  — 화면 하단 정보란에서 별도로 표시되니 카피에서 반복하지 않는다.
 
 주어진 정보를 참고해 서로 톤이 다른 광고 카피 3안을 만든다.
 다음 JSON 형식으로만 답한다:
@@ -52,6 +85,7 @@ def copy_gen_node(state: BasicState) -> dict:
         "market": context_data.get("market"),
         "trend": context_data.get("trend"),
         "benchmark": context_data.get("benchmark"),
+        "seasonality": context_data.get("seasonality"),
     }
     if source_context:
         payload["consultant_strategy"] = source_context.get("strategy")

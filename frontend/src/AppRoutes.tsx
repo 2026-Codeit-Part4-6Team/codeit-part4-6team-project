@@ -1,40 +1,55 @@
-import type { AppRoute } from "./appState";
+import type { AppRoute, GenerationPrefill } from "./appState";
 import type { ApiClient, UserResponse } from "./api";
 import { DashboardHome } from "./components/DashboardHome";
 import { DashboardLayout } from "./components/DashboardLayout";
-import { PlaceholderPage } from "./components/PlaceholderPage";
 import { GenerationLab } from "./features/generation/GenerationLab";
+import { BillingPage } from "./features/billing/BillingPage";
 import { MyPage } from "./components/MyPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { StoreProfilePage } from "./components/StoreProfilePage";
 
 type ProtectedRouteViewProps = {
   api: ApiClient;
   user: UserResponse;
   route: AppRoute;
   onNavigate: (route: AppRoute) => void;
+  generationPrefill?: GenerationPrefill;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onLogout: () => void;
+  onCreditsChanged?: (credits: number) => void;
+  onUserChanged?: (user: UserResponse) => void;
 };
 
-export function ProtectedRouteView({ api, user, route, onNavigate, onLogout }: ProtectedRouteViewProps) {
+export function ProtectedRouteView({ api, user, route, onNavigate, onStrategyToAd, onLogout, onCreditsChanged, onUserChanged, generationPrefill }: ProtectedRouteViewProps) {
   let content;
   if (route === "dashboard") {
     content = <DashboardHome onNavigate={onNavigate} />;
   } else if (route === "basic_chatbot") {
-    content = <GenerationLab key="basic-generation" api={api} chatbotType="basic" />;
+    content = <GenerationLab
+      key="basic-generation"
+      api={api}
+      chatbotType="basic"
+      initialQuestion={generationPrefill?.question}
+      initialStrategySummary={generationPrefill?.strategy_summary}
+      initialSourceGenId={generationPrefill?.source_gen_id}
+      onUserChanged={onUserChanged}
+    />;
   } else if (route === "consultant_chatbot") {
-    content = <GenerationLab key="consultant-generation" api={api} chatbotType="consultant" />;
+    content = <GenerationLab
+      key="consultant-generation"
+      api={api}
+      chatbotType="consultant"
+      onStrategyToAd={onStrategyToAd}
+      onUserChanged={onUserChanged}
+    />;
   } else if (route === "mypage") {
-    content = <MyPage user={user} onBack={() => onNavigate("dashboard")} />;
+    content = <MyPage api={api} user={user} onBack={() => onNavigate("dashboard")} onBilling={() => onNavigate("billing")} />;
   } else if (route === "settings") {
     content = <SettingsPage onBack={() => onNavigate("dashboard")} />;
+  } else if (route === "store_settings") {
+    content = <StoreProfilePage api={api} user={user} onBack={() => onNavigate("dashboard")} onSaved={onUserChanged} />;
   } else {
-    content = (
-      <PlaceholderPage
-        title="크레딧 충전"
-        description="결제 정책이 확정되는 D9에서 안전한 충전 흐름을 연결합니다."
-        onBack={() => onNavigate("dashboard")}
-      />
-    );
+    content = <BillingPage api={api} currentCredits={user.credits} onCreditsChanged={onCreditsChanged} onBack={() => onNavigate("dashboard")} />;
   }
 
   return (

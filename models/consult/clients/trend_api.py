@@ -95,11 +95,9 @@ def fetch(keyword: str) -> dict | None:
     related(연관 검색어)는 네이버 검색광고 API(search_ad_api)로 별도 조회한다 —
     인증 방식이 완전히 달라(서명 기반) 별도 클라이언트로 분리했다. 그 API가
     실패해도(자격증명 없음 등) 트렌드 조회 자체는 계속 진행한다(부분 성공 허용).
-    다만 계약(docs/repo_contract.md) 상 related는 항상 list[str]이어야 하므로
-    (weather와 달리 None을 허용하지 않음), search_ad_api 내부의 "실패"(None)와
-    "결과 없음"(빈 리스트) 구분은 여기서 끝나고 빈 리스트로 정규화한다. weather는
-    SDP상 선택 항목이라 이번 범위에서는 None으로 둔다(TODO: 필요해지면 별도
-    날씨 API 연동 검토).
+    다만 계약(docs/repo_contract.md) 상 related는 항상 list[str]이어야 하므로,
+    search_ad_api 내부의 "실패"(None)와 "결과 없음"(빈 리스트) 구분은 여기서
+    끝나고 빈 리스트로 정규화한다.
     """
     result = fetch_raw(keyword)
     if result is None:
@@ -115,5 +113,4 @@ def fetch(keyword: str) -> dict | None:
         "keyword": keyword,
         "direction": _direction_from_series(data),
         "related": related if related is not None else [],
-        "weather": None,
     }

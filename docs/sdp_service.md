@@ -291,6 +291,8 @@ Mock을 쓰면 **첫날부터 마지막 날까지 개발 계획서 대로 작업
 > 2. **재시도 시 중복 차감** → [다시 시도] 버튼을 누를 때마다 또 차감된다. 요청 ID로 방지.
 > 3. **잔액을 화면마다 따로 계산** → 사이드바와 마이페이지 숫자가 달라진다. **`GET /users/me` 하나만 쓴다.**
 
+> **발표·평가 안내**: 일일 무료 10회는 시연·평가를 위한 설정값입니다. 결제 화면의 패키지는 PG 연동 전 단계라 실제 금전 거래 없이 크레딧만 지급됩니다.
+
 ### 6.6 생성 상태 값 - (generations 테이블 status 컬럼)
 
 | status | 의미 |
@@ -769,6 +771,11 @@ API 명세·DB 스키마 변경은 **GitHub Issue 또는 docs/에 즉시 기록*
 - 업종분류(2302) 및 연계표 v1 — [다운로드](https://raw.githubusercontent.com/2026-Codeit-Part4-6Team/codeit-part4-poc-chatbot/main/docs/%EC%86%8C%EC%83%81%EA%B3%B5%EC%9D%B8%EC%8B%9C%EC%9E%A5%EC%A7%84%ED%9D%A5%EA%B3%B5%EB%8B%A8_%EC%83%81%EA%B0%80%28%EC%83%81%EA%B6%8C%29%EC%A0%95%EB%B3%B4_%EC%97%85%EC%A2%85%EB%B6%84%EB%A5%98%282302%29_%EB%B0%8F_%EC%97%B0%EA%B3%84%ED%91%9C_v1.xlsx)
 
 - 주요상권현황 — [다운로드](https://raw.githubusercontent.com/2026-Codeit-Part4-6Team/codeit-part4-poc-chatbot/main/docs/%EC%86%8C%EC%83%81%EA%B3%B5%EC%9D%B8%EC%8B%9C%EC%9E%A5%EC%A7%84%ED%9D%A5%EA%B3%B5%EB%8B%A8_%EC%A3%BC%EC%9A%94%EC%83%81%EA%B6%8C%ED%98%84%ED%99%A9_20240101.csv)
+
+### 검증함수 4종
+- 프롬프트 인젝션 — [바로가기](https://openai.com/ko-KR/index/prompt-injections/)
+
+- 데이터 유효성 검사 — [바로가기](https://ko.wikipedia.org/wiki/%EB%8D%B0%EC%9D%B4%ED%84%B0_%EC%9C%A0%ED%9A%A8%EC%84%B1_%EA%B2%80%EC%82%AC)
 
 ---
 

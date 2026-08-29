@@ -5,7 +5,17 @@ services:
     env_file:
       - .env
     environment:
-      APP_ENV: production
+      # 시연/운영 모드는 VM의 .env에서 선택합니다.
+      APP_ENV: ${APP_ENV:-demo}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
+      MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}
+      VALIDATION_DYNAMIC_TOP_K: ${VALIDATION_DYNAMIC_TOP_K:-0}
+      VALIDATION_TOP_K: ${VALIDATION_TOP_K:-3}
+      VALIDATION_MAX_TOP_K: ${VALIDATION_MAX_TOP_K:-3}
+      VALIDATION_RAG_ENABLED: ${VALIDATION_RAG_ENABLED:-1}
+      VALIDATION_REQUIRE_LEGAL_KB: ${VALIDATION_REQUIRE_LEGAL_KB:-1}
+      VALIDATION_MIN_KB_CHUNKS: ${VALIDATION_MIN_KB_CHUNKS:-30}
     ports:
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-18000}:8000"
     volumes:

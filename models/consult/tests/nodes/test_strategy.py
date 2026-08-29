@@ -7,7 +7,7 @@ import openai
 import pytest
 
 from models.consult.nodes.strategy import strategy
-from models.consult.prompts.strategy import RETRY_REASONS_HINT
+from models.consult.prompts.strategy import RETRY_ACTIONS_HINT, RETRY_REASONS_HINT
 
 _STORE = {
     "name": "카페 코드잇",
@@ -40,7 +40,12 @@ _TREND = {
     "keyword": "아이스아메리카노",
     "direction": "상승",
     "related": ["냉커피", "여름음료"],
-    "weather": None,
+}
+
+_SEASONALITY = {
+    "reference_date": "2026-08-24",
+    "calendar_period": "8월 하순",
+    "season_hint": "여름",
 }
 
 
@@ -48,6 +53,7 @@ def _state(
     question: str = "우리 카페 어떻게 홍보하면 좋을까요?",
     market: dict | None = None,
     trend: dict | None = None,
+    seasonality: dict | None = None,
     tokens_used: int = 0,
     sources: list[str] | None = None,
 ) -> dict:
@@ -56,7 +62,7 @@ def _state(
         "user_id": 1,
         "question": question,
         "store": _STORE,
-        "context": {"market": market, "trend": trend},
+        "context": {"market": market, "trend": trend, "seasonality": seasonality},
         "tokens_used": tokens_used,
     }
     if sources is not None:
@@ -107,6 +113,8 @@ def test_returns_summary_actions_and_reasons_from_llm(mock_call_llm) -> None:
         },
         "tokens_used": 100,
         "retry_count": 0,
+        "actions_retried": False,
+        "actions_truncated": False,
         "sources": ["가게정보"],
     }
 
@@ -138,6 +146,20 @@ def test_accumulates_retry_count_onto_existing_state_value(mock_call_llm) -> Non
     result = strategy(state)
 
     assert result["retry_count"] == 3 + 1
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_preserves_action_recovery_flags_across_self_check_retry(mock_call_llm) -> None:
+    """self_check가 strategy를 다시 실행해도 첫 실행의 복구 이력이 사라지면 안 된다."""
+    mock_call_llm.return_value = _response(_payload())
+    state = _state()
+    state["actions_retried"] = True
+    state["actions_truncated"] = True
+
+    result = strategy(state)
+
+    assert result["actions_retried"] is True
+    assert result["actions_truncated"] is True
 
 
 @patch("models.consult.nodes.strategy.call_llm")
@@ -302,6 +324,30 @@ def test_omits_trend_section_when_context_missing_entirely(mock_call_llm) -> Non
 
 
 @patch("models.consult.nodes.strategy.call_llm")
+def test_includes_seasonality_data_when_available(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state(seasonality=_SEASONALITY))
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "계절성 참고" in user_prompt
+    assert "2026-08-24" in user_prompt
+    assert "8월 하순" in user_prompt
+    assert "여름" in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_omits_seasonality_section_when_context_missing_entirely(mock_call_llm) -> None:
+    """seasonality_for_consult가 아직 안 돈 상태(그래프 조기 실행 등)에서도 죽지 않는다."""
+    mock_call_llm.return_value = _response(_payload())
+
+    strategy(_state_without_context())
+
+    _, user_prompt = mock_call_llm.call_args.args
+    assert "계절성 참고" not in user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
 def test_trend_section_includes_keyword(mock_call_llm) -> None:
     """direction만 있으면 "무엇의" 추이인지 LLM이 알 수 없다 — 조회 keyword 자체도
     프롬프트에 노출해야 한다."""
@@ -453,26 +499,27 @@ def test_raises_when_summary_field_missing(mock_call_llm) -> None:
 
 
 @pytest.mark.parametrize(
-    "invalid_actions",
+    ("invalid_actions", "expected_reason"),
     [
-        [],  # 0개
-        [{"type": "menu", "content": "a"}] * 4,  # 4개(3개 초과)
-        "actions 아님",  # 리스트가 아님
-        [{"type": "invalid_type", "content": "내용"}],  # enum 밖
-        [{"type": ["menu"], "content": "내용"}],  # type이 리스트(해시 불가능 → TypeError 회귀 방지)
-        [{"type": {"menu": True}, "content": "내용"}],  # type이 dict(해시 불가능 → TypeError 회귀 방지)
-        [{"type": "menu"}],  # content 누락
-        [{"type": "menu", "content": ""}],  # content 빈 문자열
-        [{"type": "menu", "content": "   "}],  # content 공백뿐
-        [{"content": "type 누락"}],  # type 누락
-        ["문자열 항목"],  # 항목이 dict가 아님
+        ("actions 아님", "actions_not_list"),  # 리스트가 아님
+        ([{"type": "invalid_type", "content": "내용"}], "invalid_type"),  # enum 밖
+        ([{"type": ["menu"], "content": "내용"}], "invalid_type"),  # type이 리스트(해시 불가능 → TypeError 회귀 방지)
+        ([{"type": {"menu": True}, "content": "내용"}], "invalid_type"),  # type이 dict(해시 불가능 → TypeError 회귀 방지)
+        ([{"type": "menu"}], "missing_content"),  # content 누락
+        ([{"type": "menu", "content": ""}], "missing_content"),  # content 빈 문자열
+        ([{"type": "menu", "content": "   "}], "missing_content"),  # content 공백뿐
+        ([{"content": "type 누락"}], "invalid_type"),  # type 누락
+        (["문자열 항목"], "actions_not_list"),  # 항목이 dict가 아님
     ],
 )
 @patch("models.consult.nodes.strategy.call_llm")
-def test_raises_on_invalid_actions(mock_call_llm, invalid_actions) -> None:
+def test_raises_on_invalid_actions(mock_call_llm, invalid_actions, expected_reason) -> None:
+    """실패 사유를 구분해 예외 메시지에 남긴다 — 리스트 형태·타입·content 중 무엇이
+    원인인지 로그만 보고 알 수 있어야 한다. 개수(0개·초과)는 형식 오류가 아니라
+    복구 대상이라 여기서 다루지 않는다(아래 절단·재시도 테스트 참고)."""
     mock_call_llm.return_value = _response(_payload(actions=invalid_actions))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=expected_reason):
         strategy(_state())
 
 
@@ -487,7 +534,7 @@ def test_raises_on_invalid_actions(mock_call_llm, invalid_actions) -> None:
 def test_raises_when_actions_field_missing_or_null(mock_call_llm, payload) -> None:
     mock_call_llm.return_value = _response(payload)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="actions_not_list"):
         strategy(_state())
 
 
@@ -501,6 +548,154 @@ def test_accepts_actions_at_boundary_counts(mock_call_llm, count) -> None:
     result = strategy(_state())
 
     assert result["result"]["actions"] == actions
+
+
+# ── 섹션 6: actions 개수 복구 — 초과는 절단, 0개는 재생성(D-139 후속, PM 승인) ──
+
+
+@pytest.mark.parametrize("count", [4, 5, 9])
+@patch("models.consult.nodes.strategy.call_llm")
+def test_truncates_excess_actions_without_retry(mock_call_llm, count) -> None:
+    """초과분은 앞에서부터 MAX_ACTIONS(3)개만 남기고 그 자리에서 잘라낸다 —
+    LLM을 다시 부르지 않는다(많이 낸 것이지 답을 못 낸 게 아니므로)."""
+    actions = [{"type": "other", "content": f"항목{i}"} for i in range(count)]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 1
+    assert len(result["result"]["actions"]) == 3
+    assert result["result"]["actions"][0]["content"] == "항목0"
+    assert result["actions_truncated"] is True
+    assert result["actions_retried"] is False
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_truncates_before_validating_so_dropped_item_errors_dont_fail_request(
+    mock_call_llm,
+) -> None:
+    """4번째(어차피 잘릴) 항목이 형식 오류여도, 실제로 쓰일 앞 3개가 정상이면
+    그대로 절단해서 성공해야 한다(Codex 리뷰: 검증을 절단보다 먼저 하면 버릴
+    항목의 오류 때문에 전체가 실패하던 회귀)."""
+    actions = [
+        {"type": "menu", "content": "항목0"},
+        {"type": "menu", "content": "항목1"},
+        {"type": "menu", "content": "항목2"},
+        {"type": "invalid_type", "content": "버려질 항목"},
+    ]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 1
+    assert len(result["result"]["actions"]) == 3
+    assert result["actions_truncated"] is True
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_when_error_is_within_retained_actions_even_after_truncation(
+    mock_call_llm,
+) -> None:
+    """절단 후에도 남는(실제로 쓰일) 앞 3개 안에 형식 오류가 있으면 여전히
+    즉시 실패한다 — 절단이 검증 자체를 건너뛰게 하면 안 된다."""
+    actions = [
+        {"type": "invalid_type", "content": "첫 항목부터 잘못됨"},
+        {"type": "menu", "content": "항목1"},
+        {"type": "menu", "content": "항목2"},
+        {"type": "menu", "content": "항목3"},
+    ]
+    mock_call_llm.return_value = _response(_payload(actions=actions))
+
+    with pytest.raises(ValueError, match="invalid_type"):
+        strategy(_state())
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_retries_once_when_actions_empty_then_succeeds(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: 0개 → 잘라낼 게 없어 재생성
+        _response(_payload()),  # 2차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 2
+    assert result["result"]["actions"] == _ACTIONS
+    assert result["retry_count"] == 1
+    assert result["actions_retried"] is True
+    assert result["actions_truncated"] is False
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_prompt_includes_correction_hint(mock_call_llm) -> None:
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),
+        _response(_payload()),
+    ]
+
+    strategy(_state())
+
+    first_call_user_prompt = mock_call_llm.call_args_list[0].args[1]
+    second_call_user_prompt = mock_call_llm.call_args_list[1].args[1]
+    assert RETRY_ACTIONS_HINT not in first_call_user_prompt
+    assert RETRY_ACTIONS_HINT in second_call_user_prompt
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_raises_after_exhausting_actions_retries(mock_call_llm) -> None:
+    """0개가 3회(최초 1회+재생성 2회) 연속되면 예외를 던진다 — actions와 reasons가
+    합산 상한(_MAX_RETRIES=2)을 공유한다."""
+    mock_call_llm.return_value = _response(_payload(actions=[]))
+
+    with pytest.raises(ValueError, match="actions_empty"):
+        strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_retry_and_reasons_retry_counts_both_accumulate(mock_call_llm) -> None:
+    """actions 재시도와 reasons 재시도가 한 호출 안에서 섞여도 retry_count에 둘 다 반영된다."""
+    mock_call_llm.side_effect = [
+        _response(_payload(actions=[])),  # 1차: actions 0개 → 재시도
+        _response(_payload(reasons=[])),  # 2차: 근거 없음 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    assert result["retry_count"] == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_hint_still_sent_after_earlier_reasons_retry(mock_call_llm) -> None:
+    """reasons 오류가 먼저 발생한 뒤 actions 0개 오류가 나면, 세 번째 요청에도
+    두 힌트가 모두 포함돼야 한다(Codex 리뷰: 카운터 우선순위 탓에 actions 힌트가
+    빠지던 회귀 + 그 반대로 reasons 힌트가 사라지지 않는지도 함께 검증)."""
+    mock_call_llm.side_effect = [
+        _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도
+        _response(_payload(actions=[])),  # 2차: actions 0개 → 재시도
+        _response(_payload()),  # 3차: 정상
+    ]
+
+    result = strategy(_state())
+
+    assert mock_call_llm.call_count == 3
+    third_call_user_prompt = mock_call_llm.call_args_list[2].args[1]
+    assert RETRY_ACTIONS_HINT in third_call_user_prompt
+    assert RETRY_REASONS_HINT in third_call_user_prompt
+    assert result["retry_count"] == 2
+
+
+@patch("models.consult.nodes.strategy.call_llm")
+def test_actions_recovery_flags_default_false_when_no_repair_needed(mock_call_llm) -> None:
+    mock_call_llm.return_value = _response(_payload())
+
+    result = strategy(_state())
+
+    assert result["actions_retried"] is False
+    assert result["actions_truncated"] is False
 
 
 # ── 섹션 5: 근거(reasons) 필수화 + 재생성 ─────────────────────────
@@ -628,13 +823,16 @@ def test_reasons_field_missing_entirely_triggers_retry(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.strategy.call_llm")
 def test_raises_immediately_on_malformed_actions_even_on_retry_attempt(mock_call_llm) -> None:
-    """actions 형식 오류는 재생성 대상이 아니라 즉시 실패 — 근거 재생성 중이라도 예외로 처리한다."""
+    """actions_wrong_length가 아닌 형식 오류(예: enum 밖 type)는 재생성 대상이 아니라
+    즉시 실패 — 근거 재생성 중이라도 예외로 처리한다."""
     mock_call_llm.side_effect = [
         _response(_payload(reasons=[])),  # 1차: 근거 없음 → 재시도 유발
-        _response(_payload(actions=[])),  # 2차: actions 자체가 잘못됨 → 즉시 실패
+        _response(
+            _payload(actions=[{"type": "invalid_type", "content": "내용"}])
+        ),  # 2차: 즉시 실패
     ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid_type"):
         strategy(_state())
 
     assert mock_call_llm.call_count == 2

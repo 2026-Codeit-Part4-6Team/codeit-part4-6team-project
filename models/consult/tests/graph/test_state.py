@@ -21,13 +21,31 @@ def test_consult_state_has_consult_specific_fields() -> None:
         CommonState.__annotations__.keys()
     )
     assert consult_only == {
-        "retry_count", "suggested_chips", "deadline", "chips_fallback", "status", "issues",
+        "retry_count",
+        "self_check_retry_count",
+        "actions_retried",
+        "actions_truncated",
+        "suggested_chips",
+        "deadline",
+        "chips_fallback",
+        "status",
+        "issues",
     }
 
 
 def test_consult_specific_fields_are_not_required() -> None:
     """재생성 루프 카운터 등은 파이프라인이 나중에 채우므로 최초 상태 생성 시 필수가 아니어야 한다."""
-    consult_only = {"retry_count", "suggested_chips", "deadline", "chips_fallback", "status", "issues"}
+    consult_only = {
+        "retry_count",
+        "self_check_retry_count",
+        "actions_retried",
+        "actions_truncated",
+        "suggested_chips",
+        "deadline",
+        "chips_fallback",
+        "status",
+        "issues",
+    }
     assert consult_only <= ConsultState.__optional_keys__
     assert ConsultState.__required_keys__ == CommonState.__required_keys__
 

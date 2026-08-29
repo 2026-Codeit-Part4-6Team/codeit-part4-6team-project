@@ -4,7 +4,7 @@
 - **작성일**: 2026-08-12
 - **파일 위치**: `docs/validation_contract.md` (단일 소스)
 - **구현 위치**: `validation/` (전민재 PM 관리 — 두 챗봇 담당자는 **import만**)
-- **연관 문서**: `docs/golden_dataset.md` · `docs/decisions.md` · 서비스 API/DB Contract v0.4
+- **연관 문서**: `docs/golden_dataset.md` · `docs/decisions.md` · 서비스 개발 API / DB Contract v0.4 Draft
 
 ---
 
@@ -349,14 +349,14 @@ def self_check(result: dict, context: dict) -> dict: ...
 ## 7. 크레딧 롤백 규칙 (서비스 개발 담당 전용)
 
 > 서비스 핵심 비즈니스 로직은 **LLM/이미지 생성 모델 호출 전에 크레딧을 차감**한다(서비스 SDP §6.5).
-> 따라서 아래 경우 **반드시 롤백**해야 한다. (서비스 API/DB Contract v0.4 -> S-11 · docs/decisions.md -> D-020 연계)
+> 따라서 아래 경우 **반드시 롤백**해야 한다. (서비스 개발 API / DB Contract v0.4 Draft -> S-11 · docs/decisions.md -> D-020 연계)
 
 | LLM/이미지 생성 모델 응답 | 크레딧 | 무료 횟수 | 근거 |
 | --- | --- | --- | --- |
 | `status="ok"` (카피 1개 이상 성공) | **차감 유지** | 차감 유지 | D-020 |
 | `status="ok"` (이미지만 실패) | **차감 유지** | 차감 유지 | D-020 — 카피가 핵심 산출물 |
 | **`status="blocked"`** | **전액 롤백** | **롤백** | 사용자가 결과물을 못 받음 |
-| **`status="error"`** | **전액 롤백** | **롤백** | 서비스 API/DB Contract v0.4 -> S-11 |
+| **`status="error"`** | **전액 롤백** | **롤백** | 서비스 개발 API / DB Contract v0.4 Draft -> S-11 |
 
 > ⚠️ **`blocked`도 롤백 대상이다.** `error`만 롤백하도록 구현하면,
 > 불법 키워드를 입력한 사용자가 **크레딧만 잃고 아무것도 못 받는다.** 컴플레인 1순위.
@@ -722,7 +722,7 @@ def self_check_node(state: dict) -> dict:
     return updates
 ```
 
-> ⚠️ **`reason` 은 서비스 API/DB Contract v0.4 `ErrorResult` 의 4종
+> ⚠️ **`reason` 은 서비스 개발 API / DB Contract v0.4 Draft `ErrorResult` 의 4종
 > (`timeout`·`rate_limit`·`provider_error`·`unknown`) 중 하나여야 한다.**
 > `self_check_failed` 같은 값을 쓰면 서비스에서 검증 실패로 502가 난다.
 
@@ -835,10 +835,10 @@ graph.add_conditional_edges(
    `source_context` 로 치환해 기본 챗봇에 넘기고(D-306·D-363), 그 결과물이
    기본 챗봇 파이프라인의 `regulation_node` 를 통과한다.
    ※ 모델 측에는 연계 코드가 없다 — 서비스 계층에서 완결된다.
-④ 붙이면 warn 시 전략 재생성 루프가 생겨 LLM 모델 API 호출이 늘고 $30 예산을 압박한다.
+④ 붙이면 warn 시 전략 재생성 루프가 생겨 LLM 모델 API 호출이 늘고 $30 예산이 조기 소진된다.
 
-단, 컨설턴트가 "이 지역 최고 카페로 포지셔닝하세요" 같은 표현을 낼 수 있으므로
-strategy SYSTEM_PROMPT 에 아래 한 줄을 둔다(LLM 모델 API 호출 0회·법률 규제 검증 노드 0개):
+단, 컨설턴트가 "이 지역 최고 카페로 포지셔닝하세요" 같은 답변을 할 수 있으므로
+strategy SYSTEM_PROMPT 에 아래 한 줄을 추가한다.(LLM 모델 API 호출 0회·법률 규제 검증 노드 0개):
   "'최고'·'유일'·'1등' 같은 근거 없는 최상급 표현과 질병 예방·치료 효능 표현은 쓰지 않는다."
 ```
 
@@ -989,7 +989,7 @@ uv run --locked --group dev ruff check . --fix
 ## 12. 서비스 API 계약과의 매핑
 
 > 검증 노드가 `state["issues"]` 에 쌓은 항목을 서비스 응답으로 어떻게 바꾸는지.
-> 서비스 API/DB Contract v0.4 §6.5 · §6.6 기준.
+> 서비스 개발 API / DB Contract v0.4 Draft §6.5 · §6.6 기준.
 
 **모델 → 서비스 정책 응답 구조**
 ```json
@@ -1134,7 +1134,7 @@ self_check 1회   = 파이프라인 생성 노드 재실행
 ## 참고 자료
 
 ### 서비스 개발 계약 문서
-- 서비스 API/DB Contract v0.4 — [바로가기](https://app.notion.com/p/D1-API-DB-Contract-v0-3-3b9efe95f43b80938eaddafa09244fd3)
+- 서비스 개발 API / DB Contract v0.4 Draft — [바로가기](https://app.notion.com/p/D1-API-DB-Contract-v0-4-Draft-3c3efe95f43b807fa6b6c9458a7d632e)
 
 ---
 
@@ -1158,5 +1158,5 @@ self_check       : pass | warn(→로그만) | reject(→재시도 1회)
 - 의사결정 로그 (`docs/decisions.md`) — D-011 · D-018 · D-019 · D-020
 - 디렉토리 구조 (`docs/directory_structure.md`)
 - **골든 데이터셋 기준 문서** (`docs/golden_dataset.md`) — `R-` 15문항이 본 계약을 검증
-- 서비스 API/DB Contract v0.4 — §6.5 정책 검증 결과 · S-11 롤백
+- 서비스 개발 API / DB Contract v0.4 Draft — §6.5 정책 검증 결과 · S-11 롤백
 - 4개 담당자별 SDP 개발 계획서 (`docs/sdp_pm.md` / `sdp_service.md` / `sdp_basic.md` / `sdp_consult.md`)

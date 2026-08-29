@@ -27,12 +27,14 @@ def _trend_result() -> dict:
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피", "여름음료"],
-        "weather": None,
     }
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
-def test_calls_get_trend_with_keyword_and_store_type(mock_get_trend) -> None:
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
+def test_calls_get_trend_with_keyword_only(mock_get_trend) -> None:
+    """get_trend()는 keyword 하나만 받는다(industry 인자는 커밋 1bb21f6로 제거됨) —
+    autospec으로 실제 시그니처를 강제해, 존재하지 않는 인자를 넘겨도 통과해버리는
+    회귀를 막는다(이 회귀가 실제로 있었음 — Codex 리뷰로 발견)."""
     mock_get_trend.return_value = _trend_result()
 
     trend_for_consult(_state(keyword="아이스아메리카노"))
@@ -40,7 +42,7 @@ def test_calls_get_trend_with_keyword_and_store_type(mock_get_trend) -> None:
     mock_get_trend.assert_called_once_with("아이스아메리카노")
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
 def test_returns_none_trend_when_keyword_is_missing(mock_get_trend) -> None:
     """keyword가 없으면(질문에 특정 대상이 없음) 조회할 이유가 없어 API를 부르지 않는다."""
     result = trend_for_consult(_state(keyword=None))
@@ -49,7 +51,7 @@ def test_returns_none_trend_when_keyword_is_missing(mock_get_trend) -> None:
     assert result == {"context": {"trend": None}}
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
 def test_returns_none_trend_when_get_trend_fails(mock_get_trend) -> None:
     mock_get_trend.return_value = None
 
@@ -58,7 +60,7 @@ def test_returns_none_trend_when_get_trend_fails(mock_get_trend) -> None:
     assert result == {"context": {"trend": None}}
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
 def test_passes_through_trend_result_unchanged(mock_get_trend) -> None:
     """상권처럼 등급으로 가공하지 않고 get_trend() 결과를 그대로 전달한다 —
     direction/related 자체가 이미 컨설팅에 쓸 수 있는 형태라 추가 해석이 불필요하고,
@@ -70,7 +72,7 @@ def test_passes_through_trend_result_unchanged(mock_get_trend) -> None:
     assert result["context"] == {"trend": _trend_result()}
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
 def test_adds_trend_to_sources_when_successful(mock_get_trend) -> None:
     mock_get_trend.return_value = _trend_result()
 
@@ -79,7 +81,7 @@ def test_adds_trend_to_sources_when_successful(mock_get_trend) -> None:
     assert result["sources"] == ["트렌드"]
 
 
-@patch("models.consult.nodes.trend_for_consult.get_trend")
+@patch("models.consult.nodes.trend_for_consult.get_trend", autospec=True)
 def test_omits_sources_when_get_trend_fails(mock_get_trend) -> None:
     mock_get_trend.return_value = None
 

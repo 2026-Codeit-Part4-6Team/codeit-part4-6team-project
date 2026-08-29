@@ -169,3 +169,28 @@ def test_no_source_context_omits_consultant_fields_and_sources(mock_call_llm):
     assert "consultant_strategy" not in sent_payload
     assert "consultant_reasons" not in sent_payload
     assert "sources" not in result
+
+
+@patch("models.basic.nodes.copy_gen.call_llm")
+def test_seasonality_included_in_payload(mock_call_llm):
+    mock_call_llm.return_value = (
+        '{"candidates": ["카피1", "카피2", "카피3"]}',
+        10,
+    )
+    state = {
+        "question": "여름 신메뉴 홍보",
+        "platform": "instagram",
+        "store": _STORE,
+        "context": {
+            "seasonality": {
+                "reference_date": "2026-08-24",
+                "calendar_period": "8월 하순",
+                "season_hint": "여름 말기",
+            }
+        },
+    }
+
+    copy_gen_node(state)
+
+    payload = json.loads(mock_call_llm.call_args.args[1])
+    assert payload["seasonality"]["season_hint"] == "여름 말기"

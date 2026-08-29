@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import binascii
 import hashlib
 import json
 from datetime import datetime, timedelta
@@ -24,6 +26,8 @@ from backend.schemas import (
     GenerationUsage,
     ModelRequest,
     ModelResult,
+    PublishRequest,
+    PublishResponse,
     StoreContext,
 )
 from backend.services.credit_service import (
@@ -68,6 +72,197 @@ class ModelExecutionError(Exception):
         self.reason = reason
         self.message = message
         super().__init__(message)
+
+
+class ApprovedImageInvalid(Exception):
+    """승인 이미지가 허용된 인코딩 또는 이미지 형식이 아닙니다."""
+
+
+class ApprovedImageTooLarge(Exception):
+    """디코딩한 승인 이미지가 서비스 허용 크기를 초과했습니다."""
+
+
+class PublishNotFound(Exception):
+    """요청 사용자가 소유한 생성 결과를 찾을 수 없습니다."""
+
+
+class PublishStateConflict(Exception):
+    """생성 결과가 게시 승인을 받을 수 없는 상태입니다."""
+
+
+class PublishTypeConflict(Exception):
+    """Basic 생성 결과만 게시 승인할 수 있습니다."""
+
+
+class PublishProposalInvalid(Exception):
+    """저장된 Basic 결과 또는 선택 슬롯이 게시 계약을 위반합니다."""
+
+
+class PublishPersistenceError(Exception):
+    """게시 승인 저장 중 DB 기술 실패가 발생했습니다."""
+
+
+class PublishedProposalConflict(Exception):
+    """이미 다른 제안으로 게시 승인이 완료되었습니다."""
+
+
+def _detected_image_mime(data: bytes) -> str | None:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def canonicalize_approved_image(
+    image_b64: str | None,
+    *,
+    max_image_bytes: int,
+) -> str | None:
+    """허용된 이미지 바이트를 검증해 canonical data URI로 변환합니다.
+
+    ``max_image_bytes``는 base64 문자열 길이가 아니라 디코딩된 원본 이미지
+    바이트에 적용합니다. 따라서 인코딩 오버헤드로 우회할 수 없습니다.
+    """
+    if image_b64 is None:
+        return None
+
+    declared_mime: str | None = None
+    encoded = image_b64
+    if image_b64.startswith("data:"):
+        header, separator, encoded = image_b64.partition(",")
+        if not separator or not header.endswith(";base64"):
+            raise ApprovedImageInvalid("이미지는 base64 data URI여야 합니다.")
+        declared_mime = header[5:-7]
+        if declared_mime not in {"image/png", "image/jpeg", "image/webp"}:
+            raise ApprovedImageInvalid("PNG, JPEG, WebP 이미지만 승인할 수 있습니다.")
+
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise ApprovedImageInvalid("이미지 base64 인코딩이 올바르지 않습니다.") from error
+
+    if len(data) > max_image_bytes:
+        raise ApprovedImageTooLarge("승인 이미지가 허용 크기를 초과했습니다.")
+
+    detected_mime = _detected_image_mime(data)
+    if detected_mime is None or (
+        declared_mime is not None and declared_mime != detected_mime
+    ):
+        raise ApprovedImageInvalid("이미지 MIME과 실제 바이트 형식이 올바르지 않습니다.")
+
+    canonical = base64.b64encode(data).decode("ascii")
+    return f"data:{detected_mime};base64,{canonical}"
+
+
+def _published_response(
+    generation: Generation,
+    proposal_index: Literal[0, 1, 2],
+) -> PublishResponse:
+    if generation.selected_proposal_index != proposal_index:
+        raise PublishedProposalConflict("이미 다른 제안으로 게시되었습니다.")
+    if not generation.hitl_approved:
+        raise PublishStateConflict("게시 상태의 승인 정보가 올바르지 않습니다.")
+    return PublishResponse(
+        generation_id=generation.id,
+        status="published",
+        hitl_approved=True,
+        proposal_index=proposal_index,
+    )
+
+
+def publish_generation(
+    db: Session,
+    user: User,
+    generation_id: int,
+    request: PublishRequest,
+    *,
+    max_image_bytes: int,
+) -> PublishResponse:
+    """Basic 제안 한 슬롯을 done→published CAS로 승인합니다."""
+    generation = db.scalar(
+        select(Generation).where(
+            Generation.id == generation_id,
+            Generation.user_id == user.id,
+        )
+    )
+    if generation is None:
+        db.rollback()
+        raise PublishNotFound(generation_id)
+    if generation.chatbot_type != "basic":
+        db.rollback()
+        raise PublishTypeConflict("Basic 생성 결과만 게시할 수 있습니다.")
+    if generation.status == "published":
+        return _published_response(generation, request.proposal_index)
+    if generation.status != "done":
+        db.rollback()
+        raise PublishStateConflict("완료된 생성 결과만 게시할 수 있습니다.")
+    if generation.result_json is None:
+        db.rollback()
+        raise PublishProposalInvalid("저장된 Basic 결과가 없습니다.")
+
+    try:
+        basic_result = BasicModelResult.model_validate_json(generation.result_json)
+        selected = basic_result.proposals[request.proposal_index]
+    except (ValidationError, ValueError, TypeError, IndexError) as error:
+        db.rollback()
+        raise PublishProposalInvalid("저장된 Basic 결과가 올바르지 않습니다.") from error
+    if selected.copy is None or not selected.copy.strip():
+        db.rollback()
+        raise PublishProposalInvalid("선택한 제안에 게시할 문구가 없습니다.")
+
+    try:
+        canonical_image = canonicalize_approved_image(
+            request.image_b64,
+            max_image_bytes=max_image_bytes,
+        )
+    except (ApprovedImageInvalid, ApprovedImageTooLarge):
+        db.rollback()
+        raise
+
+    statement = (
+        update(Generation)
+        .where(
+            Generation.id == generation_id,
+            Generation.user_id == user.id,
+            Generation.status == "done",
+        )
+        .values(
+            copy_content=selected.copy,
+            image_b64=canonical_image,
+            selected_proposal_index=request.proposal_index,
+            hitl_approved=True,
+            status="published",
+        )
+    )
+    try:
+        result = db.execute(statement)
+        if result.rowcount == 1:
+            db.commit()
+            return PublishResponse(
+                generation_id=generation_id,
+                status="published",
+                hitl_approved=True,
+                proposal_index=request.proposal_index,
+            )
+        db.rollback()
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise PublishPersistenceError("게시 승인 저장에 실패했습니다.") from error
+
+    current = db.scalar(
+        select(Generation).where(
+            Generation.id == generation_id,
+            Generation.user_id == user.id,
+        )
+    )
+    if current is None:
+        raise PublishNotFound(generation_id)
+    if current.status == "published":
+        return _published_response(current, request.proposal_index)
+    raise PublishStateConflict("생성 상태가 변경되어 게시하지 못했습니다.")
 
 
 def serialize_model_result_for_storage(result: ModelResult) -> str:
@@ -437,7 +632,7 @@ async def generate(
     now,
     free_limit: int,
     model_timeout_seconds: int,
-    stale_recovery_seconds: int = 120,
+    stale_recovery_seconds: int = 240,
 ) -> GenerationResponse:
     """D4 생성 요청의 idempotency, reservation, model, persistence를 조율합니다."""
     normalized_key = _normalize_idempotency_key(idempotency_key)
