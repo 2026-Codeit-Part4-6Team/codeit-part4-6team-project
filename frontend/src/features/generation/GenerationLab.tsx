@@ -34,6 +34,21 @@ type GenerationRunner = {
   dispose: () => void;
 };
 
+export type CapturedGeneration = {
+  response: GenerationResponse;
+  platform: Platform | null;
+};
+
+export function captureGeneratedResult(
+  response: GenerationResponse,
+  pending: PendingGeneration,
+): CapturedGeneration {
+  return {
+    response,
+    platform: pending.estimatePayload.platform ?? null,
+  };
+}
+
 const WAITING_COPY_REFRESH_INTERVAL_MS = 15_000;
 
 export async function syncUserAfterGeneration(
@@ -147,7 +162,8 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
   const [question, setQuestion] = useState("");
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
-  const [generation, setGeneration] = useState<GenerationResponse | null>(null);
+  const [generated, setGenerated] = useState<CapturedGeneration | null>(null);
+  const generation = generated?.response ?? null;
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -177,7 +193,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
     setBusy(true);
     setError(null);
     setPending(null);
-    setGeneration(null);
+    setGenerated(null);
     setPublishedProposalIndex(null);
     if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
@@ -220,7 +236,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
     let immediateRetry: PendingGeneration | null = null;
     try {
       const nextGeneration = await runner.run(candidate);
-      setGeneration(nextGeneration);
+      setGenerated(captureGeneratedResult(nextGeneration, candidate));
       await syncUserAfterGeneration(api, onUserChanged);
     } catch (caught) {
       if (isBillingConfirmationRequired(caught)) {
@@ -278,6 +294,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
             <option value="xbanner">X-배너</option>
           </select>
         </label>}
+        {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
         <label className="chat-composer-label">첫 메시지
           <textarea
             value={question}
@@ -311,14 +328,15 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
         />
       )}
       {waiting && <WaitingScreen copyText={waitingCopy} chatbotType={chatbotType} platform={platform} />}
-      {generation && (
+      {generated && (
         <ResultView
-          response={generation}
+          response={generated.response}
+          platform={generated.platform}
           publishing={busy}
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
-          onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+          onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGenerated(null); setMessages([]); }}
           onClarification={(value) => void submitFollowUp(value)}
         />
       )}

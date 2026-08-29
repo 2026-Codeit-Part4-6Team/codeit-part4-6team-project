@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import { createPendingGeneration } from "../../state";
 import {
+  captureGeneratedResult,
   createGenerationRunner,
   isBillingConfirmationRequired,
   shouldShowFollowUpComposer,
@@ -32,6 +33,15 @@ afterEach(() => {
 });
 
 describe("GenerationLab orchestration", () => {
+  it("keeps the platform used by the completed generation", () => {
+    const generated = captureGeneratedResult(response, pending);
+    const nextSelectedPlatform = "xbanner";
+
+    expect(generated.response).toBe(response);
+    expect(generated.platform).toBe("instagram");
+    expect(generated.platform).not.toBe(nextSelectedPlatform);
+  });
+
   it("uses the wide canvas and primary composer structure for chatbot screens", () => {
     const html = renderToStaticMarkup(
       <GenerationLab

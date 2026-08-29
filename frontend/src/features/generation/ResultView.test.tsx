@@ -97,6 +97,21 @@ describe("ResultView", () => {
     expect(html).toContain('class="proposal-action is-published"');
   });
 
+  it("passes X-banner presentation through to the result cards", () => {
+    const html = renderToStaticMarkup(
+      <ResultView
+        response={basicResponse}
+        platform="xbanner"
+        onPublish={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('class="result-section result-section--xbanner"');
+    expect(html).toContain("세로형 X-배너");
+    expect(html).toContain('class="card proposal proposal--xbanner"');
+  });
+
   it.each(["basic", "consultant"] as const)(
     "shows the exact blocked message without result controls for %s",
     (chatbotType) => {
