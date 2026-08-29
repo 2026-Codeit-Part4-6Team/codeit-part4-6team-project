@@ -77,9 +77,13 @@ def assemble_response(state):
         status = "error"
 
     if status == "ok":
+        # copy_gen 이 재시도마다, channel_format 이 자체 계산으로 각각 sources 를 반환해
+        # reducer(operator.add, state_common.py)로 누적된다. 최종 조립 지점에서
+        # 순서를 유지한 채 중복을 없앤다. 근본 해결은 copy_gen 이 이미 있는 sources 를
+        # 다시 반환하지 않는 것이다(추후 정리 대상).
         return {
             **state["result"],
-            "sources": state.get("sources") or [],
+            "sources": list(dict.fromkeys(state.get("sources") or [])),
             "tokens_used": state.get("tokens_used", 0),
             "status": "ok",
         }
