@@ -34,6 +34,21 @@ type GenerationRunner = {
   dispose: () => void;
 };
 
+export type CapturedGeneration = {
+  response: GenerationResponse;
+  platform: Platform | null;
+};
+
+export function captureGeneratedResult(
+  response: GenerationResponse,
+  pending: PendingGeneration,
+): CapturedGeneration {
+  return {
+    response,
+    platform: pending.estimatePayload.platform ?? null,
+  };
+}
+
 const WAITING_COPY_REFRESH_INTERVAL_MS = 15_000;
 
 export async function syncUserAfterGeneration(
@@ -167,7 +182,8 @@ export function GenerationLab({
   // 전략 요약은 source_context로만 전달한다. 광고 목적(extra.purpose)은 사용자가 직접 입력한다.
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
-  const [generation, setGeneration] = useState<GenerationResponse | null>(null);
+  const [generated, setGenerated] = useState<CapturedGeneration | null>(null);
+  const generation = generated?.response ?? null;
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -198,7 +214,7 @@ export function GenerationLab({
     setBusy(true);
     setError(null);
     setPending(null);
-    setGeneration(null);
+    setGenerated(null);
     setPublishedProposalIndex(null);
     if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
@@ -247,7 +263,7 @@ export function GenerationLab({
     let immediateRetry: PendingGeneration | null = null;
     try {
       const nextGeneration = await runner.run(candidate);
-      setGeneration(nextGeneration);
+      setGenerated(captureGeneratedResult(nextGeneration, candidate));
       await syncUserAfterGeneration(api, onUserChanged);
     } catch (caught) {
       if (isBillingConfirmationRequired(caught)) {
@@ -312,7 +328,7 @@ export function GenerationLab({
       <form className="card generation-card chat-generation-card chat-generation-card--primary" onSubmit={estimate}>
         <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <fieldset className="platform-picker"><legend>광고 형식</legend><div className="platform-options">
-          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setGeneration(null); setPublishedProposalIndex(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
+          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setGenerated(null); setPublishedProposalIndex(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
         </div></fieldset>}
         {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
         <label className="chat-composer-label">광고 요청
@@ -348,15 +364,15 @@ export function GenerationLab({
         />
       )}
       {waiting && <WaitingScreen copyText={waitingCopy} chatbotType={chatbotType} platform={platform} />}
-      {generation && (
+      {generated && (
         <ResultView
-          response={generation}
-          platform={platform}
+          response={generated.response}
+          platform={generated.platform}
           publishing={busy}
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
-          onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
+          onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGenerated(null); setMessages([]); }}
           onStrategyToAd={onStrategyToAd}
           onClarification={reask}
         />
