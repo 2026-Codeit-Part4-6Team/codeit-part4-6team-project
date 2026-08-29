@@ -154,12 +154,32 @@ export function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMes
   );
 }
 
-export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { api: ApiClient; chatbotType?: ChatbotType; onUserChanged?: (user: UserResponse) => void }) {
+type GenerationLabProps = {
+  api: ApiClient;
+  chatbotType?: ChatbotType;
+  initialQuestion?: string;
+  initialStrategySummary?: string | null;
+  initialSourceGenId?: number;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
+  onUserChanged?: (user: UserResponse) => void;
+};
+
+export function GenerationLab({
+  api,
+  chatbotType = "basic",
+  initialQuestion = "",
+  initialStrategySummary = null,
+  initialSourceGenId,
+  onStrategyToAd,
+  onUserChanged,
+}: GenerationLabProps) {
   const mascot = chatbotType === "basic"
     ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
     : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion);
+  const [sourceGenId] = useState<number | null>(initialSourceGenId ?? null);
+  // 전략 요약은 source_context로만 전달한다. 광고 목적(extra.purpose)은 사용자가 직접 입력한다.
   const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
   const [generated, setGenerated] = useState<CapturedGeneration | null>(null);
@@ -186,6 +206,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
   }
 
   async function requestEstimate(
+    questionOverride?: string,
     extraOverride: GenerateExtra = extra,
     preserveMessages = false,
   ) {
@@ -199,7 +220,13 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, question, platform, extraOverride);
+      const payload = buildEstimatePayload(
+        chatbotType,
+        questionOverride ?? question,
+        platform,
+        extraOverride,
+        sourceGenId,
+      );
       const response = await api.estimate(payload);
       const action = nextGenerationAction(response, payload, createIdempotencyKey());
       setPending(action.pending);
@@ -221,7 +248,7 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
       createFollowUpMessage("user", clarification, `${Date.now()}-user`),
     ]);
     setExtra(nextExtra);
-    await requestEstimate(nextExtra, true);
+    await requestEstimate(undefined, nextExtra, true);
   }
 
   async function estimate(event: FormEvent) {
@@ -257,6 +284,10 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
     if (immediateRetry !== null) await generate(immediateRetry);
   }
 
+  function reask(answer: string) {
+    return submitFollowUp(answer);
+  }
+
   async function publish(index: ProposalIndex, imageB64: string | null) {
     if (generation === null || busy) return;
     setBusy(true);
@@ -286,16 +317,21 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
         <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
+      {chatbotType === "basic" && initialSourceGenId != null && (
+        <aside className="strategy-prefill-banner" aria-label="컨설팅 전략 연계">
+          <span className="strategy-prefill-icon" aria-hidden="true">✦</span>
+          <div><strong>컨설팅 전략을 이어서 만들고 있어요</strong><p>전략에 맞춰 광고 형식과 문구를 다듬어 보세요. 필요한 내용은 자유롭게 수정할 수 있습니다.</p></div>
+          {initialStrategySummary && <span className="strategy-prefill-tag">{initialStrategySummary}</span>}
+        </aside>
+      )}
+
       <form className="card generation-card chat-generation-card chat-generation-card--primary" onSubmit={estimate}>
         <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
-        {chatbotType === "basic" && <label>광고 형식
-          <select value={platform} onChange={(event) => { setPending(null); setPlatform(event.target.value as Platform); }}>
-            <option value="instagram">Instagram</option>
-            <option value="xbanner">X-배너</option>
-          </select>
-        </label>}
+        {chatbotType === "basic" && <fieldset className="platform-picker"><legend>광고 형식</legend><div className="platform-options">
+          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setGenerated(null); setPublishedProposalIndex(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
+        </div></fieldset>}
         {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
-        <label className="chat-composer-label">첫 메시지
+        <label className="chat-composer-label">광고 요청
           <textarea
             value={question}
             onChange={(event) => { setPending(null); setQuestion(event.target.value); }}
@@ -337,10 +373,11 @@ export function GenerationLab({ api, chatbotType = "basic", onUserChanged }: { a
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGenerated(null); setMessages([]); }}
-          onClarification={(value) => void submitFollowUp(value)}
+          onStrategyToAd={onStrategyToAd}
+          onClarification={reask}
         />
       )}
-      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void submitFollowUp(value)} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void reask(value)} />}
     </section>
   );
 }

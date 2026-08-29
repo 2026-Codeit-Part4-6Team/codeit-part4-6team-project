@@ -4,6 +4,7 @@ import {
   authenticatedState,
   loggedOutState,
   navigate,
+  startBasicFromStrategy,
   type AppRoute,
   type AppViewState,
 } from "./appState";
@@ -51,6 +52,10 @@ export function App() {
     setView((current) => navigate(current, route));
   }
 
+  function onStrategyToAd(sourceGenId: number, strategySummary: string) {
+    setView((current) => startBasicFromStrategy(current, sourceGenId, strategySummary));
+  }
+
   async function logout() {
     try {
       await api.logout();
@@ -79,7 +84,9 @@ export function App() {
       api={api}
       user={view.user}
       route={view.route}
+      generationPrefill={view.generationPrefill}
       onNavigate={onNavigate}
+      onStrategyToAd={onStrategyToAd}
       onLogout={() => void logout()}
       onCreditsChanged={updateCredits}
       onUserChanged={onUserChanged}

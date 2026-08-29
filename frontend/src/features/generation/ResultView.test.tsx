@@ -74,11 +74,13 @@ describe("ResultView", () => {
         }}
         onPublish={vi.fn()}
         onRegenerate={vi.fn()}
+        onStrategyToAd={vi.fn()}
       />,
     );
 
     expect(html).not.toContain("게시 승인");
     expect(html).not.toContain("이 제안 선택");
+    expect(html).toContain("이 전략으로 광고 만들기");
     expect(html).toContain("다시 생성");
   });
 

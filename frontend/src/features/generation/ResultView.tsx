@@ -12,6 +12,7 @@ type ResultViewProps = {
   onPublish: (index: ProposalIndex, imageB64: string | null) => void | Promise<void>;
   onRegenerate: () => void;
   onSuggestedChip?: (chip: string) => void;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onClarification?: (value: string) => void | Promise<void>;
 };
 
@@ -157,6 +158,7 @@ export function ResultView({
   onPublish,
   onRegenerate,
   onSuggestedChip,
+  onStrategyToAd,
   onClarification,
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
@@ -187,6 +189,7 @@ export function ResultView({
         response={response}
         platform={platform}
         onSuggestedChip={onSuggestedChip}
+        onStrategyToAd={onStrategyToAd}
         onSelectProposal={setSelectedProposalIndex}
         selectedProposalIndex={selectedProposalIndex}
         publishedProposalIndex={publishedProposalIndex}

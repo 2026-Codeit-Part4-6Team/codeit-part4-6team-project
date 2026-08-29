@@ -16,6 +16,7 @@ type ResultCardsProps = {
   response: GenerationResponse;
   platform?: Platform | null;
   onSuggestedChip?: (chip: string) => void;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onSelectProposal?: (index: ProposalIndex) => void;
   selectedProposalIndex?: ProposalIndex | null;
   publishedProposalIndex?: ProposalIndex | null;
@@ -25,6 +26,7 @@ export function ResultCards({
   response,
   platform = null,
   onSuggestedChip,
+  onStrategyToAd,
   onSelectProposal,
   selectedProposalIndex = null,
   publishedProposalIndex = null,
@@ -85,6 +87,7 @@ export function ResultCards({
           {reasons.length > 0 && <details className="result-details"><summary>이렇게 제안한 이유 <span>{reasons.length}</span></summary><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details>}
           {sources.length > 0 && <details className="result-details"><summary>참고 근거 <span>{sources.length}</span></summary><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></details>}
           {suggestedChips.length > 0 && <div className="suggested-chips">{suggestedChips.slice(0, 3).map((chip) => <button type="button" key={chip} onClick={() => onSuggestedChip?.(chip)}>{chip}</button>)}</div>}
+          {onStrategyToAd && <button type="button" className="strategy-to-ad" onClick={() => onStrategyToAd(response.generation_id, strategy?.summary?.slice(0, 120) ?? "")}><span aria-hidden="true">✦</span><span><strong>이 전략으로 광고 만들기</strong><small>Basic 챗봇에서 플랫폼을 선택해 이어서 생성합니다.</small></span><span aria-hidden="true">→</span></button>}
         </article>
       )}
     </section>
