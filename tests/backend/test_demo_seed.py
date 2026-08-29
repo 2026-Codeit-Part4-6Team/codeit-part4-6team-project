@@ -10,7 +10,7 @@ from backend import demo_seed
 from backend.clients.geocoding_client import GeocodingResult
 from backend.database import create_database_engine
 from backend.demo_seed import seed_demo_user
-from backend.models import Base, User
+from backend.models import Base, Payment, User
 from backend.schemas import RegisterRequest
 from backend.services.auth_service import GeocodingPolicy
 
@@ -169,6 +169,52 @@ def test_seed_keeps_existing_user_and_password_unchanged(db):
     assert created is False
     assert second.id == first.id
     assert second.password_hash == original_hash
+
+
+def test_topup_refreshes_existing_credits_without_removing_history(db):
+    first, _ = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+    first.credits = 17
+    db.add(
+        Payment(
+            user_id=first.id,
+            package="starter",
+            amount=48_500,
+            credits=5_000,
+            method="pending_provider",
+            status="completed",
+        )
+    )
+    db.commit()
+
+    second, created = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(password=SecretStr("different-password")),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+            topup=True,
+        )
+    )
+
+    assert created is False
+    assert second.id == first.id
+    assert second.credits == 20_000
+    assert db.scalar(select(Payment).where(Payment.user_id == first.id)) is not None
 
 
 def test_demo_account_requests_use_role_usernames_and_shared_secret(monkeypatch):

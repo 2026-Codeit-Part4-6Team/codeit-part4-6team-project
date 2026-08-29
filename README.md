@@ -19,6 +19,21 @@ docker compose down
 - 백엔드 헬스체크: `http://localhost:18000/health`
 - 백엔드 API 문서: `http://localhost:18000/docs`
 
+HTTP 시연 VM은 로컬 개발용 `.env.example` 대신 커밋된
+`.env.demo.example`을 `.env`로 복사해 사용합니다. 복사 후 `OPENAI_API_KEY`,
+`HF_TOKEN`, `SESSION_SECRET_KEY`와 8~72바이트 데모 비밀번호를 입력하고
+`DEMO_ACCOUNTS_ENABLED=true`를 유지해야 합니다. 지도 키가 없는 시연 환경에서는
+`GEOCODE_FALLBACK_ENABLED=true`가 고정 좌표를 사용합니다.
+
+데모 계정 seed는 다음처럼 실행합니다. `--reset`은 계정과 이력을 초기화하고,
+`--topup`은 이력을 보존한 채 기존 계정의 크레딧만 `DEMO_INITIAL_CREDITS`로
+보충합니다.
+
+```bash
+cp .env.demo.example .env
+docker compose run --rm backend python -m backend.demo_seed --topup
+```
+
 GCP에서 프론트엔드를 80번 포트로 확인하려면 서버의 `.env`에 `FRONTEND_PORT=80`을 지정합니다. 현재 `/generate`는 프론트엔드와 백엔드 연결을 확인하기 위한 목 응답이며 최종 API 계약이 아닙니다.
 
 ## Python 의존성

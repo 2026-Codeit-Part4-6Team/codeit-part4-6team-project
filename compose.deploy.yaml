@@ -5,8 +5,12 @@ services:
     env_file:
       - .env
     environment:
-      # 시연/운영 모드는 VM의 .env에서 선택합니다.
+      # HTTP 시연 VM은 demo를 사용합니다. 운영 전환 시 VM의 .env에서 명시적으로 바꿉니다.
       APP_ENV: ${APP_ENV:-demo}
+      CHATBOT_MODE: ${CHATBOT_MODE:-actual}
+      GEOCODE_FALLBACK_ENABLED: ${GEOCODE_FALLBACK_ENABLED:-true}
+      DEMO_ACCOUNTS_ENABLED: ${DEMO_ACCOUNTS_ENABLED:-false}
+      DEMO_PAYMENT_ENABLED: ${DEMO_PAYMENT_ENABLED:-true}
       HF_TOKEN: ${HF_TOKEN:-}
       HF_HOME: ${HF_HOME:-/app/.cache/huggingface}
       MODEL_THREAD_POOL_WORKERS: ${MODEL_THREAD_POOL_WORKERS:-2}

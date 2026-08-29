@@ -49,6 +49,23 @@ class Settings:
     geocode_fallback_lat: float
     geocode_fallback_lng: float
     demo_accounts_enabled: bool
+    demo_payment_enabled: bool
+
+
+def _validate_demo_account_passwords() -> None:
+    """활성화된 데모 계정이 빈 비밀번호로 생성되지 않도록 검증합니다."""
+    shared = os.getenv("DEMO_ACCOUNT_PASSWORD", "").strip()
+    for role in ("PM", "BASIC", "CONSULTANT", "SERVICE"):
+        password = os.getenv(f"DEMO_{role}_PASSWORD", "").strip() or shared
+        if not password:
+            raise ValueError(
+                f"DEMO_ACCOUNT_PASSWORD 또는 DEMO_{role}_PASSWORD가 필요합니다."
+            )
+        length = len(password.encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError(
+                f"DEMO_{role}_PASSWORD는 UTF-8 기준 8~72바이트여야 합니다."
+            )
 
 
 def load_settings() -> Settings:
@@ -62,6 +79,11 @@ def load_settings() -> Settings:
         raise ValueError("geocoding fallback은 development 또는 demo 환경에서만 사용할 수 있습니다.")
     if environment == "production" and demo_accounts_enabled:
         raise ValueError("production 환경에서는 demo accounts를 활성화할 수 없습니다.")
+    if demo_accounts_enabled:
+        _validate_demo_account_passwords()
+    demo_payment_enabled = _read_bool("DEMO_PAYMENT_ENABLED", environment != "production")
+    if environment == "production" and demo_payment_enabled:
+        raise ValueError("production 환경에서는 demo payment를 활성화할 수 없습니다.")
     secret_key = os.getenv("SESSION_SECRET_KEY")
     if secret_key is not None:
         secret_key = secret_key.strip()
@@ -106,6 +128,7 @@ def load_settings() -> Settings:
             "GEOCODE_FALLBACK_LNG", 127.0276, minimum=-180, maximum=180
         ),
         demo_accounts_enabled=demo_accounts_enabled,
+        demo_payment_enabled=demo_payment_enabled,
     )
 
 

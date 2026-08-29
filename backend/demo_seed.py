@@ -35,8 +35,9 @@ async def seed_demo_user(
     now: datetime,
     daily_free_limit: int,
     initial_credits: int = 0,
+    topup: bool = False,
 ) -> tuple[User, bool]:
-    """기존 사용자를 변경하지 않고 개발·시연 환경에 계정을 준비합니다."""
+    """개발·시연 환경 계정을 준비하고 필요하면 기존 잔액만 보충합니다."""
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
     if initial_credits < 0:
@@ -44,6 +45,10 @@ async def seed_demo_user(
 
     existing = db.scalar(select(User).where(User.username == request.username))
     if existing is not None:
+        if topup:
+            existing.credits = initial_credits
+            db.commit()
+            db.refresh(existing)
         return existing, False
 
     user = await register_user(
@@ -70,8 +75,9 @@ async def seed_demo_accounts(
     now: datetime,
     daily_free_limit: int,
     initial_credits: int = 0,
+    topup: bool = False,
 ) -> list[tuple[str, User, bool]]:
-    """역할별 데모 계정을 순서대로 만들고 기존 계정은 그대로 재사용합니다."""
+    """역할별 데모 계정을 만들고 선택적으로 기존 잔액을 보충합니다."""
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
 
@@ -86,6 +92,7 @@ async def seed_demo_accounts(
             now=now,
             daily_free_limit=daily_free_limit,
             initial_credits=initial_credits,
+            topup=topup,
         )
         seeded.append((role, user, created))
     return seeded
@@ -121,18 +128,6 @@ def reset_demo_accounts(db: Session, usernames: tuple[str, ...]) -> int:
     return len(users)
 
 
-def _required_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
-        raise ValueError(f"{name} is required")
-    return value
-
-
-def _optional_env(name: str) -> str | None:
-    value = os.getenv(name, "").strip()
-    return value or None
-
-
 def _role_env(role: str, field: str, default: str | None = None) -> str | None:
     value = os.getenv(f"DEMO_{role.upper()}_{field}", "").strip()
     return value or default
@@ -163,19 +158,6 @@ def demo_account_requests_from_env() -> dict[str, RegisterRequest]:
     return requests
 
 
-def _request_from_env() -> RegisterRequest:
-    return RegisterRequest(
-        username=_required_env("DEMO_USERNAME"),
-        password=_required_env("DEMO_PASSWORD"),
-        name=_optional_env("DEMO_NAME"),
-        email=_optional_env("DEMO_EMAIL"),
-        business_name=_required_env("DEMO_BUSINESS_NAME"),
-        business_type=_required_env("DEMO_BUSINESS_TYPE"),
-        address=_required_env("DEMO_ADDRESS"),
-        address_detail=_optional_env("DEMO_ADDRESS_DETAIL"),
-    )
-
-
 def _initial_credits_from_env() -> int:
     raw = os.getenv("DEMO_INITIAL_CREDITS", "20000").strip()
     try:
@@ -187,7 +169,7 @@ def _initial_credits_from_env() -> int:
     return value
 
 
-async def _run(*, reset: bool = False) -> list[tuple[str, User, bool]]:
+async def _run(*, reset: bool = False, topup: bool = False) -> list[tuple[str, User, bool]]:
     app_env = os.getenv("APP_ENV", "development")
     if app_env.strip().lower() == "production":
         raise RuntimeError("demo seed is disabled in production")
@@ -212,6 +194,7 @@ async def _run(*, reset: bool = False) -> list[tuple[str, User, bool]]:
             now=datetime.now(UTC),
             daily_free_limit=settings.daily_free_limit,
             initial_credits=_initial_credits_from_env(),
+            topup=topup,
         )
 
 
@@ -223,15 +206,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="지정된 데모 계정과 생성·결제 이력을 삭제한 뒤 다시 생성합니다.",
     )
+    parser.add_argument(
+        "--topup",
+        action="store_true",
+        help="기존 데모 계정의 크레딧만 DEMO_INITIAL_CREDITS로 보충하고 이력은 유지합니다.",
+    )
     args = parser.parse_args(argv)
     try:
-        seeded = asyncio.run(_run(reset=args.reset))
+        seeded = asyncio.run(_run(reset=args.reset, topup=args.topup))
     except (RuntimeError, ValueError) as error:
         print(f"demo seed failed: {error}")
         return 2
 
     for role, _user, created in seeded:
-        state = "created" if created else "already exists"
+        state = "created" if created else ("topped up" if args.topup else "already exists")
         # SessionLocal이 종료된 뒤 ORM 객체의 lazy/expired 필드에 접근하지 않습니다.
         # 역할명만 출력해 seed 결과를 확인하고 사용자 정보는 로그에 남기지 않습니다.
         print(f"demo user {state}: {role}")

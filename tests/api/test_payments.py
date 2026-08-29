@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +9,7 @@ from backend.clients.geocoding_client import get_geocoding_client
 from backend.database import create_database_engine, get_db
 from backend.init_db import create_tables
 from backend.main import create_app
+from backend.routers import payments_router
 from tests.fakes import SuccessfulGeocodingClient
 
 
@@ -91,3 +93,25 @@ def test_reusing_key_for_another_package_is_rejected(payment_client: TestClient)
 
     assert response.status_code == 409
     assert response.json()["detail"]["reason"] == "payment_idempotency_conflict"
+
+
+def test_disabled_demo_payment_hides_catalog_and_rejects_purchase(
+    payment_client: TestClient, monkeypatch
+):
+    monkeypatch.setattr(
+        payments_router,
+        "settings",
+        replace(payments_router.settings, demo_payment_enabled=False),
+    )
+
+    catalog = payment_client.get("/payments/catalog")
+    assert catalog.status_code == 200
+    assert catalog.json()["packages"] == []
+
+    response = payment_client.post(
+        "/payments",
+        json={"package": "starter"},
+        headers={"Idempotency-Key": "00000000-0000-0000-0000-000000000903"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "demo_payment_disabled"
