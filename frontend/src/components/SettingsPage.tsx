@@ -25,6 +25,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
   }, [fontScale]);
 
   function changeModel(value: ModelId) {
+    if (value !== "service_basic") return;
     setModelType(value);
     setSaved(false);
   }
@@ -37,7 +38,7 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
         <section className="card settings-card settings-model-card">
           <div><p className="kicker">AI PROVIDER</p><h2>사용할 AI 모델</h2><p>광고 생성과 후속 대화에 사용할 모델을 선택하세요.</p></div>
           <div className="model-options">
-            {models.map((model) => <button type="button" aria-pressed={modelType === model.id} className={modelType === model.id ? "selected" : ""} onClick={() => changeModel(model.id)} key={model.id}><span>{model.id === "service_basic" ? "◈" : model.id === "service_advanced" ? "✦" : "✺"}</span><strong>{model.name}</strong><small>{model.detail}</small></button>)}
+            {models.map((model) => <button type="button" disabled={model.id !== "service_basic"} aria-disabled={model.id !== "service_basic"} aria-pressed={modelType === model.id} className={modelType === model.id ? "selected" : ""} onClick={() => changeModel(model.id)} key={model.id}><span>{model.id === "service_basic" ? "◈" : model.id === "service_advanced" ? "✦" : "✺"}</span><strong>{model.name}</strong><small>{model.id === "service_basic" ? model.detail : "Provider 확정 후 제공 예정"}</small></button>)}
           </div>
           {saved && <p className="saved-note">환경설정 미리보기에 반영했습니다.</p>}
           <button type="button" className="primary settings-save" onClick={() => setSaved(true)}>설정 저장</button>

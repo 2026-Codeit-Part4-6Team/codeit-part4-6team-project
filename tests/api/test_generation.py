@@ -153,7 +153,12 @@ def test_generate_maps_billing_confirmation_and_insufficient_credit(
         json=basic_payload(max_accepted_credits=50),
     )
     assert insufficient.status_code == 402
-    assert insufficient.json()["detail"] == {"required": 50, "current": 49}
+    assert insufficient.json()["detail"] == {
+        "code": "insufficient_credits",
+        "message": "Credit이 부족합니다.",
+        "required": 50,
+        "current": 49,
+    }
 
 
 def test_generate_maps_missing_source_to_404(client: TestClient, db_session: Session):

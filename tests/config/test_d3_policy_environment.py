@@ -7,6 +7,6 @@ def test_compose_passes_d3_policy_environment_to_backend():
         ("DAILY_FREE_LIMIT", "10"),
         ("BASIC_CREDIT_COST", "50"),
         ("CONSULTANT_CREDIT_COST", "10"),
-        ("MODEL_REQUEST_TIMEOUT_SECONDS", "60"),
+        ("MODEL_REQUEST_TIMEOUT_SECONDS", "180"),
     ):
         assert f"{key}: ${{{key}:-{default}}}" in compose

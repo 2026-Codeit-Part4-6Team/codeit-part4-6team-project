@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { ApiError, type ApiClient, type GenerationResponse } from "../../api";
+import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import {
   buildEstimatePayload,
   type ChatbotType,
@@ -12,8 +12,8 @@ import {
   apiErrorMessage,
   createFollowUpMessage,
   generationPayload,
-  mockFollowUpReply,
   nextGenerationAction,
+  withClarification,
   type GenerationAction,
   type FollowUpMessage,
   type PendingGeneration,
@@ -22,6 +22,7 @@ import { CreditDialog } from "./CreditDialog";
 import { isSuccessfulGeneration, ResultView } from "./ResultView";
 import type { ProposalIndex } from "./ResultCards";
 import { WaitingScreen } from "./WaitingScreen";
+import { createIdempotencyKey } from "../../requestId";
 
 function messageFrom(error: unknown): string {
   if (error instanceof ApiError) return apiErrorMessage(error.statusCode, error.detail);
@@ -33,10 +34,24 @@ type GenerationRunner = {
   dispose: () => void;
 };
 
+const WAITING_COPY_REFRESH_INTERVAL_MS = 15_000;
+
+export async function syncUserAfterGeneration(
+  api: Pick<ApiClient, "me">,
+  onUserChanged?: (user: UserResponse) => void,
+): Promise<void> {
+  if (!onUserChanged) return;
+  try {
+    onUserChanged(await api.me());
+  } catch {
+    // 생성 결과는 성공했으므로 사용자 정보 갱신 실패가 결과를 가리면 안 됩니다.
+  }
+}
+
 export function createGenerationRunner(
   api: Pick<ApiClient, "generate" | "waitingCopy">,
   onWaitingCopy: (copyText: string) => void,
-  intervalMs = 4_000,
+  intervalMs = WAITING_COPY_REFRESH_INTERVAL_MS,
 ): GenerationRunner {
   let inFlight: Promise<GenerationResponse> | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -93,7 +108,7 @@ export function isBillingConfirmationRequired(error: unknown): boolean {
 export async function refreshGenerationEstimate(
   api: Pick<ApiClient, "estimate">,
   pending: PendingGeneration,
-  keyFactory: () => string = () => crypto.randomUUID(),
+  keyFactory: () => string = createIdempotencyKey,
 ): Promise<GenerationAction> {
   const estimate = await api.estimate(pending.estimatePayload);
   return nextGenerationAction(estimate, pending.estimatePayload, keyFactory());
@@ -105,7 +120,7 @@ export function shouldShowFollowUpComposer(
   return response !== null && isSuccessfulGeneration(response);
 }
 
-function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
+export function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[]; onSubmit: (value: string) => void }) {
   const [value, setValue] = useState("");
 
   function submit(event: FormEvent) {
@@ -116,7 +131,7 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   }
 
   return (
-    <section className="card follow-up-card">
+    <section className="card follow-up-card follow-up-card--wide">
       <div><p className="kicker">KEEP REFINING</p><h2>원하는 방향을 더 알려주세요</h2><p>결과를 본 뒤에도 대화로 문구와 타깃을 조정할 수 있어요.</p></div>
       {messages.length > 0 && <div className="message-list">{messages.map((message) => <div className={`message ${message.role}`} key={message.id}><span>{message.role === "user" ? "나" : "AI"}</span><p>{message.content}</p></div>)}</div>}
       <form className="follow-up-form" onSubmit={submit}><input value={value} onChange={(event) => setValue(event.target.value)} placeholder="예: 20대 고객에게 더 친근하게 바꿔줘" aria-label="추가 요청" /><button type="submit" className="primary">보내기</button></form>
@@ -124,14 +139,33 @@ function FollowUpComposer({ messages, onSubmit }: { messages: FollowUpMessage[];
   );
 }
 
-export function GenerationLab({ api, chatbotType = "basic", initialQuestion = "", initialPurpose = "", initialSourceGenId, onStrategyToAd }: { api: ApiClient; chatbotType?: ChatbotType; initialQuestion?: string; initialPurpose?: string; initialSourceGenId?: number; onStrategyToAd?: (sourceGenId: number, purpose: string) => void }) {
+type GenerationLabProps = {
+  api: ApiClient;
+  chatbotType?: ChatbotType;
+  initialQuestion?: string;
+  initialStrategySummary?: string | null;
+  initialSourceGenId?: number;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
+  onUserChanged?: (user: UserResponse) => void;
+};
+
+export function GenerationLab({
+  api,
+  chatbotType = "basic",
+  initialQuestion = "",
+  initialStrategySummary = null,
+  initialSourceGenId,
+  onStrategyToAd,
+  onUserChanged,
+}: GenerationLabProps) {
   const mascot = chatbotType === "basic"
     ? { name: "카피니", role: "광고 제작 파트너", src: "/assets/mascots/copyni.png" }
     : { name: "분석이", role: "상권 분석 파트너", src: "/assets/mascots/bunseoki.png" };
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [question, setQuestion] = useState(initialQuestion);
   const [sourceGenId] = useState<number | null>(initialSourceGenId ?? null);
-  const [extra, setExtra] = useState<GenerateExtra>({ purpose: initialPurpose || null, price_range: null, target_age: null, strength: null, clarification: null });
+  // 전략 요약은 source_context로만 전달한다. 광고 목적(extra.purpose)은 사용자가 직접 입력한다.
+  const [extra, setExtra] = useState<GenerateExtra>({ purpose: null, price_range: null, target_age: null, strength: null, clarification: null });
   const [pending, setPending] = useState<PendingGeneration | null>(null);
   const [generation, setGeneration] = useState<GenerationResponse | null>(null);
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
@@ -155,20 +189,30 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
     setExtra((current) => ({ ...current, [key]: value || null }));
   }
 
-  async function requestEstimate(questionOverride?: string) {
+  async function requestEstimate(
+    questionOverride?: string,
+    extraOverride: GenerateExtra = extra,
+    preserveMessages = false,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
     setPending(null);
     setGeneration(null);
     setPublishedProposalIndex(null);
-    setMessages([]);
+    if (!preserveMessages) setMessages([]);
     let immediate: PendingGeneration | null = null;
     try {
       // Estimate와 Generate가 같은 생성 내용을 공유해야 승인 상한이 실제 요청과 어긋나지 않는다.
-      const payload = buildEstimatePayload(chatbotType, questionOverride ?? question, platform, extra, sourceGenId);
+      const payload = buildEstimatePayload(
+        chatbotType,
+        questionOverride ?? question,
+        platform,
+        extraOverride,
+        sourceGenId,
+      );
       const response = await api.estimate(payload);
-      const action = nextGenerationAction(response, payload, crypto.randomUUID());
+      const action = nextGenerationAction(response, payload, createIdempotencyKey());
       setPending(action.pending);
       if (action.kind === "generate") immediate = action.pending;
     } catch (caught) {
@@ -177,6 +221,18 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
       setBusy(false);
     }
     if (immediate !== null) await generate(immediate);
+  }
+
+  async function submitFollowUp(value: string) {
+    const clarification = value.trim();
+    if (!clarification || busy) return;
+    const nextExtra = withClarification(extra, clarification);
+    setMessages((current) => [
+      ...current,
+      createFollowUpMessage("user", clarification, `${Date.now()}-user`),
+    ]);
+    setExtra(nextExtra);
+    await requestEstimate(undefined, nextExtra, true);
   }
 
   async function estimate(event: FormEvent) {
@@ -190,7 +246,9 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
     setError(null);
     let immediateRetry: PendingGeneration | null = null;
     try {
-      setGeneration(await runner.run(candidate));
+      const nextGeneration = await runner.run(candidate);
+      setGeneration(nextGeneration);
+      await syncUserAfterGeneration(api, onUserChanged);
     } catch (caught) {
       if (isBillingConfirmationRequired(caught)) {
         try {
@@ -211,11 +269,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
   }
 
   function reask(answer: string) {
-    const combinedQuestion = `${question}\n\n추가 답변: ${answer}`;
-    setQuestion(combinedQuestion);
-    setGeneration(null);
-    setPending(null);
-    void requestEstimate(combinedQuestion);
+    return submitFollowUp(answer);
   }
 
   async function publish(index: ProposalIndex, imageB64: string | null) {
@@ -247,18 +301,18 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
         <img className="generation-mascot" src={mascot.src} alt={`${mascot.name} 캐릭터`} />
       </div>
 
-      {chatbotType === "basic" && initialSourceGenId && (
+      {chatbotType === "basic" && initialSourceGenId != null && (
         <aside className="strategy-prefill-banner" aria-label="컨설팅 전략 연계">
           <span className="strategy-prefill-icon" aria-hidden="true">✦</span>
           <div><strong>컨설팅 전략을 이어서 만들고 있어요</strong><p>전략에 맞춰 광고 형식과 문구를 다듬어 보세요. 필요한 내용은 자유롭게 수정할 수 있습니다.</p></div>
-          {initialPurpose && <span className="strategy-prefill-tag">{initialPurpose}</span>}
+          {initialStrategySummary && <span className="strategy-prefill-tag">{initialStrategySummary}</span>}
         </aside>
       )}
 
       <form className="card generation-card chat-generation-card chat-generation-card--primary" onSubmit={estimate}>
         <div className="chat-context-header"><img className="chat-avatar-image" src={mascot.src} alt="" aria-hidden="true" /><div><strong>{chatbotType === "basic" ? "어떤 광고를 만들어볼까요?" : "가게에 대해 무엇이 궁금하세요?"}</strong><p>{chatbotType === "basic" ? "첫 메시지를 보내면 광고 시안을 함께 다듬어갈게요." : "등록된 가게 정보와 상권 데이터를 바탕으로 상담할게요."}</p></div></div>
         {chatbotType === "basic" && <fieldset className="platform-picker"><legend>광고 형식</legend><div className="platform-options">
-          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
+          {([['instagram', 'Instagram', '피드·릴스용'], ['xbanner', 'X-배너', '세로형 출력물']] as const).map(([value, label, hint]) => <button type="button" key={value} className={`platform-option${platform === value ? " is-active" : ""}`} aria-pressed={platform === value} onClick={() => { setPending(null); setGeneration(null); setPublishedProposalIndex(null); setPlatform(value); }}><strong>{label}</strong><small>{hint}</small></button>)}
         </div></fieldset>}
         {chatbotType === "basic" && platform === "xbanner" && <p className="platform-guidance" role="note"><strong>세로형 X-배너</strong>를 생성합니다. 상단 카피·비주얼과 하단 가게 정보가 하나의 세로 배너로 이어집니다.</p>}
         <label className="chat-composer-label">광고 요청
@@ -293,7 +347,7 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
           onCancel={() => setPending(null)}
         />
       )}
-      {waiting && <WaitingScreen copyText={waitingCopy} />}
+      {waiting && <WaitingScreen copyText={waitingCopy} chatbotType={chatbotType} platform={platform} />}
       {generation && (
         <ResultView
           response={generation}
@@ -302,12 +356,12 @@ export function GenerationLab({ api, chatbotType = "basic", initialQuestion = ""
           publishedProposalIndex={publishedProposalIndex}
           onPublish={publish}
           onRegenerate={() => void requestEstimate()}
-          onReask={reask}
           onSuggestedChip={(chip) => { setPending(null); setQuestion(chip); setGeneration(null); setMessages([]); }}
           onStrategyToAd={onStrategyToAd}
+          onClarification={reask}
         />
       )}
-      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => { const id = `${Date.now()}`; setMessages((current) => [...current, createFollowUpMessage("user", value.trim(), `${id}-user`), createFollowUpMessage("assistant", mockFollowUpReply(value), `${id}-assistant`)]); }} />}
+      {shouldShowFollowUpComposer(generation) && <FollowUpComposer messages={messages} onSubmit={(value) => void reask(value)} />}
     </section>
   );
 }

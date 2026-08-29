@@ -13,20 +13,35 @@ type ProtectedRouteViewProps = {
   user: UserResponse;
   route: AppRoute;
   onNavigate: (route: AppRoute) => void;
-  onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
+  generationPrefill?: GenerationPrefill;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onLogout: () => void;
   onCreditsChanged?: (credits: number) => void;
   onUserChanged?: (user: UserResponse) => void;
 };
 
-export function ProtectedRouteView({ api, user, route, onNavigate, onStrategyToAd, onLogout, onCreditsChanged, onUserChanged, generationPrefill }: ProtectedRouteViewProps & { generationPrefill?: GenerationPrefill }) {
+export function ProtectedRouteView({ api, user, route, onNavigate, onStrategyToAd, onLogout, onCreditsChanged, onUserChanged, generationPrefill }: ProtectedRouteViewProps) {
   let content;
   if (route === "dashboard") {
     content = <DashboardHome onNavigate={onNavigate} />;
   } else if (route === "basic_chatbot") {
-    content = <GenerationLab key="basic-generation" api={api} chatbotType="basic" initialQuestion={generationPrefill?.question} initialPurpose={generationPrefill?.purpose} initialSourceGenId={generationPrefill?.source_gen_id} />;
+    content = <GenerationLab
+      key="basic-generation"
+      api={api}
+      chatbotType="basic"
+      initialQuestion={generationPrefill?.question}
+      initialStrategySummary={generationPrefill?.strategy_summary}
+      initialSourceGenId={generationPrefill?.source_gen_id}
+      onUserChanged={onUserChanged}
+    />;
   } else if (route === "consultant_chatbot") {
-    content = <GenerationLab key="consultant-generation" api={api} chatbotType="consultant" onStrategyToAd={onStrategyToAd} />;
+    content = <GenerationLab
+      key="consultant-generation"
+      api={api}
+      chatbotType="consultant"
+      onStrategyToAd={onStrategyToAd}
+      onUserChanged={onUserChanged}
+    />;
   } else if (route === "mypage") {
     content = <MyPage api={api} user={user} onBack={() => onNavigate("dashboard")} onBilling={() => onNavigate("billing")} />;
   } else if (route === "settings") {

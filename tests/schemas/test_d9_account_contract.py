@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from backend.schemas import (
     GenerationDetailResponse,
     GenerationListItem,
+    HistoryErrorResult,
     UserSummaryResponse,
 )
 
@@ -86,4 +87,30 @@ def test_generation_detail_exposes_only_public_result_and_final_fields():
             image_b64=None,
             selected_proposal_index=3,
             hitl_approved=True,
+        )
+
+
+def test_generation_detail_accepts_only_safe_error_fields():
+    safe_error = HistoryErrorResult(
+        status="error",
+        reason="provider_error",
+        message="생성 서비스에 일시적인 문제가 발생했습니다.",
+    )
+    detail = GenerationDetailResponse(
+        **list_payload(),
+        source_gen_id=None,
+        result=safe_error,
+        copy_content=None,
+        image_b64=None,
+        selected_proposal_index=None,
+        hitl_approved=False,
+    )
+
+    assert detail.result == safe_error
+    with pytest.raises(ValidationError):
+        HistoryErrorResult(
+            status="error",
+            reason="provider_error",
+            message="safe",
+            provider_message="secret",
         )

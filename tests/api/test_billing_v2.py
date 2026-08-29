@@ -56,7 +56,9 @@ def test_estimate_returns_402_without_mutating_credit(billing_client):
         app.dependency_overrides.pop(get_current_user, None)
 
     assert response.status_code == 402
-    assert response.json() == {"detail": {"required": 50, "current": 49}}
+    detail = response.json()["detail"]
+    assert detail["required"] == 50
+    assert detail["current"] == 49
     session.refresh(user)
     assert user.credits == 49
     assert user.daily_free_used == 10

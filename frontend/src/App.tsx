@@ -42,12 +42,18 @@ export function App() {
     setAuthChecked(true);
   }
 
+  function updateCredits(credits: number) {
+    setView((current) => current.user
+      ? { ...current, user: { ...current.user, credits } }
+      : current);
+  }
+
   function onNavigate(route: AppRoute) {
     setView((current) => navigate(current, route));
   }
 
-  function onStrategyToAd(sourceGenId: number, purpose: string) {
-    setView((current) => startBasicFromStrategy(current, sourceGenId, purpose));
+  function onStrategyToAd(sourceGenId: number, strategySummary: string) {
+    setView((current) => startBasicFromStrategy(current, sourceGenId, strategySummary));
   }
 
   async function logout() {
@@ -57,12 +63,6 @@ export function App() {
       setView(loggedOutState());
       setAuthChecked(true);
     }
-  }
-
-  function updateCredits(credits: number) {
-    setView((current) => current.user
-      ? { ...current, user: { ...current.user, credits } }
-      : current);
   }
 
   function onUserChanged(user: UserResponse) {

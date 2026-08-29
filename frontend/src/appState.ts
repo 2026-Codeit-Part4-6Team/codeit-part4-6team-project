@@ -18,7 +18,7 @@ export type AppViewState = {
 export type GenerationPrefill = {
   source_gen_id: number;
   question: string;
-  purpose: string;
+  strategy_summary: string | null;
 };
 
 export function authenticatedState(user: UserResponse): AppViewState {
@@ -32,7 +32,7 @@ export function navigate(state: AppViewState, route: AppRoute): AppViewState {
 export function startBasicFromStrategy(
   state: AppViewState,
   sourceGenId: number,
-  purpose = "",
+  strategySummary = "",
 ): AppViewState {
   return {
     ...state,
@@ -40,7 +40,7 @@ export function startBasicFromStrategy(
     generationPrefill: {
       source_gen_id: sourceGenId,
       question: "이 전략으로 광고 문구를 만들어줘",
-      purpose,
+      strategy_summary: strategySummary.trim() || null,
     },
   };
 }

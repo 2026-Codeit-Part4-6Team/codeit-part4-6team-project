@@ -16,7 +16,7 @@ type ResultCardsProps = {
   response: GenerationResponse;
   platform?: Platform | null;
   onSuggestedChip?: (chip: string) => void;
-  onStrategyToAd?: (sourceGenId: number, purpose: string) => void;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onSelectProposal?: (index: ProposalIndex) => void;
   selectedProposalIndex?: ProposalIndex | null;
   publishedProposalIndex?: ProposalIndex | null;

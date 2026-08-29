@@ -12,6 +12,7 @@ import {
   generationLabel,
   historyTitle,
   MyPageView,
+  platformLabel,
   statusLabel,
 } from "./MyPage";
 
@@ -80,6 +81,8 @@ function renderView(
       loading={false}
       detailLoading={false}
       error={null}
+      detailError={null}
+      detailErrorId={null}
       onSelect={vi.fn()}
       onBack={vi.fn()}
       {...overrides}
@@ -91,13 +94,30 @@ describe("MyPage presentation", () => {
   it("uses stable user-facing labels and question fallback", () => {
     expect(generationLabel({ chatbot_type: "basic" })).toBe("Basic 광고");
     expect(generationLabel({ chatbot_type: "consultant" })).toBe("Consultant");
+    expect(platformLabel("instagram")).toBe("Instagram");
+    expect(platformLabel("xbanner")).toBe("X-배너");
     expect(statusLabel("published")).toBe("게시됨");
     expect(historyTitle(history[1])).toBe("광고를 만들어줘");
+  });
+
+  it("renders history entries as distinct cards with platform metadata", () => {
+    const html = renderView({
+      history: [
+        ...history.map((item) => item.id === 1 ? { ...item, platform: "xbanner" as const } : item),
+        { ...history[1], id: 3, platform: "instagram" as const },
+      ],
+    });
+
+    expect(html).toContain("history-item-card");
+    expect(html).toContain("Instagram");
+    expect(html).toContain("X-배너");
   });
 
   it("renders server summary and preserves server history order", () => {
     const html = renderView();
 
+    expect(html).toContain("오늘 무료 생성 잔여");
+    expect(html).not.toContain(">오늘 무료 생성<");
     expect(html).toContain("125");
     expect(html).toContain("8");
     expect(html).toContain("2");
@@ -140,6 +160,7 @@ describe("MyPage presentation", () => {
     expect(html).not.toContain("request_hash");
     expect(html).not.toContain("idempotency_key");
     expect(html).not.toContain("result_json");
+    expect(html).toContain('aria-expanded="true"');
   });
 
   it("renders Consultant strategy, reasons, and sources", () => {
@@ -167,5 +188,37 @@ describe("MyPage presentation", () => {
     expect(html).toContain("점심 고객에게 집중 홍보");
     expect(html).toContain("오피스 상권");
     expect(html).toContain("상권 API");
+  });
+
+  it("renders a safe failure message in history detail", () => {
+    const detail: GenerationDetailResponse = {
+      ...history[1],
+      status: "failed",
+      source_gen_id: null,
+      result: {
+        status: "error",
+        reason: "provider_error",
+        message: "생성 서비스에 일시적인 문제가 발생했습니다.",
+      },
+      copy_content: null,
+      image_b64: null,
+      selected_proposal_index: null,
+      hitl_approved: false,
+    };
+    const html = renderView({ detail });
+
+    expect(html).toContain("생성 실패");
+    expect(html).toContain("생성 서비스에 일시적인 문제가 발생했습니다.");
+  });
+
+  it("keeps the history list visible and marks a detail error row", () => {
+    const html = renderView({
+      detailError: new ApiError(500, { detail: "internal" }),
+      detailErrorId: 2,
+    });
+
+    expect(html).toContain("상권 전략");
+    expect(html).toContain("상세 확인 필요");
+    expect(html).toContain("서비스 연결이 불안정합니다");
   });
 });

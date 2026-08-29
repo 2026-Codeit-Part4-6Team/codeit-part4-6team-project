@@ -4,14 +4,17 @@ from ..graph.state import BasicState
 
 
 def trend_for_copy_node(state: BasicState) -> dict:
-    """질문과 업종 기준 검색 트렌드(연관 검색어, 날씨 포함)를 조회해
-    요약 문장을 context["trend"]에 채운다."""
-    store = state["store"]
-    trend = get_trend(
-        state["question"], industry=store.get("type")
-    )  # keyword는 우선 사용자 원문 전체를 그대로 넣음
-
+    """업종과 keyword(question_analysis가 추출한 검색 키워드) 기준 검색
+    트렌드(연관 검색어)를 조회해 요약 문장을 context["trend"]에
+    채운다. keyword가 없으면 API를 부르지 않고 트랜드 없이 진행한다."""
+    keyword = state.get("keyword")
     context = {**state.get("context", {})}
+
+    if not keyword:
+        context["trend"] = None
+        return {"context": context}
+
+    trend = get_trend(keyword)
 
     if not trend:
         context["trend"] = None
@@ -20,9 +23,6 @@ def trend_for_copy_node(state: BasicState) -> dict:
     summary = f"'{trend['keyword']}' 검색 트렌드 {trend['direction']}"
     if trend.get("related"):
         summary += f" (연관 검색어: {', '.join(trend['related'])})"
-    if trend.get("weather"):
-        w = trend["weather"]
-        summary += f", 현재 날씨: {w.get('sky')} {w.get('temp')}도"
 
     context["trend"] = summary
     return {"context": context}

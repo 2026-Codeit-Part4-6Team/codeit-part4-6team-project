@@ -75,6 +75,37 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls[1]?.[1]?.credentials).toBe("include");
   });
 
+  it("requests the server-owned payment catalog and sends an idempotent purchase", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        currency: "KRW",
+        vat_included: false,
+        unit_price: 10,
+        packages: [{ id: "starter", credits: 5000, amount: 48500, discount_percent: 3 }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        payment_id: 1,
+        package: "starter",
+        credits: 5000,
+        amount: 48500,
+        discount_percent: 3,
+        vat_included: false,
+        balance: 5000,
+        status: "completed",
+        provider: "pending",
+      }), { status: 201 }));
+    const api = new ApiClient("/api", fetcher);
+
+    await api.paymentCatalog();
+    await api.purchasePackage("starter", "00000000-0000-0000-0000-000000000901");
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/payments/catalog");
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/payments");
+    expect(new Headers(fetcher.mock.calls[1]?.[1]?.headers).get("Idempotency-Key")).toBe(
+      "00000000-0000-0000-0000-000000000901",
+    );
+  });
+
   it("updates the authenticated store profile", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ id: 1, business_name: "새 가게" }), { status: 200 }),
@@ -227,32 +258,4 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls.every((call) => call[1]?.method === "GET")).toBe(true);
   });
 
-  it("sends a fresh idempotency key with a demo package purchase", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          payment_id: 1,
-          package: "starter",
-          amount: 5000,
-          credits: 500,
-          balance: 600,
-          status: "completed",
-          demo: true,
-        }),
-        { status: 201 },
-      ),
-    );
-    const api = new ApiClient("/api", fetcher);
-
-    await api.purchaseDemoPackage(
-      "starter",
-      "00000000-0000-0000-0000-000000000901",
-    );
-
-    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/payments");
-    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
-    expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBe(
-      "00000000-0000-0000-0000-000000000901",
-    );
-  });
 });

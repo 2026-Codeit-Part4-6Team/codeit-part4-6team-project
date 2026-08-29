@@ -234,7 +234,7 @@ def test_publish_maps_persistence_failure_to_sanitized_500(
     generation = add_generation(db_session, user)
     auth_as(client, user)
 
-    async def fail_publish(*_args, **_kwargs):
+    def fail_publish(*_args, **_kwargs):
         raise PublishPersistenceError("database secret")
 
     monkeypatch.setattr(generations_router, "publish_generation", fail_publish)
