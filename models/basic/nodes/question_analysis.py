@@ -38,7 +38,8 @@ SYSTEM_PROMPT = """너는 소상공인 광고 카피 요청을 분석하는 어�
   구체적으로 되묻는 자연스러운 한 문장으로 작성한다.
 
 keyword는:
-- 질문에서 상품·메뉴·주제를 나타내는 명사구를 1~3단어의 검색어 형태로 뽑는다
+- question과 consultant_strategy(주어진 경우, 특히 strategy.actions)에서
+  상품·메뉴·주제를 나타내는 명사구를 1~3단어의 검색어 형태로 뽑는다
   (문장이 아니라 실제 검색창에 입력할 법한 짧은 검색어처럼 작성한다).
   예: "여름 신메뉴 홍보 문구 만들어줘" → keyword: "여름 신메뉴"
   예: "아이스 아메리카노 신메뉴 홍보" → keyword: "아이스 아메리카노"
@@ -83,7 +84,20 @@ def question_analysis_node(state: BasicState) -> dict:
                 }
             ],
         }
-    parsed = json.loads(raw)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return {
+            "status": "error",
+            "issues": state.get("issues", [])
+            + [
+                {
+                    "source": "question_analysis",
+                    "reason": classify_llm_error(exc),
+                    "message": "질문 분석 중 오류가 발생했습니다.",
+                }
+            ],
+        }
     tokens_used = state.get("tokens_used", 0) + tokens
 
     if not parsed.get("sufficient", True):
@@ -106,6 +120,6 @@ def question_analysis_node(state: BasicState) -> dict:
     return {
         "status": "ok",
         "question": parsed.get("rewritten_question", state["question"]),
-        "keyword": parsed.get("keyword")
-        or parsed.get("rewritten_question", state["question"]),
+        "keyword": parsed.get("keyword") or "",
+        "tokens_used": tokens_used,
     }
