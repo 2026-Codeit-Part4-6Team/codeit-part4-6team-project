@@ -53,7 +53,7 @@ GitHub README 반영 전 확인할 것.
 
 아래 이미지를 클릭하면 YouTube 시연 영상으로 이동합니다.
 
-[![매출부스터 동영상](assets/thumbnail.png)](https://www.youtube.com/watch?v=N4SLRAgrLik)
+[![매출부스터 동영상](docs/assets/thumbnail.png)](https://www.youtube.com/watch?v=N4SLRAgrLik)
 
 ---
 
@@ -62,7 +62,7 @@ GitHub README 반영 전 확인할 것.
 <details>
 <summary><strong>카피니 - 기본 챗봇</strong></summary>
 
-![기본 챗봇 광고 문구와 이미지 3안](images/basic_3_proposals.png)
+![기본 챗봇 광고 문구와 이미지 3안](docs/images/basic_3_proposals.png)
 
 - 인스타그램·X-배너 광고 문구 3안 생성
 - 생성 결과 랭킹과 플랫폼별 형식 변환
@@ -76,7 +76,7 @@ GitHub README 반영 전 확인할 것.
 <details>
 <summary><strong>분석이 - 컨설턴트 챗봇</strong></summary>
 
-![이 전략으로 광고 만들기](images/link_to_ads.png)
+![이 전략으로 광고 만들기](docs/images/link_to_ads.png)
 
 - 소상공인시장진흥공단 OpenAPI 기반 주변 상권 분석
 - 구체적인 상품·메뉴가 있을 때만 검색 트렌드 조회
@@ -106,7 +106,7 @@ GitHub README 반영 전 확인할 것.
 
 ## 🏗️ 시스템 구조
 
-![매출부스터 전체 시스템 아키텍처](assets/01_system_architecture.png)
+![매출부스터 전체 시스템 아키텍처](docs/assets/01_system_architecture.png)
 
 <details>
 <summary><strong>카피니 - 기본 챗봇 파이프라인</strong></summary>
@@ -120,7 +120,7 @@ GitHub README 반영 전 확인할 것.
 3. 생성 및 검증 단계 - 카피 생성(copy_gen) → 랭킹(ranking, LLM Judge) → 규제 검증(regulation)을 거치며, 규제 위반 시 재시도 상한(2회) 내에서 카피 생성(copy_gen)으로 되돌아가는 루프가 있다. 이후 이미지 생성(image_gen) → 이미지 검수(image_review)에서도 디코딩 전부 실패 시 재시도 상한(2회) 내에서 카피 생성(copy_gen)으로 되돌아가는 루프가 있다. 
 4. 출력 단계 - 채널 리포맷(channel_format)으로 서비스 응답 형태를 조립하고, 출력 검증(security_output) → 최종 검증(self_check)을 통과하면 그래프가 종료된다. 각 검증 게이트(security_input, security_output, self_check)는 위반 시 즉시 종료로 빠지는 별도 경로를 가진다. 
 
-![카피니 - 기본 챗봇 파이프라인](images/image.png)
+![카피니 - 기본 챗봇 파이프라인](docs/images/image.png)
 
 </details>
 
@@ -129,7 +129,7 @@ GitHub README 반영 전 확인할 것.
 
 질문 분석 후 상권·트렌드·계절성·추천 질문 노드를 동시에 실행하고, 결과를 전략 생성 단계에서 합칩니다. 상권과 트렌드는 캐시를 먼저 확인하고 데이터가 없을 때만 외부 API를 호출합니다.
 
-![컨설턴트 챗봇 LangGraph 파이프라인](assets/04_consultant_pipeline.png)
+![컨설턴트 챗봇 LangGraph 파이프라인](docs/assets/04_consultant_pipeline.png)
 
 </details>
 
@@ -137,7 +137,7 @@ GitHub README 반영 전 확인할 것.
 
 ## 📊 평가 결과
 
-![매출부스터 평가 결과 대시보드](assets/06_results_dashboard.png)
+![매출부스터 평가 결과 대시보드](docs/assets/06_results_dashboard.png)
 
 <details>
 <summary><strong>카피니 - 기본 챗봇 60문항</strong></summary>
@@ -464,12 +464,12 @@ codeit-part4-6team-project/
 ### 산출물
 
 - [시연 영상](https://www.youtube.com/watch?v=N4SLRAgrLik)
-- [카피니 - 기본 챗봇 최종 보고서](reports/basic_report.md)
-- [분석이 - 컨설턴트 챗봇 최종 보고서](reports/consult_report.md)
-- [검증 함수 최종 보고서](reports/validation_report.md)
-- [서비스 최종 보고서](reports/service_report.md)
-- [최종 프로젝트 보고서](reports/final_report.md)
-- [최종 발표 자료](reports/final_presentation.pdf)
+- [카피니 - 기본 챗봇 최종 보고서](docs/reports/basic_report.md)
+- [분석이 - 컨설턴트 챗봇 최종 보고서](docs/reports/consult_report.md)
+- [검증 함수 최종 보고서](docs/reports/validation_report.md)
+- [서비스 최종 보고서](docs/reports/service_report.md)
+- [최종 프로젝트 보고서](docs/reports/final_report.md)
+- [최종 발표 자료](docs/reports/final_presentation.pdf)
 - [CI 구축 및 검증 보고서](https://app.notion.com/p/CI-3b5efe95f43b806c9e4ac77e10d66e4d)
 - [CD 설계 및 구현 보고서](https://app.notion.com/p/CD-3b5efe95f43b8087ae61dc2d184cb918)
 - [서비스 개발 D1 API DB Contract v0.4 Draft](https://app.notion.com/p/D1-API-DB-Contract-v0-4-Draft-3c3efe95f43b807fa6b6c9458a7d632e)
