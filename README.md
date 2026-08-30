@@ -15,7 +15,7 @@ GitHub README 반영 전 확인할 것.
 
 <br>
 
-![매출부스터 챗봇 선택 대시보드](images/home_dashboard.png)
+![매출부스터 챗봇 선택 대시보드](docs/images/home_dashboard.png)
 
 <br>
 
