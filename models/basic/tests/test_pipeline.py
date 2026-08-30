@@ -25,6 +25,9 @@ def _fake_call_llm(
     payload = json.loads(user)
 
     if "카피라이터" in system:
+        assert (
+            payload.get("benchmark") is not None
+        ), "benchmark 컨텍스트가 copy_gen에 전달되지 않았습니다."
         content = json.dumps(
             {
                 "candidates": [
@@ -70,9 +73,9 @@ def _fake_get_market(lat, lng, radius=500, industry=None):
     return {"total_count": 43, "same_industry_count": 2, "nearest_distance_m": 80}
 
 
-def _fake_get_trend(question, industry=None):
+def _fake_get_trend(keyword):
     return {
-        "keyword": industry or "카페",
+        "keyword": keyword,
         "direction": "상승",
         "related": ["아이스 아메리카노"],
     }
@@ -102,6 +105,12 @@ def _mock_external_calls():
             return_value=_FAKE_IMAGE_B64,
         ),
         patch("models.basic.nodes.image_review._clip_score", return_value=0.9),
+        patch(
+            "models.basic.nodes.benchmark_node.search_benchmark",
+            return_value=[
+                {"id": "bm_001", "industry": "카페", "copy": "시원한 콜드브루 한 잔"}
+            ],
+        ),
     ):
         yield
 
@@ -175,3 +184,31 @@ def test_e2e_scenario_d_clarification_round_trip():
     )
     response = assemble_response(final_state)
     assert response["status"] == "ok"
+
+
+def test_e2e_scenario_f_self_check_reject_blocks_immediately():
+    """self_check이 reject면 재시도 없이 즉시 blocked로 끝난다(D-413)."""
+    with patch(
+        "models.basic.nodes.self_check_node.self_check",
+        return_value={
+            "action": "reject",
+            "reasons": ["근거 없음"],
+            "message": "부족",
+        },
+    ):
+        graph = build_basic_graph()
+        final_state = graph.invoke(
+            {
+                "chatbot_type": "basic",
+                "user_id": 1,
+                "question": "여름 신메뉴 홍보 문구 만들어줘",
+                "store": _STORE,
+                "platform": "instagram",
+                "extra": {},
+            }
+        )
+
+    response = assemble_response(final_state)
+    assert response["status"] == "blocked"
+    assert response["reason"] == "unknown"
+    assert final_state["self_check_retry_count"] == 1

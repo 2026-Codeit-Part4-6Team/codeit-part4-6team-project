@@ -45,6 +45,15 @@ Backend 컨테이너는 시작 시 `python -m backend.init_db`를 먼저 실행�
 docker compose run --rm backend python -m backend.init_db
 ```
 
+시연용 계정은 `DEMO_ACCOUNTS_ENABLED=true`와 비밀번호 환경변수를 주입한 뒤
+아래 명령으로 명시적으로 생성합니다. `--reset`은 `demo-*` 계정과 해당 생성·결제 이력만
+삭제하고 다시 만들며, 기본 초기 Credit은 `DEMO_INITIAL_CREDITS=20000`입니다.
+
+```bash
+docker compose run --rm backend python -m backend.demo_seed
+docker compose run --rm backend python -m backend.demo_seed --reset
+```
+
 서비스 초기화 명령은 `users`, `payments`, `generations`, `waiting_copies` 네 테이블만 관리합니다. 모델 캐시 테이블은 별도 초기화 책임을 갖습니다.
 
 ## 현재 구조

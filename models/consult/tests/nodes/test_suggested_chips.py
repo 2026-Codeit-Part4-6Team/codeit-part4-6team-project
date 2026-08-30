@@ -123,11 +123,17 @@ def test_omits_missing_info_section_when_empty(mock_call_llm) -> None:
 
 @patch("models.consult.nodes.suggested_chips.call_llm")
 def test_strips_whitespace_from_chips(mock_call_llm) -> None:
-    mock_call_llm.return_value = _response({"chips": ["  질문 하나\n", "질문 둘", "질문 셋"]})
+    mock_call_llm.return_value = _response(
+        {"chips": ["  메뉴를 추천해 주세요\n", "가격은 어떻게 정하면 좋을까요?", "타겟은 어떻게 정할까요?"]}
+    )
 
     result = suggested_chips(_state())
 
-    assert result["suggested_chips"] == ["질문 하나", "질문 둘", "질문 셋"]
+    assert result["suggested_chips"] == [
+        "메뉴를 추천해 주세요",
+        "가격은 어떻게 정하면 좋을까요?",
+        "타겟은 어떻게 정할까요?",
+    ]
 
 
 @patch("models.consult.nodes.suggested_chips.call_llm")
@@ -199,6 +205,29 @@ def test_omits_missing_info_section_when_context_missing_entirely(mock_call_llm)
     result = suggested_chips(_state_without_context())
 
     assert result["suggested_chips"] == _CHIPS
+
+
+@patch("models.consult.nodes.suggested_chips.call_llm")
+def test_does_not_fall_back_on_direct_interrogative_endings_that_are_not_self_referential(
+    mock_call_llm,
+) -> None:
+    """어미 기반 필터를 실측 파일럿(2026-08-24) 후 제거했다 — "-인가요?"로 끝나도
+    자기 가게 정보를 되묻는 게 아니라 챗봇의 일반 지식을 구하는 정상 질문(예:
+    마케팅 채널·SNS 플랫폼·적합 고객층)까지 오탐해 정상 칩 세트 전체를 폐기하는
+    손실이 더 컸다(진단 재실행 5건 중 4건이 이 패턴으로 오탐). 화자 방향은
+    프롬프트(SYSTEM_PROMPT)로 유도하고 D 평가(화자방향 축)로 오프라인 측정한다
+    — 여기서는 형식만 지키면 그대로 통과해야 한다."""
+    good_chips = [
+        "효과적인 마케팅 채널은 무엇인가요?",
+        "적합한 SNS 플랫폼은 무엇인가요?",
+        "이 업종에 적합한 고객층은 누구인가요?",
+    ]
+    mock_call_llm.return_value = _response({"chips": good_chips})
+
+    result = suggested_chips(_state())
+
+    assert result["suggested_chips"] == good_chips
+    assert result["chips_fallback"] is False
 
 
 @patch("models.consult.nodes.suggested_chips.call_llm")

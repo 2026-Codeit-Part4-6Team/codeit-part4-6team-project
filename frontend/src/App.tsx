@@ -4,6 +4,7 @@ import {
   authenticatedState,
   loggedOutState,
   navigate,
+  startBasicFromStrategy,
   type AppRoute,
   type AppViewState,
 } from "./appState";
@@ -41,8 +42,18 @@ export function App() {
     setAuthChecked(true);
   }
 
+  function updateCredits(credits: number) {
+    setView((current) => current.user
+      ? { ...current, user: { ...current.user, credits } }
+      : current);
+  }
+
   function onNavigate(route: AppRoute) {
     setView((current) => navigate(current, route));
+  }
+
+  function onStrategyToAd(sourceGenId: number, strategySummary: string) {
+    setView((current) => startBasicFromStrategy(current, sourceGenId, strategySummary));
   }
 
   async function logout() {
@@ -52,6 +63,10 @@ export function App() {
       setView(loggedOutState());
       setAuthChecked(true);
     }
+  }
+
+  function onUserChanged(user: UserResponse) {
+    setView((current) => ({ ...current, user }));
   }
 
   if (restoreError) {
@@ -69,8 +84,12 @@ export function App() {
       api={api}
       user={view.user}
       route={view.route}
+      generationPrefill={view.generationPrefill}
       onNavigate={onNavigate}
+      onStrategyToAd={onStrategyToAd}
       onLogout={() => void logout()}
+      onCreditsChanged={updateCredits}
+      onUserChanged={onUserChanged}
     />
   );
 }

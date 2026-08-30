@@ -116,7 +116,6 @@ def test_fetch_parses_response_into_contract_shape(
         "keyword": "아이스아메리카노",
         "direction": "상승",
         "related": ["냉커피", "여름음료"],
-        "weather": None,
     }
     mock_fetch_related.assert_called_once_with("아이스아메리카노")
 
@@ -136,8 +135,8 @@ def test_fetch_keeps_trend_result_when_related_keywords_fail(
 ) -> None:
     """search_ad_api가 실패해도(자격증명 없음 등) 트렌드 조회 자체는 계속된다 — 부분 성공 허용.
 
-    계약(docs/repo_contract.md)상 related는 항상 list[str]이어야 하므로(weather와
-    달리 None 불허), search_ad_api의 실패(None)는 여기서 빈 리스트로 정규화된다.
+    계약(docs/repo_contract.md)상 related는 항상 list[str]이어야 하므로,
+    search_ad_api의 실패(None)는 여기서 빈 리스트로 정규화된다.
     """
     monkeypatch.setenv("NAVER_CLIENT_ID", "test-id")
     monkeypatch.setenv("NAVER_CLIENT_SECRET", "test-secret")
