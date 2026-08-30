@@ -78,49 +78,62 @@ export function AuthScreen({ api, onAuthenticated }: AuthScreenProps) {
 
   return (
     <main className={`auth-shell auth-shell--${mode}`}>
-      <BrandHeader
-        subtitle={
-          mode === "login"
-            ? "소상공인을 위한 AI 마케팅 어시스턴트"
-            : "새 계정 만들기"
-        }
-      />
+      {mode === "login" ? (
+        <header className="auth-login-brand">
+          <img
+            className="auth-brand-logo"
+            src="/assets/brand/salesbooster-logo.png"
+            alt="매출부스터 AI"
+          />
+          <p>소상공인을 위한 AI 마케팅 어시스턴트</p>
+        </header>
+      ) : (
+        <BrandHeader subtitle="새 계정 만들기" />
+      )}
 
       {mode === "login" ? (
         <>
-          <section className="auth-card" aria-labelledby="login-title">
-            <h1 id="login-title" className="sr-only">로그인</h1>
-            <form className="auth-form" onSubmit={submitLogin}>
-              <label>
-                사용자명
-                <input
-                  name="username"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  minLength={3}
-                  placeholder="사용자명을 입력해 주세요"
-                  required
-                />
-              </label>
-              <label>
-                비밀번호
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  minLength={8}
-                  required
-                />
-              </label>
-              {error && <div className="error-banner" role="alert">{error}</div>}
-              <button className="primary auth-submit" disabled={busy}>
-                {busy ? "확인 중…" : "로그인"}
-              </button>
-            </form>
-          </section>
+          <div className="auth-login-stage">
+            <figure className="auth-mascot auth-mascot--copyni">
+              <img src="/assets/mascots/copyni.png" alt="광고 제작 파트너 카피니" />
+            </figure>
+            <section className="auth-card" aria-labelledby="login-title">
+              <h1 id="login-title" className="sr-only">로그인</h1>
+              <form className="auth-form" onSubmit={submitLogin}>
+                <label>
+                  사용자명
+                  <input
+                    name="username"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    minLength={3}
+                    placeholder="사용자명을 입력해 주세요"
+                    required
+                  />
+                </label>
+                <label>
+                  비밀번호
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </label>
+                {error && <div className="error-banner" role="alert">{error}</div>}
+                <button className="primary auth-submit" disabled={busy}>
+                  {busy ? "확인 중…" : "로그인"}
+                </button>
+              </form>
+            </section>
+            <figure className="auth-mascot auth-mascot--bunseoki">
+              <img src="/assets/mascots/bunseoki.png" alt="상권 분석 파트너 분석이" />
+            </figure>
+          </div>
           <p className="auth-switch-copy">
             계정이 없으신가요?
             <button type="button" onClick={() => switchMode("register")}>회원가입</button>

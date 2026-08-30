@@ -15,7 +15,6 @@ _TREND_RESULT = {
     "keyword": "아이스아메리카노",
     "direction": "상승",
     "related": ["냉커피", "여름음료"],
-    "weather": None,
 }
 
 
@@ -42,21 +41,6 @@ def test_cache_miss_fetches_and_stores(mock_fetch, session_factory) -> None:
         row = session.query(TrendCache).one()
         assert row.keyword == "아이스아메리카노"
         assert json.loads(row.result_json) == _TREND_RESULT
-
-
-@patch("cache.trend_repo.trend_api.fetch")
-def test_cache_hit_preserves_valid_weather(mock_fetch, session_factory) -> None:
-    result_with_weather = {**_TREND_RESULT, "weather": {"temp": 31.0, "sky": "맑음"}}
-    with session_factory() as session:
-        session.add(
-            TrendCache(keyword="아이스아메리카노", result_json=json.dumps(result_with_weather))
-        )
-        session.commit()
-
-    result = get_trend("아이스아메리카노")
-
-    mock_fetch.assert_not_called()
-    assert result == result_with_weather
 
 
 @patch("cache.trend_repo.trend_api.fetch")
@@ -190,14 +174,6 @@ def test_corrupted_cache_json_falls_back_to_live_fetch(mock_fetch, session_facto
         {"direction": "상승", "related": []},  # keyword 필드 자체 누락
         ["keyword", "direction"],
         "그냥 문자열",
-        # weather 형식 오류 — None이거나 {"temp": float, "sky": str}만 허용
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": "맑음"},
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": [31, "맑음"]},
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": {"temp": "hot", "sky": "맑음"}},
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": {"temp": True, "sky": "맑음"}},
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": {"sky": "맑음"}},  # temp 누락
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": {"temp": 31.0}},  # sky 누락
-        {"keyword": "아이스아메리카노", "direction": "상승", "related": [], "weather": {"temp": 31.0, "sky": 123}},
     ],
 )
 @patch("cache.trend_repo.trend_api.fetch")

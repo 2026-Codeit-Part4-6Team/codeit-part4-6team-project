@@ -110,7 +110,10 @@ def test_call_llm_exception_sets_error_status_with_classified_reason(mock_call_l
 
 
 @patch("models.basic.nodes.question_analysis.call_llm")
-def test_missing_keyword_falls_back_to_rewritten_question(mock_call_llm):
+def test_missing_keyword_falls_back_to_empty_string(mock_call_llm):
+    """keyword가 비면 rewritten_question/question으로 대체하지 않고 빈 문자열로
+    둔다 — trend_for_copy가 keyword 없을 때 API 자체를 스킵하는 분기(D-201/D-079)를
+    실제로 타게 하기 위해서다."""
     mock_call_llm.return_value = (
         json.dumps(
             {
@@ -124,4 +127,4 @@ def test_missing_keyword_falls_back_to_rewritten_question(mock_call_llm):
 
     result = question_analysis_node(_state())
 
-    assert result["keyword"] == "여름 신메뉴 홍보 문구"
+    assert result["keyword"] == ""

@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 
 import pytest
 from pydantic import SecretStr
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend import demo_seed
 from backend.clients.geocoding_client import GeocodingResult
 from backend.database import create_database_engine
 from backend.demo_seed import seed_demo_user
-from backend.models import Base
+from backend.models import Base, Payment, User
 from backend.schemas import RegisterRequest
 from backend.services.auth_service import GeocodingPolicy
 
@@ -78,6 +80,66 @@ def test_seed_creates_demo_user_with_registration_contract(db):
     assert user.road_address == "서울 강남구 테헤란로 1"
 
 
+def test_seed_assigns_initial_credits_for_e2e_demo(db):
+    user, created = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+
+    assert created is True
+    assert user.credits == 20_000
+    assert user.daily_free_used == 0
+
+
+def test_reset_demo_accounts_removes_only_named_users(db):
+    requests = {
+        role: register_request(
+            username=f"demo-{role}",
+            email=f"demo-{role}@example.com",
+        )
+        for role in ("pm", "basic", "consultant", "service")
+    }
+    asyncio.run(
+        demo_seed.seed_demo_accounts(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+    asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(username="keep-me", email="keep@example.com"),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+
+    # The reset helper is intentionally scoped to the four demo usernames.
+    removed = demo_seed.reset_demo_accounts(
+        db, tuple(request.username for request in requests.values())
+    )
+
+    assert removed == 4
+    assert db.scalars(select(User)).all()[0].username == "keep-me"
+
+
 def test_seed_keeps_existing_user_and_password_unchanged(db):
     first, _ = asyncio.run(
         seed_demo_user(
@@ -107,3 +169,118 @@ def test_seed_keeps_existing_user_and_password_unchanged(db):
     assert created is False
     assert second.id == first.id
     assert second.password_hash == original_hash
+
+
+def test_topup_refreshes_existing_credits_without_removing_history(db):
+    first, _ = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+        )
+    )
+    first.credits = 17
+    db.add(
+        Payment(
+            user_id=first.id,
+            package="starter",
+            amount=48_500,
+            credits=5_000,
+            method="pending_provider",
+            status="completed",
+        )
+    )
+    db.commit()
+
+    second, created = asyncio.run(
+        seed_demo_user(
+            db,
+            register_request(password=SecretStr("different-password")),
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+            initial_credits=20_000,
+            topup=True,
+        )
+    )
+
+    assert created is False
+    assert second.id == first.id
+    assert second.credits == 20_000
+    assert db.scalar(select(Payment).where(Payment.user_id == first.id)) is not None
+
+
+def test_demo_account_requests_use_role_usernames_and_shared_secret(monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "shared-demo-password")
+
+    requests = demo_seed.demo_account_requests_from_env()
+
+    assert tuple(requests) == ("pm", "basic", "consultant", "service")
+    assert tuple(requests[role].username for role in requests) == (
+        "demo-pm",
+        "demo-basic",
+        "demo-consultant",
+        "demo-service",
+    )
+    assert all(
+        request.business_name == "코드잇 카페" for request in requests.values()
+    )
+    assert all(
+        request.password.get_secret_value() == "shared-demo-password"
+        for request in requests.values()
+    )
+
+
+def test_demo_account_requests_use_e2e_canonical_address_by_default(monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "shared-demo-password")
+
+    requests = demo_seed.demo_account_requests_from_env()
+
+    assert all(
+        request.address == "서울 강남구 역삼동" for request in requests.values()
+    )
+
+
+def test_seed_demo_accounts_is_idempotent_for_each_role(db):
+    requests = {
+            role: register_request(
+            username=f"demo-{role}",
+            email=f"demo-{role}@example.com",
+        )
+        for role in ("pm", "basic", "consultant", "service")
+    }
+
+    seed = demo_seed.seed_demo_accounts
+    first = asyncio.run(
+        seed(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+    second = asyncio.run(
+        seed(
+            db,
+            requests,
+            StaticGeocoder(),
+            GeocodingPolicy(),
+            app_env="demo",
+            now=NOW,
+            daily_free_limit=10,
+        )
+    )
+
+    assert [role for role, _user, created in first] == ["pm", "basic", "consultant", "service"]
+    assert all(created for _role, _user, created in first)
+    assert all(not created for _role, _user, created in second)

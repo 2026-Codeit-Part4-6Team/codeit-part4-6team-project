@@ -2,6 +2,11 @@ from typing import NotRequired
 
 from models.shared.state_common import CommonState
 
+PROPOSAL_ERROR_REASONS = frozenset(
+    {"rate_limit", "content_policy", "timeout", "unknown", "parse_failed"}
+)
+REASON_UNKNOWN = "unknown"
+
 
 class BasicState(CommonState):
     """기본 카피/이미지 생성 파이프라인 전용 상태.
@@ -22,9 +27,11 @@ class BasicState(CommonState):
     image_review_result: NotRequired[
         dict
     ]  # CLIP Score, 금지요소 검수 결과 (validation과 별도)
+    image_captions_en: NotRequired[list]  # CLIP 채점용 영문 캡션
 
     copy_retry_count: NotRequired[int]  # 카피 생성 / 규제 재시도 루프 카운터
     image_retry_count: NotRequired[int]  # 이미지 재생성 루프 카운터
+    self_check_retry_count: NotRequired[int]  # 자가점검 반려 재시도 카운터
     status: NotRequired[str]  # ok, blocked, error
     issues: NotRequired[
         list[dict]

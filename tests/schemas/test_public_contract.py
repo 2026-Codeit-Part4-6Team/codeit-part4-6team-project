@@ -15,6 +15,19 @@ def test_public_basic_request_requires_platform():
         GenerateRequest(chatbot_type="basic", question="광고를 만들어줘", max_accepted_credits=0)
 
 
+@pytest.mark.parametrize("platform", ["banner", "xbanner"])
+def test_public_basic_request_accepts_xbanner_and_legacy_banner(platform):
+    """전환기 Service 계약은 신규 xbanner와 기존 banner를 모두 허용합니다."""
+    request = GenerateRequest(
+            chatbot_type="basic",
+            question="X-배너 광고를 만들어줘",
+            platform=platform,
+            max_accepted_credits=0,
+    )
+
+    assert request.platform == platform
+
+
 def test_public_consultant_request_requires_null_platform():
     """Consultant 공개 요청은 플랫폼을 사용하지 않습니다."""
     request = GenerateRequest(chatbot_type="consultant", question="상권을 분석해줘", max_accepted_credits=0)
@@ -36,7 +49,7 @@ def test_public_request_rejects_service_owned_fields():
             {
                 "chatbot_type": "basic",
                 "question": "광고를 만들어줘",
-                "platform": "banner",
+                "platform": "xbanner",
                 "max_accepted_credits": 0,
                 "user_id": 1,
             }
