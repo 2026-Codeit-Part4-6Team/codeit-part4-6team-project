@@ -33,12 +33,32 @@ GitHub README 반영 전 확인할 것.
 
 ## 👥 팀원 및 역할
 
-<p align="center">
-  <a href="https://github.com/minjaejeon0827"><img src="docs/images/team/minjae_card.svg?v=3" width="190" alt="전민재 - PM·검증"></a>
-  <a href="https://github.com/jaeheonki"><img src="docs/images/team/jaeheon_card.svg?v=3" width="190" alt="김재헌 - 컨설턴트 챗봇 모델"></a>
-  <a href="https://github.com/heewon02"><img src="docs/images/team/heewon_card.svg?v=3" width="190" alt="조희원 - 기본 챗봇 모델"></a>
-  <a href="https://github.com/Nighthom"><img src="docs/images/team/seungjun_card.svg?v=3" width="190" alt="윤승준 - 서비스 개발"></a>
-</p>
+<table>
+  <tr>
+    <th align="center" width="25%">전민재</th>
+    <th align="center" width="25%">김재헌</th>
+    <th align="center" width="25%">조희원</th>
+    <th align="center" width="25%">윤승준</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/team/minjae_squirtle.png" height="140" alt="전민재 - 꼬부기"></td>
+    <td align="center"><img src="docs/images/team/jaeheon_snorlax.png" height="140" alt="김재헌 - 잠만보"></td>
+    <td align="center"><img src="docs/images/team/heewon_pikachu.png" height="140" alt="조희원 - 피카츄"></td>
+    <td align="center"><img src="docs/images/team/seungjun_eevee.png" height="140" alt="윤승준 - 이브이"></td>
+  </tr>
+  <tr>
+    <td align="center">PM · 검증</td>
+    <td align="center">분석이 · 컨설턴트 챗봇 모델</td>
+    <td align="center">카피니 · 기본 챗봇 모델</td>
+    <td align="center">서비스 개발</td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/minjaejeon0827"><img src="https://img.shields.io/badge/GitHub-minjaejeon0827-181717?style=flat-square&amp;logo=github&amp;logoColor=white" alt="minjaejeon0827 GitHub"></a></td>
+    <td align="center"><a href="https://github.com/jaeheonki"><img src="https://img.shields.io/badge/GitHub-jaeheonki-181717?style=flat-square&amp;logo=github&amp;logoColor=white" alt="jaeheonki GitHub"></a></td>
+    <td align="center"><a href="https://github.com/heewon02"><img src="https://img.shields.io/badge/GitHub-heewon02-181717?style=flat-square&amp;logo=github&amp;logoColor=white" alt="heewon02 GitHub"></a></td>
+    <td align="center"><a href="https://github.com/Nighthom"><img src="https://img.shields.io/badge/GitHub-Nighthom-181717?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Nighthom GitHub"></a></td>
+  </tr>
+</table>
 
 ---
 
