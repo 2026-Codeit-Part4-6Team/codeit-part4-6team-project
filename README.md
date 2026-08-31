@@ -34,10 +34,10 @@ GitHub README 반영 전 확인할 것.
 ## 👥 팀원 및 역할
 
 <p align="center">
-  <a href="https://github.com/minjaejeon0827"><img src="docs/images/team/minjae_card.svg" width="215" alt="전민재 - PM·검증"></a>
-  <a href="https://github.com/jaeheonki"><img src="docs/images/team/jaeheon_card.svg" width="215" alt="김재헌 - 컨설턴트 챗봇 모델"></a>
-  <a href="https://github.com/heewon02"><img src="docs/images/team/heewon_card.svg" width="215" alt="조희원 - 기본 챗봇 모델"></a>
-  <a href="https://github.com/Nighthom"><img src="docs/images/team/seungjun_card.svg" width="215" alt="윤승준 - 서비스 개발"></a>
+  <a href="https://github.com/minjaejeon0827"><img src="docs/images/team/minjae_card.svg" width="190" alt="전민재 - PM·검증"></a>
+  <a href="https://github.com/jaeheonki"><img src="docs/images/team/jaeheon_card.svg" width="190" alt="김재헌 - 컨설턴트 챗봇 모델"></a>
+  <a href="https://github.com/heewon02"><img src="docs/images/team/heewon_card.svg" width="190" alt="조희원 - 기본 챗봇 모델"></a>
+  <a href="https://github.com/Nighthom"><img src="docs/images/team/seungjun_card.svg" width="190" alt="윤승준 - 서비스 개발"></a>
 </p>
 
 ---
