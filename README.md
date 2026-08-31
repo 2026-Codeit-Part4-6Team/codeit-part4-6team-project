@@ -474,7 +474,7 @@ codeit-part4-6team-project/
 - [CI 구축 및 검증 보고서](https://app.notion.com/p/CI-3b5efe95f43b806c9e4ac77e10d66e4d)
 - [CD 설계 및 구현 보고서](https://app.notion.com/p/CD-3b5efe95f43b8087ae61dc2d184cb918)
 - [서비스 개발 D1 API DB Contract v0.4 Draft](https://app.notion.com/p/D1-API-DB-Contract-v0-4-Draft-3c3efe95f43b807fa6b6c9458a7d632e)
-- [E2E 1회차 테스트 자료](https://app.notion.com/p/3b5efe95f43b80749aced13d0e08444b)
+- [E2E 1회차 테스트 자료](https://app.notion.com/p/E2E-1-3c8efe95f43b80fb84d1c485be8d939d)
 - [E2E 2회차 테스트 자료](https://app.notion.com/p/E2E-2-3caefe95f43b80eab598e4782cb903ce)
 - [백엔드 안내](backend/README.md)
 - [프론트엔드 안내](frontend/README.md)
