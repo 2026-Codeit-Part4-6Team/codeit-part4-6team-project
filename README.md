@@ -33,12 +33,46 @@ GitHub README 반영 전 확인할 것.
 
 ## 👥 팀원 및 역할
 
-| 이름 | 역할 | 주요 업무 |
-| --- | --- | --- |
-| 전민재 | PM·검증 | 일정·의사결정, 공용 계약, 검증 함수 4종, 평가 |
-| 조희원 | 카피니 - 기본 챗봇 모델 | 광고 문구·이미지 생성 LangGraph |
-| 김재헌 | 분석이 - 컨설턴트 챗봇 모델 | 상권·트렌드 데이터 계층, 전략 생성 LangGraph, 평가 |
-| 윤승준 | 서비스 개발 | React·FastAPI 서비스, 인증·크레딧·생성 이력, 배포 |
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="docs/images/team/minjae_squirtle.png" height="155" alt="꼬부기"><br>
+      <strong>전민재</strong><br>
+      <sub>PM · 검증</sub><br>
+      <sub>일정·의사결정 · 공용 계약<br>검증 함수 4종 · 평가</sub><br><br>
+      <a href="https://github.com/minjaejeon0827">
+        <img src="https://img.shields.io/badge/GitHub-minjaejeon0827-181717?style=flat-square&logo=github&logoColor=white" alt="minjaejeon0827 GitHub">
+      </a>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/images/team/jaeheon_snorlax.png" height="155" alt="잠만보"><br>
+      <strong>김재헌</strong><br>
+      <sub>분석이 · 컨설턴트 챗봇 모델</sub><br>
+      <sub>상권·트렌드 데이터 계층<br>전략 생성 LangGraph · 평가</sub><br><br>
+      <a href="https://github.com/jaeheonki">
+        <img src="https://img.shields.io/badge/GitHub-jaeheonki-181717?style=flat-square&logo=github&logoColor=white" alt="jaeheonki GitHub">
+      </a>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/images/team/heewon_pikachu.png" height="155" alt="피카츄"><br>
+      <strong>조희원</strong><br>
+      <sub>카피니 · 기본 챗봇 모델</sub><br>
+      <sub>광고 문구·이미지 생성<br>LangGraph</sub><br><br>
+      <a href="https://github.com/heewon02">
+        <img src="https://img.shields.io/badge/GitHub-heewon02-181717?style=flat-square&logo=github&logoColor=white" alt="heewon02 GitHub">
+      </a>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/images/team/seungjun_eevee.png" height="155" alt="이브이"><br>
+      <strong>윤승준</strong><br>
+      <sub>서비스 개발</sub><br>
+      <sub>React · FastAPI 서비스<br>인증 · 크레딧 · 이력 · 배포</sub><br><br>
+      <a href="https://github.com/Nighthom">
+        <img src="https://img.shields.io/badge/GitHub-Nighthom-181717?style=flat-square&logo=github&logoColor=white" alt="Nighthom GitHub">
+      </a>
+    </td>
+  </tr>
+</table>
 
 ---
 
