@@ -31,6 +31,17 @@ GitHub README 반영 전 확인할 것.
 
 ---
 
+## 👥 팀원 및 역할
+
+| 이름 | 역할 | 주요 업무 |
+| --- | --- | --- |
+| 전민재 | PM·검증 | 일정·의사결정, 공용 계약, 검증 함수 4종, 평가 |
+| 조희원 | 카피니 - 기본 챗봇 모델 | 광고 문구·이미지 생성 LangGraph |
+| 김재헌 | 분석이 - 컨설턴트 챗봇 모델 | 상권·트렌드 데이터 계층, 전략 생성 LangGraph, 평가 |
+| 윤승준 | 서비스 개발 | React·FastAPI 서비스, 인증·크레딧·생성 이력, 배포 |
+
+---
+
 ## 📌 프로젝트 소개
 
 | 항목 | 내용 |
@@ -448,27 +459,17 @@ codeit-part4-6team-project/
 
 ---
 
-## 👥 팀원 및 역할
-
-| 이름 | 역할 | 주요 업무 |
-| --- | --- | --- |
-| 전민재 | PM·검증 | 일정·의사결정, 공용 계약, 검증 함수 4종, 평가 |
-| 조희원 | 카피니 - 기본 챗봇 모델 | 광고 문구·이미지 생성 LangGraph |
-| 김재헌 | 분석이 - 컨설턴트 챗봇 모델 | 상권·트렌드 데이터 계층, 전략 생성 LangGraph, 평가 |
-| 윤승준 | 서비스 개발 | React·FastAPI 서비스, 인증·크레딧·생성 이력, 배포 |
-
----
-
 ## 📎 산출물과 사용 데이터
 
 ### 산출물
 
 - [시연 영상](https://www.youtube.com/watch?v=N4SLRAgrLik)
+- [협업 일지](https://github.com/orgs/2026-Codeit-Part4-6Team/discussions)
 - [카피니 - 기본 챗봇 최종 보고서](docs/reports/basic_report.md)
 - [분석이 - 컨설턴트 챗봇 최종 보고서](docs/reports/consult_report.md)
 - [검증 함수 최종 보고서](docs/reports/validation_report.md)
 - [서비스 최종 보고서](docs/reports/service_report.md)
-- [최종 프로젝트 보고서](docs/reports/final_report.md)
+- [Markdown - 최종 프로젝트 보고서](docs/reports/final_report.md)
 - [최종 발표 자료](docs/reports/final_presentation.pdf)
 - [CI 구축 및 검증 보고서](https://app.notion.com/p/CI-3b5efe95f43b806c9e4ac77e10d66e4d)
 - [CD 설계 및 구현 보고서](https://app.notion.com/p/CD-3b5efe95f43b8087ae61dc2d184cb918)
