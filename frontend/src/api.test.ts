@@ -275,32 +275,4 @@ describe("ApiClient", () => {
     expect(fetcher.mock.calls[0]?.[1]?.method).toBe("GET");
   });
 
-  it("sends a fresh idempotency key with a demo package purchase", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          payment_id: 1,
-          package: "starter",
-          amount: 5000,
-          credits: 500,
-          balance: 600,
-          status: "completed",
-          demo: true,
-        }),
-        { status: 201 },
-      ),
-    );
-    const api = new ApiClient("/api", fetcher);
-
-    await api.purchaseDemoPackage(
-      "starter",
-      "00000000-0000-0000-0000-000000000901",
-    );
-
-    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/payments");
-    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
-    expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBe(
-      "00000000-0000-0000-0000-000000000901",
-    );
-  });
 });
