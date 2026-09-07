@@ -520,6 +520,16 @@ class GenerationListItem(StrictModel):
         return value.astimezone(UTC)
 
 
+class GenerationHistoryResponse(StrictModel):
+    """검색·페이지네이션이 적용된 생성 이력 응답입니다."""
+
+    items: list[GenerationListItem]
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=50)
+    total: int = Field(ge=0)
+    total_pages: int = Field(ge=0)
+
+
 class GenerationDetailResponse(GenerationListItem):
     """내부 키를 제외한 사용자 소유 생성 이력 상세입니다."""
 

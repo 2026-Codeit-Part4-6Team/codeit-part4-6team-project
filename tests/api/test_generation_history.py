@@ -54,6 +54,7 @@ def basic_result_json():
 def test_history_routes_require_authentication(client: TestClient):
     assert client.get("/generations").status_code == 401
     assert client.get("/generations/1").status_code == 401
+    assert client.get("/generations/history").status_code == 401
 
 
 def test_history_list_and_detail_are_owner_scoped(
@@ -99,6 +100,50 @@ def test_history_detail_sanitizes_corrupt_storage(
     assert response.status_code == 500
     assert response.json()["detail"] == {"reason": "generation_data_invariant"}
     assert "not-json" not in response.text
+
+
+def test_paginated_history_endpoint_supports_search_and_owner_scope(
+    client: TestClient, db_session: Session
+):
+    owner = add_user(db_session, "history-api-page-owner")
+    other = add_user(db_session, "history-api-page-other")
+    first = add_generation(db_session, owner, 105, basic_result_json())
+    first.title = "여름 신메뉴"
+    second = add_generation(db_session, owner, 106, basic_result_json())
+    second.title = "겨울 메뉴"
+    add_generation(db_session, other, 107, basic_result_json()).title = "여름 타인"
+    db_session.commit()
+    client.app.dependency_overrides[get_current_user] = lambda: owner
+
+    response = client.get("/generations/history?q=여름&page=1&page_size=10")
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["id"] == first.id
+    assert response.json()["total"] == 1
+    assert response.json()["page"] == 1
+    assert response.json()["page_size"] == 10
+    assert response.json()["total_pages"] == 1
+
+
+def test_paginated_history_endpoint_rejects_invalid_page_parameters(
+    client: TestClient, db_session: Session
+):
+    owner = add_user(db_session, "history-api-invalid-page")
+    client.app.dependency_overrides[get_current_user] = lambda: owner
+
+    assert client.get("/generations/history?page=0").status_code == 422
+    assert client.get("/generations/history?page_size=51").status_code == 422
+
+
+def test_paginated_history_endpoint_rejects_overlong_query(
+    client: TestClient, db_session: Session
+):
+    owner = add_user(db_session, "history-api-long-query")
+    client.app.dependency_overrides[get_current_user] = lambda: owner
+
+    response = client.get(f"/generations/history?q={'x' * 201}")
+
+    assert response.status_code == 422
 
 
 def test_history_detail_returns_safe_error_reason_without_provider_message(

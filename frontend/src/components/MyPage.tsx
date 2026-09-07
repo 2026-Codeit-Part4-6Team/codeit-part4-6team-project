@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   ApiClient,
   GenerationDetailResponse,
+  GenerationHistoryResponse,
   GenerationListItem,
   UserResponse,
   UserSummaryResponse,
@@ -70,10 +71,35 @@ export type MyPageViewProps = {
   onSelect: (id: number) => void;
   onBack: () => void;
   onBilling?: () => void;
+  historyPage?: Pick<GenerationHistoryResponse, "page" | "page_size" | "total" | "total_pages">;
+  historyQuery?: string;
+  onHistoryQueryChange?: (query: string) => void;
+  onHistoryPageChange?: (page: number) => void;
 };
 
-export function MyPageView({ user, summary, history, detail, loading, detailLoading, error, detailError, detailErrorId, onSelect, onBack, onBilling }: MyPageViewProps) {
+export function MyPageView({
+  user,
+  summary,
+  history,
+  detail,
+  loading,
+  detailLoading,
+  error,
+  onSelect,
+  onBack,
+  onBilling,
+  historyPage = { page: 1, page_size: 10, total: history.length, total_pages: history.length > 0 ? 1 : 0 },
+  historyQuery = "",
+  onHistoryQueryChange,
+  onHistoryPageChange,
+  detailError,
+  detailErrorId,
+}: MyPageViewProps) {
   const [expandedId, setExpandedId] = useState<number | null>(detail?.id ?? null);
+
+  useEffect(() => {
+    setExpandedId(null);
+  }, [historyQuery, historyPage.page]);
 
   function toggleGeneration(id: number) {
     if (expandedId === id) {
@@ -93,7 +119,19 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
       {detailError !== null && detailError !== undefined && <ErrorBanner error={detailError} onBilling={onBilling} />}
       <section className="card history-card">
         <div className="section-heading"><div><p className="kicker">RECENT ACTIVITY</p><h2>최근 생성 기록</h2></div></div>
-      {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">아직 생성 기록이 없습니다.</p> : <div className="history-list">{history.map((item) => { const expanded = expandedId === item.id; const platform = platformLabel(item.platform); return <div className={`history-item${expanded ? " is-expanded" : ""}`} key={item.id}><button type="button" className="history-row history-item-card" aria-expanded={expanded} aria-controls={`history-detail-${item.id}`} onClick={() => toggleGeneration(item.id)}><div className="history-row-main"><div className="history-row-badges"><span className="history-type-chip">{generationLabel(item)}</span>{platform && <span className="history-platform-chip">{platform}</span>}{detailErrorId === item.id && <small className="history-detail-error">상세 확인 필요</small>}</div><strong>{historyTitle(item)}</strong><small className="history-row-date">{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div><div className="history-row-meta"><span className={`status-chip status-chip--${item.status}`}>{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small className="history-expand-hint">{expanded ? "접기 ↑" : "상세 보기 ↓"}</small></div></button>{expanded && <div className="history-inline-detail" id={`history-detail-${item.id}`}>{detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}{detail && !detailLoading && detail.id === item.id && <Detail detail={detail} />}</div>}</div>; })}</div>}
+        <div className="history-toolbar">
+          <label htmlFor="history-search">생성 기록 검색</label>
+          <input
+            id="history-search"
+            type="search"
+            value={historyQuery}
+            placeholder="제목이나 요청 내용으로 찾아보세요"
+            onChange={(event) => onHistoryQueryChange?.(event.target.value)}
+          />
+          {historyPage.total > 0 && <span className="history-count">총 {historyPage.total}건</span>}
+        </div>
+      {loading ? <p className="history-state" role="status">활동 기록을 불러오는 중…</p> : error !== null && error !== undefined ? null : history.length === 0 ? <p className="history-state">{historyQuery.trim() ? "조건에 맞는 생성 기록이 없습니다." : "아직 생성 기록이 없습니다."}</p> : <div className="history-list">{history.map((item) => { const expanded = expandedId === item.id; const platform = platformLabel(item.platform); return <div className={`history-item${expanded ? " is-expanded" : ""}`} key={item.id}><button type="button" className="history-row history-item-card" aria-expanded={expanded} aria-controls={`history-detail-${item.id}`} onClick={() => toggleGeneration(item.id)}><div className="history-row-main"><div className="history-row-badges"><span className="history-type-chip">{generationLabel(item)}</span>{platform && <span className="history-platform-chip">{platform}</span>}{detailErrorId === item.id && <small className="history-detail-error">상세 확인 필요</small>}</div><strong>{historyTitle(item)}</strong><small className="history-row-date">{new Date(item.created_at).toLocaleDateString("ko-KR")}</small></div><div className="history-row-meta"><span className={`status-chip status-chip--${item.status}`}>{statusLabel(item.status)}</span><small>{item.credits_used} Credit</small><small className="history-expand-hint">{expanded ? "접기 ↑" : "상세 보기 ↓"}</small></div></button>{expanded && <div className="history-inline-detail" id={`history-detail-${item.id}`}>{detailLoading && <p className="history-state" role="status">상세 결과를 불러오는 중…</p>}{detail && !detailLoading && detail.id === item.id && <Detail detail={detail} />}</div>}</div>; })}</div>}
+      {!loading && error === null && historyPage.total_pages > 1 && <nav className="history-pagination" aria-label="생성 기록 페이지 이동"><button type="button" disabled={historyPage.page <= 1} onClick={() => onHistoryPageChange?.(historyPage.page - 1)}>이전</button><span>{historyPage.page} / {historyPage.total_pages}</span><button type="button" disabled={historyPage.page >= historyPage.total_pages} onClick={() => onHistoryPageChange?.(historyPage.page + 1)}>다음</button></nav>}
       </section>
       {history.length === 0 && detail && !detailLoading && <Detail detail={detail} />}
     </section>
@@ -103,6 +141,9 @@ export function MyPageView({ user, summary, history, detail, loading, detailLoad
 export function MyPage({ api, user, onBack, onBilling }: { api: ApiClient; user: UserResponse; onBack: () => void; onBilling?: () => void }) {
   const [summary, setSummary] = useState<UserSummaryResponse | null>(null);
   const [history, setHistory] = useState<GenerationListItem[]>([]);
+  const [historyPage, setHistoryPage] = useState<Pick<GenerationHistoryResponse, "page" | "page_size" | "total" | "total_pages">>({ page: 1, page_size: 10, total: 0, total_pages: 0 });
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [requestedPage, setRequestedPage] = useState(1);
   const [detail, setDetail] = useState<GenerationDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -115,9 +156,33 @@ export function MyPage({ api, user, onBack, onBilling }: { api: ApiClient; user:
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.all([api.userSummary(), api.generationHistory()]).then(([nextSummary, nextHistory]) => { if (active) { setSummary(nextSummary); setHistory(nextHistory); } }).catch((caught: unknown) => { if (active) setError(caught); }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; detailRequest.current += 1; };
+    const timer = window.setTimeout(() => {
+      api.generationHistoryPage({ query: historyQuery, page: requestedPage }).then((response) => {
+        if (active) {
+          setHistory(response.items);
+          setHistoryPage(response);
+        }
+      }).catch((caught: unknown) => { if (active) setError(caught); }).finally(() => { if (active) setLoading(false); });
+    }, 300);
+    return () => { active = false; detailRequest.current += 1; window.clearTimeout(timer); };
+  }, [api, historyQuery, requestedPage]);
+
+  useEffect(() => {
+    let active = true;
+    api.userSummary().then((response) => { if (active) setSummary(response); }).catch((caught: unknown) => { if (active) setError(caught); });
+    return () => { active = false; };
   }, [api]);
+
+  function changeHistoryQuery(query: string) {
+    setHistoryQuery(query);
+    setRequestedPage(1);
+    setDetail(null);
+  }
+
+  function changeHistoryPage(page: number) {
+    setRequestedPage(page);
+    setDetail(null);
+  }
 
   function selectGeneration(id: number) {
     const request = ++detailRequest.current;
@@ -128,5 +193,5 @@ export function MyPage({ api, user, onBack, onBilling }: { api: ApiClient; user:
     api.generationDetail(id).then((nextDetail) => { if (detailRequest.current === request) setDetail(nextDetail); }).catch((caught: unknown) => { if (detailRequest.current === request) { setDetailError(caught); setDetailErrorId(id); } }).finally(() => { if (detailRequest.current === request) setDetailLoading(false); });
   }
 
-  return <MyPageView user={user} summary={summary} history={history} detail={detail} loading={loading} detailLoading={detailLoading} error={error} detailError={detailError} detailErrorId={detailErrorId} onSelect={selectGeneration} onBack={onBack} onBilling={onBilling} />;
+  return <MyPageView user={user} summary={summary} history={history} historyPage={historyPage} historyQuery={historyQuery} onHistoryQueryChange={changeHistoryQuery} onHistoryPageChange={changeHistoryPage} detail={detail} loading={loading} detailLoading={detailLoading} error={error} detailError={detailError} detailErrorId={detailErrorId} onSelect={selectGeneration} onBack={onBack} onBilling={onBilling} />;
 }

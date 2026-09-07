@@ -108,6 +108,14 @@ export type GenerationListItem = {
   created_at: string;
 };
 
+export type GenerationHistoryResponse = {
+  items: GenerationListItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
 export type GenerationDetailResponse = GenerationListItem & {
   source_gen_id: number | null;
   result: Record<string, unknown> | null;
@@ -198,6 +206,21 @@ export class ApiClient {
 
   generationHistory(): Promise<GenerationListItem[]> {
     return this.request("/generations", { method: "GET" });
+  }
+
+  generationHistoryPage(options: {
+    query?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<GenerationHistoryResponse> {
+    const params = new URLSearchParams();
+    const query = options.query?.trim();
+    if (query) params.set("q", query);
+    params.set("page", String(options.page ?? 1));
+    params.set("page_size", String(options.pageSize ?? 10));
+    return this.request(`/generations/history?${params.toString()}`, {
+      method: "GET",
+    });
   }
 
   generationDetail(generationId: number): Promise<GenerationDetailResponse> {

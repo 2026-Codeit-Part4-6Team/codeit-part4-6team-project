@@ -1,7 +1,8 @@
 import json
+from math import ceil
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.models import Generation, User
@@ -12,6 +13,7 @@ from backend.schemas import (
     ConsultantModelResult,
     ErrorResult,
     GenerationDetailResponse,
+    GenerationHistoryResponse,
     GenerationListItem,
     HistoryErrorResult,
     PublicGenerationResult,
@@ -65,6 +67,61 @@ def list_generations(db: Session, user: User) -> list[GenerationListItem]:
         .order_by(Generation.created_at.desc(), Generation.id.desc())
     ).mappings()
     return [GenerationListItem.model_validate(row) for row in rows]
+
+
+def list_generations_page(
+    db: Session,
+    user: User,
+    *,
+    query: str = "",
+    page: int = 1,
+    page_size: int = 10,
+) -> GenerationHistoryResponse:
+    """현재 사용자의 이력을 검색하고 페이지 단위로 반환합니다."""
+    if page < 1:
+        raise ValueError("page는 1 이상이어야 합니다.")
+    if not 1 <= page_size <= 50:
+        raise ValueError("page_size는 1~50이어야 합니다.")
+
+    normalized_query = query.strip()[:200]
+    filters = [Generation.user_id == user.id]
+    if normalized_query:
+        pattern = f"%{normalized_query}%"
+        filters.append(
+            or_(
+                func.lower(Generation.title).like(func.lower(pattern)),
+                func.lower(Generation.question).like(func.lower(pattern)),
+            )
+        )
+
+    total = db.scalar(select(func.count(Generation.id)).where(*filters)) or 0
+    offset = (page - 1) * page_size
+    rows = db.execute(
+        select(
+            Generation.id,
+            Generation.chatbot_type,
+            Generation.title,
+            Generation.question,
+            Generation.platform,
+            Generation.plan,
+            Generation.credits_used,
+            Generation.tokens_used,
+            Generation.status,
+            Generation.created_at,
+        )
+        .where(*filters)
+        .order_by(Generation.created_at.desc(), Generation.id.desc())
+        .offset(offset)
+        .limit(page_size)
+    ).mappings()
+
+    return GenerationHistoryResponse(
+        items=[GenerationListItem.model_validate(row) for row in rows],
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=ceil(total / page_size) if total else 0,
+    )
 
 
 def _public_history_result(

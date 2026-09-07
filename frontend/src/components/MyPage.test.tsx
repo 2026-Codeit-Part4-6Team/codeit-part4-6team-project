@@ -143,6 +143,28 @@ describe("MyPage presentation", () => {
     expect(html).not.toContain("secret-api-key");
   });
 
+  it("renders a search field and pagination metadata", () => {
+    const html = renderView({
+      historyQuery: "여름",
+      historyPage: { page: 2, page_size: 2, total: 4, total_pages: 2 },
+    });
+
+    expect(html).toContain('id="history-search"');
+    expect(html).toContain('type="search"');
+    expect(html).toContain("생성 기록 검색");
+    expect(html).toContain("총 4건");
+    expect(html).toContain("2 / 2");
+    expect(html).toContain("이전");
+    expect(html).toContain("다음");
+  });
+
+  it("distinguishes an empty search result from an empty account", () => {
+    const html = renderView({ history: [], historyQuery: "없는 메뉴" });
+
+    expect(html).toContain("조건에 맞는 생성 기록이 없습니다.");
+    expect(html).not.toContain("아직 생성 기록이 없습니다.");
+  });
+
   it("renders published Basic final copy and image without internal keys", () => {
     const detail: GenerationDetailResponse = {
       ...history[1],
