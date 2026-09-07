@@ -95,13 +95,7 @@ jobs:
           PY
 
       - name: Verify frontend-to-backend connection
-        run: |
-          docker compose exec -T frontend node --input-type=module - <<'JS'
-          const response = await fetch(`${process.env.BACKEND_URL}/health`);
-          if (!response.ok) throw new Error(`backend health failed: ${response.status}`);
-          const result = await response.json();
-          if (result.status !== "ok") throw new Error(`unexpected health: ${JSON.stringify(result)}`);
-          JS
+        run: docker compose exec -T frontend node - < scripts/smoke_frontend_backend.js
 
       - name: Print service logs on failure
         if: failure()

@@ -83,31 +83,7 @@ if ! "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180; then
   exit 1
 fi
 
-if ! "${compose[@]}" exec -T frontend node - <<'JS'
-async function verifyBackendHealth() {
-  const backendUrl = process.env.BACKEND_URL?.replace(/\/+$/, "");
-  if (!backendUrl) {
-    throw new Error("BACKEND_URL is required for the frontend-to-backend smoke check");
-  }
-
-  const response = await fetch(`${backendUrl}/health`, {
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) {
-    throw new Error(`backend health check failed with HTTP ${response.status}`);
-  }
-
-  const result = await response.json();
-  if (result.status !== "ok") {
-    throw new Error(`unexpected backend health response: ${JSON.stringify(result)}`);
-  }
-}
-
-verifyBackendHealth().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
-JS
+if ! "${compose[@]}" exec -T frontend node - < scripts/smoke_frontend_backend.js
 then
   "${compose[@]}" ps >&2 || true
   "${compose[@]}" logs --no-color --tail=200 >&2 || true
