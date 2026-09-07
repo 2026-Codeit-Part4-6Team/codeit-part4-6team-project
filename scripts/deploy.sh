@@ -83,14 +83,7 @@ if ! "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180; then
   exit 1
 fi
 
-if ! "${compose[@]}" exec -T frontend /app/.venv/bin/python - <<'PY'
-import os
-
-from frontend.api_client import ApiClient
-
-result = ApiClient(os.environ["BACKEND_URL"], timeout=10).health()
-assert result == {"status": "ok"}
-PY
+if ! "${compose[@]}" exec -T frontend node - < scripts/smoke_frontend_backend.js
 then
   "${compose[@]}" ps >&2 || true
   "${compose[@]}" logs --no-color --tail=200 >&2 || true
