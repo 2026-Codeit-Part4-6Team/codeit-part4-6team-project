@@ -133,3 +133,14 @@ def test_paginated_history_endpoint_rejects_invalid_page_parameters(
 
     assert client.get("/generations/history?page=0").status_code == 422
     assert client.get("/generations/history?page_size=51").status_code == 422
+
+
+def test_paginated_history_endpoint_rejects_overlong_query(
+    client: TestClient, db_session: Session
+):
+    owner = add_user(db_session, "history-api-long-query")
+    client.app.dependency_overrides[get_current_user] = lambda: owner
+
+    response = client.get(f"/generations/history?q={'x' * 201}")
+
+    assert response.status_code == 422

@@ -44,8 +44,9 @@ Query parameters:
 내림차순·id 내림차순으로 정렬한다. 결과가 없으면 200과 빈 `items`를 반환한다.
 `total_pages`는 `ceil(total / page_size)`이며 결과가 없을 때 0이다.
 
-잘못된 `page`, `page_size`는 FastAPI 검증 오류(422)로 처리한다. `q`가 너무
-길거나 공백뿐인 경우에는 빈 검색어로 취급한다(최대 200자만 사용한다).
+잘못된 `page`, `page_size`는 FastAPI 검증 오류(422)로 처리한다. `q`는 최대
+200자까지 허용하며, 초과하면 FastAPI 검증 오류(422)로 처리한다. 공백뿐인
+검색어는 빈 검색어로 취급한다.
 
 ## Frontend 계약
 
