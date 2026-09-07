@@ -36,6 +36,9 @@ class Settings:
     basic_credit_cost: int
     consultant_credit_cost: int
     model_request_timeout_seconds: int
+    model_thread_pool_workers: int
+    stale_recovery_seconds: int
+    chatbot_mode: str
     max_approved_image_bytes: int
     session_secret_key: str
     session_max_age_seconds: int
@@ -45,7 +48,24 @@ class Settings:
     geocode_fallback_enabled: bool
     geocode_fallback_lat: float
     geocode_fallback_lng: float
+    demo_accounts_enabled: bool
     demo_payment_enabled: bool
+
+
+def _validate_demo_account_passwords() -> None:
+    """활성화된 데모 계정이 빈 비밀번호로 생성되지 않도록 검증합니다."""
+    shared = os.getenv("DEMO_ACCOUNT_PASSWORD", "").strip()
+    for role in ("PM", "BASIC", "CONSULTANT", "SERVICE"):
+        password = os.getenv(f"DEMO_{role}_PASSWORD", "").strip() or shared
+        if not password:
+            raise ValueError(
+                f"DEMO_ACCOUNT_PASSWORD 또는 DEMO_{role}_PASSWORD가 필요합니다."
+            )
+        length = len(password.encode("utf-8"))
+        if not 8 <= length <= 72:
+            raise ValueError(
+                f"DEMO_{role}_PASSWORD는 UTF-8 기준 8~72바이트여야 합니다."
+            )
 
 
 def load_settings() -> Settings:
@@ -54,11 +74,16 @@ def load_settings() -> Settings:
     if environment not in {"development", "test", "demo", "production"}:
         raise ValueError("APP_ENV는 development, test, demo, production 중 하나여야 합니다.")
     geocode_fallback_enabled = _read_bool("GEOCODE_FALLBACK_ENABLED", False)
-    demo_payment_enabled = _read_bool("DEMO_PAYMENT_ENABLED", False)
+    demo_accounts_enabled = _read_bool("DEMO_ACCOUNTS_ENABLED", False)
     if environment not in {"development", "demo"} and geocode_fallback_enabled:
         raise ValueError("geocoding fallback은 development 또는 demo 환경에서만 사용할 수 있습니다.")
+    if environment == "production" and demo_accounts_enabled:
+        raise ValueError("production 환경에서는 demo accounts를 활성화할 수 없습니다.")
+    if demo_accounts_enabled:
+        _validate_demo_account_passwords()
+    demo_payment_enabled = _read_bool("DEMO_PAYMENT_ENABLED", environment != "production")
     if environment == "production" and demo_payment_enabled:
-        raise ValueError("운영 환경에서는 데모 결제를 활성화할 수 없습니다.")
+        raise ValueError("production 환경에서는 demo payment를 활성화할 수 없습니다.")
     secret_key = os.getenv("SESSION_SECRET_KEY")
     if secret_key is not None:
         secret_key = secret_key.strip()
@@ -73,14 +98,20 @@ def load_settings() -> Settings:
             raise ValueError("운영 환경에서는 SESSION_COOKIE_SECURE=true가 필요합니다.")
     else:
         secret_key = secret_key or "local-development-secret"
+    chatbot_mode = os.getenv("CHATBOT_MODE", "mock").strip().lower()
+    if chatbot_mode not in {"mock", "actual"}:
+        raise ValueError("CHATBOT_MODE는 mock 또는 actual이어야 합니다.")
     return Settings(
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         daily_free_limit=_read_int("DAILY_FREE_LIMIT", 10),
         basic_credit_cost=_read_int("BASIC_CREDIT_COST", 50),
         consultant_credit_cost=_read_int("CONSULTANT_CREDIT_COST", 10),
         model_request_timeout_seconds=_read_int(
-            "MODEL_REQUEST_TIMEOUT_SECONDS", 60, minimum=60
+            "MODEL_REQUEST_TIMEOUT_SECONDS", 180, minimum=60
         ),
+        model_thread_pool_workers=_read_int("MODEL_THREAD_POOL_WORKERS", 2, minimum=1),
+        stale_recovery_seconds=_read_int("STALE_RECOVERY_SECONDS", 240, minimum=1),
+        chatbot_mode=chatbot_mode,
         max_approved_image_bytes=_read_int(
             "MAX_APPROVED_IMAGE_BYTES", 5_242_880, minimum=1
         ),
@@ -96,6 +127,7 @@ def load_settings() -> Settings:
         geocode_fallback_lng=_read_coordinate(
             "GEOCODE_FALLBACK_LNG", 127.0276, minimum=-180, maximum=180
         ),
+        demo_accounts_enabled=demo_accounts_enabled,
         demo_payment_enabled=demo_payment_enabled,
     )
 

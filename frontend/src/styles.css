@@ -222,7 +222,6 @@ select:focus-visible {
 .store-card-label { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; color: var(--accent); font-size: 17px; }
 .store-card-label img { width: 24px; height: 24px; }
 .store-card strong { display: block; margin-bottom: 13px; font-size: clamp(23px, 2vw, 30px); font-weight: 600; }
-.admin-badge { display: inline-block; margin: -3px 0 13px; border-radius: 999px; padding: 5px 9px; background: rgba(240, 164, 48, .18); color: var(--accent); font-size: 12px; font-weight: 800; }
 .store-address { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); line-height: 1.45; }
 .store-address img { width: 18px; height: 21px; margin-top: 1px; }
 .store-card-action { display: block; margin-top: 16px; color: var(--accent); font-size: 13px; font-weight: 700; }
@@ -355,6 +354,8 @@ select:focus-visible {
 .chat-avatar-image { width: 42px; height: 42px; flex: 0 0 auto; border: 2px solid rgba(255,255,255,.3); border-radius: 13px; background: #fff3df; object-fit: cover; object-position: center 8%; }
 .chat-composer-label textarea { min-height: 116px; border-color: rgba(61, 52, 165, .25); background: #fdfbf7; }
 .generation-card label { display: grid; gap: 8px; font-size: 15px; font-weight: 700; }
+.platform-guidance { margin: -6px 0 0; padding: 13px 15px; border: 1px solid rgba(61, 52, 165, .16); border-radius: 12px; background: #f2efff; color: #514a79; line-height: 1.55; }
+.platform-guidance strong { color: var(--primary); }
 .generation-card textarea,
 .generation-card select {
   width: 100%;
@@ -392,6 +393,11 @@ select:focus-visible {
 .proposal-image-placeholder { display: grid; place-items: center; align-content: center; gap: 6px; color: var(--primary); background: linear-gradient(135deg, #f0edf8, #e4e0ff); }
 .proposal-image-placeholder span { font-size: .7rem; font-weight: 900; letter-spacing: .12em; }
 .proposal-image-placeholder small { color: #6d6884; font-size: .78rem; }
+.result-format-note { margin: -8px 0 4px; color: var(--muted); font-size: .88rem; }
+.result-section--xbanner .result-format-note { color: var(--primary); font-weight: 700; }
+.proposal--xbanner { grid-template-columns: minmax(210px, 32%) minmax(0, 1fr); }
+.proposal--xbanner .proposal-visual { display: grid; place-items: center; padding: 12px; background: linear-gradient(145deg, #f1edff, #fff4df); }
+.proposal--xbanner .proposal-image { width: min(100%, 260px); height: min(560px, 70vh); min-height: 0; aspect-ratio: 1 / 3; object-fit: contain; }
 .proposal-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding: 20px 24px; }
 .proposal-copy span { color: var(--primary); font-size: 13px; font-weight: 800; }
 .proposal-copy p { margin: 20px 0; line-height: 1.8; white-space: pre-wrap; }
@@ -415,6 +421,12 @@ select:focus-visible {
 .result-details ul { margin: 12px 0 0; padding-left: 22px; color: #6d6884; }
 .suggested-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .suggested-chips button { border: 1px solid rgba(61, 52, 165, .3); border-radius: 999px; padding: 9px 13px; background: #fff; color: var(--primary); font-size: 0.82rem; }
+.strategy-to-ad { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; margin-top: 24px; padding: 14px 16px; border: 1px solid rgba(61, 52, 165, .22); border-radius: 16px; background: linear-gradient(135deg, #f0edf8, #fff); color: var(--ink); text-align: left; }
+.strategy-to-ad > span:first-child { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--primary); color: #fff; }
+.strategy-to-ad strong, .strategy-to-ad small { display: block; }
+.strategy-to-ad strong { color: var(--primary); }
+.strategy-to-ad small { margin-top: 3px; color: var(--muted); }
+.strategy-to-ad:hover { border-color: var(--primary); box-shadow: 0 8px 18px rgba(61, 52, 165, .12); }
 
 .placeholder-page { width: min(100%, 680px); margin: 0 auto; padding-top: clamp(90px, 18vh, 190px); text-align: center; }
 .placeholder-page h1 { margin-bottom: 16px; font-size: clamp(34px, 4vw, 54px); }
@@ -575,6 +587,27 @@ select:focus-visible {
 .extra-grid label { font-size: 0.9rem; }
 .extra-grid input { min-height: 48px; padding: 11px 14px; }
 .follow-up-card { width: 100%; max-width: none; margin-top: 26px; padding: 28px; }
+
+.strategy-prefill-banner { display: flex; align-items: center; gap: 14px; max-width: 1180px; margin: 0 auto 16px; padding: 16px 20px; border: 1px solid #d9d2ff; border-radius: 18px; background: linear-gradient(135deg, #f5f2ff, #fff); color: #383078; }
+.strategy-prefill-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto; border-radius: 12px; background: #4a3bb5; color: #fff; font-size: 18px; }
+.strategy-prefill-banner strong { display: block; font-size: 15px; }
+.strategy-prefill-banner p { margin: 4px 0 0; color: #756e96; font-size: 13px; }
+.strategy-prefill-tag { margin-left: auto; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 10px; border-radius: 999px; background: #ebe7ff; color: #4a3bb5; font-size: 12px; }
+.reask-card { max-width: 1180px; margin: 20px auto 0; padding: 24px; border: 1px solid #e4defe; border-radius: 20px; background: linear-gradient(135deg, #fbfaff, #fff); box-shadow: 0 12px 30px rgba(57, 43, 130, .08); }
+.reask-heading { display: flex; align-items: flex-start; gap: 14px; }
+.reask-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: #eeeaff; color: #4a3bb5; font-weight: 800; }
+.reask-heading h2 { margin: 2px 0 4px; color: #29234f; font-size: 19px; }
+.reask-heading p:last-child { margin: 0; color: #716b8e; line-height: 1.55; }
+.reask-form { display: grid; gap: 10px; margin-top: 18px; }
+.reask-form textarea { min-height: 86px; resize: vertical; }
+.reask-form button { justify-self: end; min-width: 210px; }
+.platform-picker { margin: 0; padding: 0; border: 0; }
+.platform-picker legend { margin-bottom: 8px; font-weight: 700; }
+.platform-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.platform-option { display: grid; gap: 4px; min-height: 66px; padding: 13px 15px; border: 1px solid #ddd8ef; border-radius: 14px; background: #fff; color: #3b3562; text-align: left; cursor: pointer; transition: border-color .18s, background .18s, transform .18s; }
+.platform-option:hover { transform: translateY(-1px); border-color: #8d82df; }
+.platform-option.is-active { border-color: #4a3bb5; background: #f2efff; box-shadow: inset 0 0 0 1px #4a3bb5; }
+.platform-option small { color: #817b9a; }
 .follow-up-card > div:first-child p:last-child { color: var(--muted); line-height: 1.6; }
 .message-list { display: grid; gap: 10px; margin: 18px 0; }
 .message { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; line-height: 1.5; }
@@ -613,7 +646,39 @@ select:focus-visible {
   .extra-grid, .follow-up-form { grid-template-columns: 1fr; flex-direction: column; }
   .proposal { display: block; }
   .proposal-image { height: auto; min-height: 0; aspect-ratio: 4 / 3; }
+  .proposal--xbanner .proposal-image { width: min(100%, 240px); height: min(520px, 70vh); aspect-ratio: 1 / 3; object-fit: contain; }
   .proposal-copy { padding: 18px 10px 10px; }
+}
+
+/* 인증 화면은 작은 모바일 폭에서도 폼과 주요 액션을 우선 노출합니다. */
+@media (max-width: 560px) {
+  .auth-shell {
+    gap: 20px;
+    padding: 28px 12px 40px;
+  }
+
+  .auth-login-brand p { font-size: 14px; }
+  .auth-login-stage {
+    display: block;
+    width: 100%;
+  }
+  .auth-mascot { display: none; }
+  .auth-card,
+  .auth-card--register {
+    width: 100%;
+    padding: 24px 16px 20px;
+  }
+  .auth-form { gap: 16px; }
+  .auth-form input,
+  .auth-form textarea,
+  .auth-form select {
+    min-height: 52px;
+    padding: 11px 14px;
+  }
+  .auth-submit {
+    width: 100%;
+    min-height: 54px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -766,6 +831,10 @@ select:focus-visible {
 }
 
 @media (max-width: 720px) {
+  .strategy-prefill-banner { align-items: flex-start; }
+  .strategy-prefill-tag { display: none; }
+  .platform-options { grid-template-columns: 1fr; }
+  .reask-form button { width: 100%; }
   .credit-summary {
     grid-template-columns: 1fr;
   }
@@ -789,6 +858,7 @@ select:focus-visible {
 .history-final-result p { margin: 8px 0 0; font-size: 1.1rem; font-weight: 750; }
 .history-proposals, .history-evidence ul { display: grid; gap: 8px; }
 .history-blocked { padding: 14px; border-radius: 12px; background: rgba(143, 47, 47, 0.08); }
+.history-detail-error { display: block; color: var(--danger); font-size: .82rem; }
 @media (max-width: 720px) { .history-final-result { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
   .history-toolbar { align-items: stretch; flex-wrap: wrap; }
@@ -821,13 +891,5 @@ select:focus-visible {
 .billing-gate-card span { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
 .billing-gate-card h2 { margin: 12px 0 24px; text-transform: lowercase; }
 .billing-gate-card button { width: 100%; min-height: 44px; border: 0; border-radius: 10px; }
-.billing-demo-heading { position: relative; padding: 28px; border-radius: 22px; background: linear-gradient(135deg, #fff 0%, #f0ebff 62%, #fff0d3 100%); }
-.demo-badge { display: inline-flex; margin-bottom: 14px; border-radius: 999px; padding: 7px 11px; background: #fff0d3; color: #7b5100; font-size: .75rem; font-weight: 900; }
-.billing-demo-card { border-top: 5px solid var(--primary); }
-.billing-demo-card:nth-child(2) { border-top-color: var(--accent); transform: translateY(-8px); }
-.billing-demo-card > strong { display: block; color: var(--sidebar); font-size: 1.8rem; }
-.billing-demo-card p { margin: 8px 0 24px; color: var(--primary); font-weight: 850; }
-.billing-demo-card button { background: var(--primary); color: #fff; font-weight: 800; }
-.payment-success { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 24px; border: 1px solid rgba(35, 122, 87, .25); border-radius: 16px; padding: 17px 20px; background: rgba(35, 122, 87, .08); color: var(--success); }
-.payment-success span { font-size: .88rem; }
+.payment-notice { color: #8b5e00; font-size: .82rem; }
 @media (max-width: 720px) { .billing-gate-grid { grid-template-columns: 1fr; } }

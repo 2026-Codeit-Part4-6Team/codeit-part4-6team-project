@@ -1,6 +1,6 @@
 import base64
+import inspect
 import json
-from asyncio import run
 
 import pytest
 from sqlalchemy import update
@@ -70,6 +70,11 @@ def test_image_rejects_decoded_bytes_over_limit():
 
 def test_none_image_remains_none():
     assert canonicalize_approved_image(None, max_image_bytes=100) is None
+
+
+def test_publish_generation_is_synchronous_for_sync_session():
+    """게시 저장은 동기 SQLAlchemy Session 경계에서 직접 호출할 수 있어야 한다."""
+    assert not inspect.iscoroutinefunction(publish_generation)
 
 
 def make_engine(tmp_path):
@@ -144,14 +149,12 @@ def test_publish_selected_basic_proposal_atomically(tmp_path):
         generation = add_generation(db, user)
         image = base64.b64encode(PNG).decode()
 
-        result = run(
-            publish_generation(
-                db,
-                user,
-                generation.id,
-                PublishRequest(proposal_index=1, image_b64=image),
-                max_image_bytes=100,
-            )
+        result = publish_generation(
+            db,
+            user,
+            generation.id,
+            PublishRequest(proposal_index=1, image_b64=image),
+            max_image_bytes=100,
         )
 
         assert result.model_dump() == {
@@ -178,14 +181,12 @@ def test_publish_hides_generation_owned_by_another_user(tmp_path):
         generation = add_generation(db, owner)
 
         with pytest.raises(PublishNotFound):
-            run(
-                publish_generation(
-                    db,
-                    other,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                other,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -196,14 +197,12 @@ def test_publish_rejects_generation_before_done(tmp_path):
         generation = add_generation(db, user, status="generating")
 
         with pytest.raises(PublishStateConflict):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -233,14 +232,12 @@ def test_publish_rejects_consultant_generation(tmp_path):
         )
 
         with pytest.raises(PublishTypeConflict):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -254,14 +251,12 @@ def test_publish_rejects_missing_or_corrupt_basic_result(tmp_path, result_json):
         db.commit()
 
         with pytest.raises(PublishProposalInvalid):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -280,14 +275,12 @@ def test_publish_rejects_slot_without_copy(tmp_path):
         )
 
         with pytest.raises(PublishProposalInvalid):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -298,15 +291,11 @@ def test_publish_same_proposal_replay_is_idempotent(tmp_path):
         generation = add_generation(db, user)
         request = PublishRequest(proposal_index=2)
 
-        first = run(
-            publish_generation(
-                db, user, generation.id, request, max_image_bytes=100
-            )
+        first = publish_generation(
+            db, user, generation.id, request, max_image_bytes=100
         )
-        replay = run(
-            publish_generation(
-                db, user, generation.id, request, max_image_bytes=100
-            )
+        replay = publish_generation(
+            db, user, generation.id, request, max_image_bytes=100
         )
 
         assert replay == first
@@ -317,25 +306,21 @@ def test_publish_different_proposal_replay_conflicts(tmp_path):
     with Session(engine) as db:
         user = add_user(db)
         generation = add_generation(db, user)
-        run(
+        publish_generation(
+            db,
+            user,
+            generation.id,
+            PublishRequest(proposal_index=0),
+            max_image_bytes=100,
+        )
+
+        with pytest.raises(PublishedProposalConflict):
             publish_generation(
                 db,
                 user,
                 generation.id,
-                PublishRequest(proposal_index=0),
+                PublishRequest(proposal_index=1),
                 max_image_bytes=100,
-            )
-        )
-
-        with pytest.raises(PublishedProposalConflict):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=1),
-                    max_image_bytes=100,
-                )
             )
 
 
@@ -367,14 +352,12 @@ def test_publish_compare_and_set_detects_lost_race(tmp_path):
         db.execute = execute_with_competing_publish
 
         with pytest.raises(PublishedProposalConflict):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation.id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation.id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
 
@@ -401,14 +384,12 @@ def test_publish_rolls_back_and_preserves_database_failure(tmp_path):
         db.rollback = record_rollback
 
         with pytest.raises(PublishPersistenceError):
-            run(
-                publish_generation(
-                    db,
-                    user,
-                    generation_id,
-                    PublishRequest(proposal_index=0),
-                    max_image_bytes=100,
-                )
+            publish_generation(
+                db,
+                user,
+                generation_id,
+                PublishRequest(proposal_index=0),
+                max_image_bytes=100,
             )
 
         assert rollback_called is True

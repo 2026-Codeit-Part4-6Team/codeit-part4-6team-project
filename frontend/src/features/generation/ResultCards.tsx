@@ -1,4 +1,5 @@
 import type { GenerationResponse } from "../../api";
+import type { Platform } from "../../contract";
 
 const actionMeta: Record<string, { label: string; visual: string }> = {
   menu: { label: "핵심 상품/서비스", visual: "✦" },
@@ -13,7 +14,9 @@ export type ProposalIndex = 0 | 1 | 2;
 
 type ResultCardsProps = {
   response: GenerationResponse;
+  platform?: Platform | null;
   onSuggestedChip?: (chip: string) => void;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onSelectProposal?: (index: ProposalIndex) => void;
   selectedProposalIndex?: ProposalIndex | null;
   publishedProposalIndex?: ProposalIndex | null;
@@ -21,7 +24,9 @@ type ResultCardsProps = {
 
 export function ResultCards({
   response,
+  platform = null,
   onSuggestedChip,
+  onStrategyToAd,
   onSelectProposal,
   selectedProposalIndex = null,
   publishedProposalIndex = null,
@@ -36,13 +41,15 @@ export function ResultCards({
   const reasons = Array.isArray(result.reasons) ? result.reasons.filter((item): item is string => typeof item === "string") : [];
   const sources = Array.isArray(result.sources) ? result.sources.filter((item): item is string => typeof item === "string") : [];
   const suggestedChips = Array.isArray(result.suggested_chips) ? result.suggested_chips.filter((item): item is string => typeof item === "string") : [];
+  const isXBanner = platform === "xbanner" || platform === "banner";
 
   return (
-    <section className="result-section">
+    <section className={`result-section${isXBanner ? " result-section--xbanner" : ""}`}>
       <div className="section-heading">
         <div><p className="kicker">GENERATION #{response.generation_id}</p><h2>{title}</h2></div>
         <span className="plan-pill">{response.usage.plan} · {response.usage.credits_used} Credit</span>
       </div>
+      {isXBanner && <p className="result-format-note" role="note">세로형 X-배너 · 상단 카피와 하단 가게 정보가 이어진 결과입니다.</p>}
       {response.chatbot_type === "basic" ? (
         <div className="proposal-grid">
           {Array.from({ length: 3 }, (_, index) => {
@@ -66,7 +73,7 @@ export function ResultCards({
                   : "이 제안 선택";
             const actionClass = isPublished ? " is-published" : isSelected ? " is-selected" : "";
             return (
-              <article className={`card proposal${isPublished ? " proposal-published" : ""}${isSelected ? " proposal-selected" : ""}`} key={index}>
+              <article className={`card proposal${isXBanner ? " proposal--xbanner" : ""}${isPublished ? " proposal-published" : ""}${isSelected ? " proposal-selected" : ""}`} key={index}>
                 <div className="proposal-visual">{imageSource ? <img className="proposal-image" src={imageSource} alt={`제안 ${index + 1} 이미지`} /> : <div className="proposal-image proposal-image-placeholder"><span>IMAGE</span><small>이미지 결과 영역</small></div>}</div>
                 <div className="proposal-copy"><span>제안 {index + 1}</span><p>{proposal.copy ?? proposal.error?.message ?? "결과가 없습니다."}</p><button type="button" className={`proposal-action${actionClass}`} disabled={!canSelect || publishedProposalIndex !== null} aria-pressed={isSelected || isPublished} onClick={() => onSelectProposal?.(proposalIndex)}><span className="proposal-action-icon" aria-hidden="true">{isPublished ? "✓" : isSelected ? "✓" : canSelect ? "＋" : "–"}</span><span>{actionLabel}</span></button></div>
               </article>
@@ -80,6 +87,7 @@ export function ResultCards({
           {reasons.length > 0 && <details className="result-details"><summary>이렇게 제안한 이유 <span>{reasons.length}</span></summary><ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></details>}
           {sources.length > 0 && <details className="result-details"><summary>참고 근거 <span>{sources.length}</span></summary><ul>{sources.map((source) => <li key={source}>{source}</li>)}</ul></details>}
           {suggestedChips.length > 0 && <div className="suggested-chips">{suggestedChips.slice(0, 3).map((chip) => <button type="button" key={chip} onClick={() => onSuggestedChip?.(chip)}>{chip}</button>)}</div>}
+          {onStrategyToAd && <button type="button" className="strategy-to-ad" onClick={() => onStrategyToAd(response.generation_id, strategy?.summary?.slice(0, 120) ?? "")}><span aria-hidden="true">✦</span><span><strong>이 전략으로 광고 만들기</strong><small>Basic 챗봇에서 플랫폼을 선택해 이어서 생성합니다.</small></span><span aria-hidden="true">→</span></button>}
         </article>
       )}
     </section>

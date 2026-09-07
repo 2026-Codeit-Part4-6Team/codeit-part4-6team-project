@@ -74,11 +74,13 @@ describe("ResultView", () => {
         }}
         onPublish={vi.fn()}
         onRegenerate={vi.fn()}
+        onStrategyToAd={vi.fn()}
       />,
     );
 
     expect(html).not.toContain("게시 승인");
     expect(html).not.toContain("이 제안 선택");
+    expect(html).toContain("이 전략으로 광고 만들기");
     expect(html).toContain("다시 생성");
   });
 
@@ -95,6 +97,21 @@ describe("ResultView", () => {
     expect(html).toContain("게시 승인 완료");
     expect(html).toContain("제안 3 게시됨");
     expect(html).toContain('class="proposal-action is-published"');
+  });
+
+  it("passes X-banner presentation through to the result cards", () => {
+    const html = renderToStaticMarkup(
+      <ResultView
+        response={basicResponse}
+        platform="xbanner"
+        onPublish={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('class="result-section result-section--xbanner"');
+    expect(html).toContain("세로형 X-배너");
+    expect(html).toContain('class="card proposal proposal--xbanner"');
   });
 
   it.each(["basic", "consultant"] as const)(

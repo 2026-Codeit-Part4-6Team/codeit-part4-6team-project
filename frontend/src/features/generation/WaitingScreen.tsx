@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import type { ChatbotType, Platform } from "../../contract";
 import { getWaitingExamples } from "./waitingExamples";
 
+const WAITING_EXAMPLE_ROTATION_INTERVAL_MS = 15_000;
+
 type WaitingScreenProps = {
   copyText: string;
   chatbotType?: ChatbotType;
@@ -21,7 +23,7 @@ export function WaitingScreen({ copyText, chatbotType = "basic", platform = "ins
   useEffect(() => {
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % examples.length);
-    }, 4_500);
+    }, WAITING_EXAMPLE_ROTATION_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [examples.length]);
 

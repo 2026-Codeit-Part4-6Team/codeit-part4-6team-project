@@ -144,3 +144,34 @@ def test_paginated_history_endpoint_rejects_overlong_query(
     response = client.get(f"/generations/history?q={'x' * 201}")
 
     assert response.status_code == 422
+
+
+def test_history_detail_returns_safe_error_reason_without_provider_message(
+    client: TestClient, db_session: Session
+):
+    owner = add_user(db_session)
+    generation = add_generation(
+        db_session,
+        owner,
+        105,
+        json.dumps(
+            {
+                "status": "error",
+                "reason": "timeout",
+                "message": "provider URL and model secret",
+            }
+        ),
+    )
+    generation.status = "failed"
+    db_session.commit()
+    client.app.dependency_overrides[get_current_user] = lambda: owner
+
+    response = client.get(f"/generations/{generation.id}")
+
+    assert response.status_code == 200
+    assert response.json()["result"] == {
+        "status": "error",
+        "reason": "timeout",
+        "message": "생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+    }
+    assert "provider URL and model secret" not in response.text

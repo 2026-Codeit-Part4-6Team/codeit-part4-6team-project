@@ -1,15 +1,18 @@
 import { useState } from "react";
 
 import type { GenerationResponse } from "../../api";
+import type { Platform } from "../../contract";
 import { ResultCards, type ProposalIndex } from "./ResultCards";
 
 type ResultViewProps = {
   response: GenerationResponse;
+  platform?: Platform | null;
   publishedProposalIndex?: ProposalIndex | null;
   publishing?: boolean;
   onPublish: (index: ProposalIndex, imageB64: string | null) => void | Promise<void>;
   onRegenerate: () => void;
   onSuggestedChip?: (chip: string) => void;
+  onStrategyToAd?: (sourceGenId: number, strategySummary: string) => void;
   onClarification?: (value: string) => void | Promise<void>;
 };
 
@@ -149,11 +152,13 @@ function PolicyResult({
 
 export function ResultView({
   response,
+  platform = null,
   publishedProposalIndex = null,
   publishing = false,
   onPublish,
   onRegenerate,
   onSuggestedChip,
+  onStrategyToAd,
   onClarification,
 }: ResultViewProps) {
   const [selectedProposalIndex, setSelectedProposalIndex] =
@@ -182,7 +187,9 @@ export function ResultView({
       )}
       <ResultCards
         response={response}
+        platform={platform}
         onSuggestedChip={onSuggestedChip}
+        onStrategyToAd={onStrategyToAd}
         onSelectProposal={setSelectedProposalIndex}
         selectedProposalIndex={selectedProposalIndex}
         publishedProposalIndex={publishedProposalIndex}

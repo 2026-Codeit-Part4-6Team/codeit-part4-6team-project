@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { UserResponse } from "./api";
-import { authenticatedState, loggedOutState, navigate } from "./appState";
+import { authenticatedState, loggedOutState, navigate, startBasicFromStrategy } from "./appState";
 
 const user: UserResponse = {
   id: 7,
@@ -31,6 +31,31 @@ describe("D5 application view state", () => {
     expect(navigate(authenticatedState(user), "basic_chatbot")).toEqual({
       user,
       route: "basic_chatbot",
+    });
+  });
+
+  it("opens Basic with the server-owned consultant generation reference", () => {
+    expect(startBasicFromStrategy(authenticatedState(user), 42, "동네 고객 중심 홍보")).toEqual({
+      user,
+      route: "basic_chatbot",
+      generationPrefill: {
+        source_gen_id: 42,
+        question: "이 전략으로 광고 문구를 만들어줘",
+        strategy_summary: "동네 고객 중심 홍보",
+      },
+    });
+  });
+
+  it("clears the strategy prefill when navigating elsewhere", () => {
+    const linked = startBasicFromStrategy(authenticatedState(user), 42, "동네 고객 중심 홍보");
+    expect(navigate(linked, "dashboard")).toEqual({ user, route: "dashboard" });
+  });
+
+  it("normalizes an empty strategy summary to null", () => {
+    expect(startBasicFromStrategy(authenticatedState(user), 42, "   ").generationPrefill).toEqual({
+      source_gen_id: 42,
+      question: "이 전략으로 광고 문구를 만들어줘",
+      strategy_summary: null,
     });
   });
 

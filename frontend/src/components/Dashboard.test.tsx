@@ -60,7 +60,7 @@ describe("D5 dashboard", () => {
     expect(html).not.toContain("관리자 계정");
   });
 
-  it("marks an administrator account separately in the sidebar", () => {
+  it("does not imply an administrator feature that the UI does not provide", () => {
     const html = renderToStaticMarkup(
       <DashboardLayout
         user={{ ...user, is_admin: true }}
@@ -72,7 +72,7 @@ describe("D5 dashboard", () => {
       </DashboardLayout>,
     );
 
-    expect(html).toContain("관리자 계정");
+    expect(html).not.toContain("관리자 계정");
   });
 
   it("falls back to the registered address when no road address exists", () => {

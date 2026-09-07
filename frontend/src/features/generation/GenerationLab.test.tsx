@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ApiError, type ApiClient, type GenerationResponse, type UserResponse } from "../../api";
 import { createPendingGeneration } from "../../state";
 import {
+  captureGeneratedResult,
   createGenerationRunner,
   isBillingConfirmationRequired,
   shouldShowFollowUpComposer,
@@ -32,6 +33,15 @@ afterEach(() => {
 });
 
 describe("GenerationLab orchestration", () => {
+  it("keeps the platform used by the completed generation", () => {
+    const generated = captureGeneratedResult(response, pending);
+    const nextSelectedPlatform = "xbanner";
+
+    expect(generated.response).toBe(response);
+    expect(generated.platform).toBe("instagram");
+    expect(generated.platform).not.toBe(nextSelectedPlatform);
+  });
+
   it("uses the wide canvas and primary composer structure for chatbot screens", () => {
     const html = renderToStaticMarkup(
       <GenerationLab
@@ -126,6 +136,49 @@ describe("GenerationLab orchestration", () => {
     await vi.advanceTimersByTimeAsync(3_000);
 
     expect(api.waitingCopy).toHaveBeenCalledTimes(callsAfterSettle);
+    runner.dispose();
+  });
+
+  it("keeps waiting-copy refreshes at a calm default cadence", async () => {
+    vi.useFakeTimers();
+    let resolveGenerate!: (value: GenerationResponse) => void;
+    const generatePromise = new Promise<GenerationResponse>((resolve) => {
+      resolveGenerate = resolve;
+    });
+    const api = {
+      generate: vi.fn().mockReturnValue(generatePromise),
+      waitingCopy: vi.fn().mockResolvedValue({
+        id: 3,
+        copy_text: "준비 중",
+        industry: "카페",
+      }),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    const task = runner.run(pending);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.waitingCopy).toHaveBeenCalledTimes(2);
+
+    resolveGenerate(response);
+    await task;
+
+    runner.dispose();
+  });
+
+  it("does not fail generation when waiting-copy refresh is unavailable", async () => {
+    const api = {
+      generate: vi.fn().mockResolvedValue(response),
+      waitingCopy: vi.fn().mockRejectedValue(new Error("waiting copies unavailable")),
+    } as unknown as ApiClient;
+    const runner = createGenerationRunner(api, vi.fn());
+
+    await expect(runner.run(pending)).resolves.toEqual(response);
+    expect(api.generate).toHaveBeenCalledTimes(1);
     runner.dispose();
   });
 
