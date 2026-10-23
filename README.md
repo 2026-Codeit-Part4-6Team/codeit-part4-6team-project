@@ -31,6 +31,21 @@ GitHub README 반영 전 확인할 것.
 
 ---
 
+## 김재헌의 기여
+
+**담당 범위** · 컨설턴트 챗봇의 LangGraph 설계·구현·평가와 결과 보고서 작성.
+
+- 상권·검색 트렌드 조회와 추천 질문 생성을 병렬로 연결하고, 외부 조회 일부가 실패해도 정상적으로 확보한 자료로 상담을 이어가도록 구성했습니다.
+- 필수 실행 항목 누락 검사와 재생성을 추가하고 60문항 골든셋으로 반복 평가했습니다. 외부 API 응답을 고정한 내부 평가에서 그래프 실행 실패는 초기 5건에서 최종 0건으로 줄었습니다. 답변 정확도 100%를 뜻하지 않습니다.
+- 공용 검증 함수는 다른 팀원 담당이며, 컨설턴트에서는 해당 함수의 호출 흐름을 연결했습니다.
+
+| 담당 코드 | 결과 자료 |
+| --- | --- |
+| [LangGraph 흐름](models/consult/graph/build_consultant.py) · [실행 항목 검사](models/consult/nodes/strategy_check.py) · [평가 코드](models/consult/eval/eval_strategy.py) | [컨설턴트 최종 보고서](docs/reports/consult_report.md) · [서비스 시연](https://youtu.be/N4SLRAgrLik) |
+
+---
+
+
 ## 👥 팀원 및 역할
 
 <table>
